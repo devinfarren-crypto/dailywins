@@ -524,6 +524,25 @@ export default function DashboardPage() {
       <header style={{ background: COLORS.dark, boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {/* EGUSD Logo */}
+            <svg width="130" height="28" viewBox="0 0 130 28" style={{ flexShrink: 0 }}>
+              {([
+                { letter: "E", color: "#e74c3c", cx: 14 },
+                { letter: "G", color: "#27ae60", cx: 38 },
+                { letter: "U", color: "#3498db", cx: 62 },
+                { letter: "S", color: "#e67e22", cx: 86 },
+                { letter: "D", color: "#8e44ad", cx: 110 },
+              ] as const).map(({ letter, color, cx }) => (
+                <g key={letter}>
+                  <circle cx={cx} cy={14} r={13} fill={color} />
+                  <text x={cx} y={14} textAnchor="middle" dominantBaseline="central" fill="white" fontSize="13" fontWeight="800" fontFamily="system-ui, sans-serif">
+                    {letter}
+                  </text>
+                </g>
+              ))}
+            </svg>
+            {/* Divider */}
+            <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.25)", flexShrink: 0 }} />
             <div style={{
               background: COLORS.primary,
               width: 38,
@@ -600,31 +619,32 @@ export default function DashboardPage() {
 
         {/* Controls Row */}
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 16, marginBottom: 20 }}>
-          {/* Student Selector */}
-          <div>
-            <label style={{ display: "block", marginBottom: 4, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: COLORS.dark }}>
-              Student
-            </label>
-            <select
-              value={selectedStudent}
-              onChange={(e) => setSelectedStudent(e.target.value)}
-              style={{
-                borderRadius: 8,
-                border: "1px solid #d0d0d0",
-                padding: "8px 12px",
-                fontSize: 14,
-                fontWeight: 600,
-                color: COLORS.dark,
-                background: "white",
-                minWidth: 160,
-              }}
-            >
-              {students.length === 0 && <option value="">No students</option>}
-              {students.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          </div>
+          {/* Student Selector - only shown when students exist */}
+          {hasStudents && (
+            <div>
+              <label style={{ display: "block", marginBottom: 4, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: COLORS.dark }}>
+                Student
+              </label>
+              <select
+                value={selectedStudent}
+                onChange={(e) => setSelectedStudent(e.target.value)}
+                style={{
+                  borderRadius: 8,
+                  border: "1px solid #d0d0d0",
+                  padding: "8px 12px",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: COLORS.dark,
+                  background: "white",
+                  minWidth: 160,
+                }}
+              >
+                {students.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Date Picker */}
           <div>
