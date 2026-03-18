@@ -54,6 +54,169 @@ const DEFAULT_SCORES: PeriodScores = {
   phoneAway: "No",
 };
 
+type ScheduleType = "Regular" | "Wednesday" | "Minimum Day" | "Reverse Minimum" | "Finals" | "Rally";
+type SchoolName = "Cosumnes Oaks High School" | "Pleasant Grove High School";
+
+interface PeriodSlot {
+  label: string;
+  start: string;
+  end: string;
+}
+
+interface BellSchedule {
+  periods: PeriodSlot[];
+}
+
+const BELL_SCHEDULES: Record<SchoolName, Record<ScheduleType, BellSchedule>> = {
+  "Cosumnes Oaks High School": {
+    Regular: {
+      periods: [
+        { label: "Period 1", start: "8:00", end: "8:50" },
+        { label: "Period 2", start: "8:55", end: "9:45" },
+        { label: "Period 3", start: "9:50", end: "10:40" },
+        { label: "Advocacy", start: "10:40", end: "11:10" },
+        { label: "Period 4", start: "11:15", end: "12:05" },
+        { label: "Lunch", start: "12:05", end: "12:40" },
+        { label: "Period 5", start: "12:45", end: "1:35" },
+        { label: "Period 6", start: "1:40", end: "2:30" },
+        { label: "Period 7", start: "2:35", end: "3:25" },
+      ],
+    },
+    Wednesday: {
+      periods: [
+        { label: "Period 1", start: "9:00", end: "9:40" },
+        { label: "Period 2", start: "9:45", end: "10:25" },
+        { label: "Period 3", start: "10:30", end: "11:10" },
+        { label: "Advocacy", start: "11:10", end: "11:40" },
+        { label: "Period 4", start: "11:45", end: "12:25" },
+        { label: "Lunch", start: "12:25", end: "1:00" },
+        { label: "Period 5", start: "1:05", end: "1:45" },
+        { label: "Period 6", start: "1:50", end: "2:30" },
+        { label: "Period 7", start: "2:35", end: "3:15" },
+      ],
+    },
+    "Minimum Day": {
+      periods: [
+        { label: "Period 1", start: "8:00", end: "8:30" },
+        { label: "Period 2", start: "8:35", end: "9:05" },
+        { label: "Period 3", start: "9:10", end: "9:40" },
+        { label: "Period 4", start: "9:45", end: "10:15" },
+        { label: "Period 5", start: "10:20", end: "10:50" },
+        { label: "Period 6", start: "10:55", end: "11:25" },
+        { label: "Period 7", start: "11:30", end: "12:00" },
+      ],
+    },
+    "Reverse Minimum": {
+      periods: [
+        { label: "Period 7", start: "8:00", end: "8:30" },
+        { label: "Period 6", start: "8:35", end: "9:05" },
+        { label: "Period 5", start: "9:10", end: "9:40" },
+        { label: "Period 4", start: "9:45", end: "10:15" },
+        { label: "Period 3", start: "10:20", end: "10:50" },
+        { label: "Period 2", start: "10:55", end: "11:25" },
+        { label: "Period 1", start: "11:30", end: "12:00" },
+      ],
+    },
+    Finals: {
+      periods: [
+        { label: "Final 1", start: "8:00", end: "9:30" },
+        { label: "Final 2", start: "9:45", end: "11:15" },
+        { label: "Lunch", start: "11:15", end: "11:50" },
+        { label: "Final 3", start: "11:55", end: "1:25" },
+      ],
+    },
+    Rally: {
+      periods: [
+        { label: "Period 1", start: "8:00", end: "8:40" },
+        { label: "Period 2", start: "8:45", end: "9:25" },
+        { label: "Period 3", start: "9:30", end: "10:10" },
+        { label: "Rally", start: "10:15", end: "11:00" },
+        { label: "Advocacy", start: "11:00", end: "11:25" },
+        { label: "Period 4", start: "11:30", end: "12:10" },
+        { label: "Lunch", start: "12:10", end: "12:45" },
+        { label: "Period 5", start: "12:50", end: "1:30" },
+        { label: "Period 6", start: "1:35", end: "2:15" },
+        { label: "Period 7", start: "2:20", end: "3:00" },
+      ],
+    },
+  },
+  "Pleasant Grove High School": {
+    Regular: {
+      periods: [
+        { label: "Period 1", start: "8:00", end: "8:52" },
+        { label: "Period 2", start: "8:57", end: "9:49" },
+        { label: "Period 3", start: "9:54", end: "10:46" },
+        { label: "Advocacy", start: "10:46", end: "11:16" },
+        { label: "Period 4", start: "11:21", end: "12:13" },
+        { label: "Lunch", start: "12:13", end: "12:48" },
+        { label: "Period 5", start: "12:53", end: "1:45" },
+        { label: "Period 6", start: "1:50", end: "2:42" },
+        { label: "Period 7", start: "2:47", end: "3:30" },
+      ],
+    },
+    Wednesday: {
+      periods: [
+        { label: "Period 1", start: "9:00", end: "9:42" },
+        { label: "Period 2", start: "9:47", end: "10:29" },
+        { label: "Period 3", start: "10:34", end: "11:16" },
+        { label: "Advocacy", start: "11:16", end: "11:46" },
+        { label: "Period 4", start: "11:51", end: "12:33" },
+        { label: "Lunch", start: "12:33", end: "1:08" },
+        { label: "Period 5", start: "1:13", end: "1:55" },
+        { label: "Period 6", start: "2:00", end: "2:42" },
+        { label: "Period 7", start: "2:47", end: "3:20" },
+      ],
+    },
+    "Minimum Day": {
+      periods: [
+        { label: "Period 1", start: "8:00", end: "8:30" },
+        { label: "Period 2", start: "8:35", end: "9:05" },
+        { label: "Period 3", start: "9:10", end: "9:40" },
+        { label: "Period 4", start: "9:45", end: "10:15" },
+        { label: "Period 5", start: "10:20", end: "10:50" },
+        { label: "Period 6", start: "10:55", end: "11:25" },
+        { label: "Period 7", start: "11:30", end: "12:00" },
+      ],
+    },
+    "Reverse Minimum": {
+      periods: [
+        { label: "Period 7", start: "8:00", end: "8:30" },
+        { label: "Period 6", start: "8:35", end: "9:05" },
+        { label: "Period 5", start: "9:10", end: "9:40" },
+        { label: "Period 4", start: "9:45", end: "10:15" },
+        { label: "Period 3", start: "10:20", end: "10:50" },
+        { label: "Period 2", start: "10:55", end: "11:25" },
+        { label: "Period 1", start: "11:30", end: "12:00" },
+      ],
+    },
+    Finals: {
+      periods: [
+        { label: "Final 1", start: "8:00", end: "9:30" },
+        { label: "Final 2", start: "9:45", end: "11:15" },
+        { label: "Lunch", start: "11:15", end: "11:50" },
+        { label: "Final 3", start: "11:55", end: "1:25" },
+      ],
+    },
+    Rally: {
+      periods: [
+        { label: "Period 1", start: "8:00", end: "8:42" },
+        { label: "Period 2", start: "8:47", end: "9:29" },
+        { label: "Period 3", start: "9:34", end: "10:16" },
+        { label: "Rally", start: "10:21", end: "11:05" },
+        { label: "Advocacy", start: "11:05", end: "11:30" },
+        { label: "Period 4", start: "11:35", end: "12:17" },
+        { label: "Lunch", start: "12:17", end: "12:52" },
+        { label: "Period 5", start: "12:57", end: "1:39" },
+        { label: "Period 6", start: "1:44", end: "2:26" },
+        { label: "Period 7", start: "2:31", end: "3:10" },
+      ],
+    },
+  },
+};
+
+const SCHOOLS: SchoolName[] = ["Cosumnes Oaks High School", "Pleasant Grove High School"];
+const SCHEDULE_TYPES: ScheduleType[] = ["Regular", "Wednesday", "Minimum Day", "Reverse Minimum", "Finals", "Rally"];
+
 const QUICK_FILL_DEFAULTS: PeriodScores = {
   arrival: "On Time",
   compliance: 2,
@@ -189,6 +352,11 @@ export default function DashboardPage() {
     }
     return initial;
   });
+  const [selectedSchool, setSelectedSchool] = useState<SchoolName | "">(
+    () => (typeof window !== "undefined" ? localStorage.getItem("dailywins_school") as SchoolName | "" : "")
+  );
+  const [selectedSchedule, setSelectedSchedule] = useState<ScheduleType>("Regular");
+  const [showSchedule, setShowSchedule] = useState(false);
   const [showAddStudents, setShowAddStudents] = useState(false);
   const [addStudentsText, setAddStudentsText] = useState("");
   const [showNotes, setShowNotes] = useState(false);
@@ -230,6 +398,34 @@ export default function DashboardPage() {
     prevPctRef.current = pct;
   }, [pct]);
 
+  // Derive active periods from schedule
+  const activePeriods: PeriodSlot[] = selectedSchool
+    ? BELL_SCHEDULES[selectedSchool][selectedSchedule].periods
+    : PERIODS.map((p) => ({ label: p, start: "", end: "" }));
+
+  // Trackable periods (exclude Lunch, Rally)
+  const trackablePeriods = activePeriods.filter(
+    (p) => p.label !== "Lunch" && p.label !== "Rally"
+  );
+
+  // Re-initialize scores when schedule changes
+  useEffect(() => {
+    setScores(() => {
+      const initial: Record<string, PeriodScores> = {};
+      for (const p of trackablePeriods) {
+        initial[p.label] = { ...DEFAULT_SCORES };
+      }
+      return initial;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSchool, selectedSchedule]);
+
+  const handleSelectSchool = (school: SchoolName) => {
+    setSelectedSchool(school);
+    localStorage.setItem("dailywins_school", school);
+    setSelectedSchedule("Regular");
+  };
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     router.replace("/");
@@ -249,8 +445,8 @@ export default function DashboardPage() {
   const quickFillAll = () => {
     setScores(() => {
       const filled: Record<string, PeriodScores> = {};
-      for (const period of PERIODS) {
-        filled[period] = { ...QUICK_FILL_DEFAULTS };
+      for (const p of trackablePeriods) {
+        filled[p.label] = { ...QUICK_FILL_DEFAULTS };
       }
       return filled;
     });
@@ -259,8 +455,8 @@ export default function DashboardPage() {
   const quickClearAll = () => {
     setScores(() => {
       const cleared: Record<string, PeriodScores> = {};
-      for (const period of PERIODS) {
-        cleared[period] = { ...DEFAULT_SCORES };
+      for (const p of trackablePeriods) {
+        cleared[p.label] = { ...DEFAULT_SCORES };
       }
       return cleared;
     });
@@ -269,8 +465,8 @@ export default function DashboardPage() {
   const quickFillColumn = (category: keyof PeriodScores) => {
     setScores((prev) => {
       const updated = { ...prev };
-      for (const period of PERIODS) {
-        updated[period] = { ...updated[period], [category]: QUICK_FILL_DEFAULTS[category] };
+      for (const p of trackablePeriods) {
+        updated[p.label] = { ...updated[p.label], [category]: QUICK_FILL_DEFAULTS[category] };
       }
       return updated;
     });
@@ -507,6 +703,48 @@ export default function DashboardPage() {
             )}
           </button>
 
+          {/* Schedule Button */}
+          <button
+            onClick={() => setShowSchedule(true)}
+            style={{
+              background: COLORS.accent,
+              color: "white",
+              border: "none",
+              borderRadius: 8,
+              padding: "8px 16px",
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: "pointer",
+              height: 38,
+            }}
+          >
+            🕐 Schedule
+          </button>
+
+          {/* Quick Schedule Switcher */}
+          {selectedSchool && (
+            <div>
+              <select
+                value={selectedSchedule}
+                onChange={(e) => setSelectedSchedule(e.target.value as ScheduleType)}
+                style={{
+                  borderRadius: 8,
+                  border: "1px solid #d0d0d0",
+                  padding: "8px 12px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: COLORS.dark,
+                  background: "white",
+                  height: 38,
+                }}
+              >
+                {SCHEDULE_TYPES.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Progress Bar */}
           <div style={{ marginLeft: "auto", flex: 1, minWidth: 220, maxWidth: 420 }}>
             <label style={{ display: "block", marginBottom: 4, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: COLORS.dark }}>
@@ -660,19 +898,24 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {PERIODS.map((period, i) => {
-                  const ps = scores[period];
+                {trackablePeriods.map((slot, i) => {
+                  const ps = scores[slot.label] ?? { ...DEFAULT_SCORES };
                   const pts = periodPoints(ps);
                   return (
                     <tr
-                      key={period}
+                      key={slot.label + i}
                       style={{
                         background: i % 2 === 0 ? "#fafaf7" : "white",
                         borderTop: "1px solid #eee",
                       }}
                     >
                       <td style={{ padding: "10px 14px", fontWeight: 700, color: COLORS.dark }}>
-                        {period}
+                        <div>{slot.label}</div>
+                        {slot.start && (
+                          <div style={{ fontSize: 10, fontWeight: 500, color: "#999", marginTop: 1 }}>
+                            {slot.start} – {slot.end}
+                          </div>
+                        )}
                       </td>
 
                       {/* Arrival - 3 separate buttons */}
@@ -681,7 +924,7 @@ export default function DashboardPage() {
                           {(["On Time", "L", "L/E"] as ArrivalValue[]).map((val) => (
                             <button
                               key={val}
-                              onClick={() => updateScore(period, "arrival", val)}
+                              onClick={() => updateScore(slot.label, "arrival", val)}
                               style={{
                                 background: ps.arrival === val
                                   ? (val === "On Time" ? COLORS.secondary : val === "L/E" ? COLORS.accent : COLORS.primary)
@@ -709,7 +952,7 @@ export default function DashboardPage() {
                           {([0, 1, 2, 3] as ScaleValue[]).map((val) => (
                             <button
                               key={val}
-                              onClick={() => updateScore(period, "compliance", val)}
+                              onClick={() => updateScore(slot.label, "compliance", val)}
                               style={{
                                 background: ps.compliance === val ? scaleColor(val) : "#e8e8e8",
                                 color: ps.compliance === val ? "white" : "#888",
@@ -735,7 +978,7 @@ export default function DashboardPage() {
                           {([0, 1, 2, 3] as ScaleValue[]).map((val) => (
                             <button
                               key={val}
-                              onClick={() => updateScore(period, "social", val)}
+                              onClick={() => updateScore(slot.label, "social", val)}
                               style={{
                                 background: ps.social === val ? scaleColor(val) : "#e8e8e8",
                                 color: ps.social === val ? "white" : "#888",
@@ -761,7 +1004,7 @@ export default function DashboardPage() {
                           {([0, 1, 2, 3] as ScaleValue[]).map((val) => (
                             <button
                               key={val}
-                              onClick={() => updateScore(period, "onTask", val)}
+                              onClick={() => updateScore(slot.label, "onTask", val)}
                               style={{
                                 background: ps.onTask === val ? scaleColor(val) : "#e8e8e8",
                                 color: ps.onTask === val ? "white" : "#888",
@@ -787,7 +1030,7 @@ export default function DashboardPage() {
                           {(["Yes", "No"] as ToggleValue[]).map((val) => (
                             <button
                               key={val}
-                              onClick={() => updateScore(period, "phoneAway", val)}
+                              onClick={() => updateScore(slot.label, "phoneAway", val)}
                               style={{
                                 background: ps.phoneAway === val
                                   ? (val === "Yes" ? COLORS.secondary : COLORS.primary)
@@ -970,6 +1213,7 @@ export default function DashboardPage() {
                 fontFamily: "inherit",
                 resize: "vertical",
                 boxSizing: "border-box",
+                color: "#2d3a47",
               }}
             />
             <div style={{ display: "flex", gap: 10, marginTop: 16, justifyContent: "flex-end" }}>
@@ -1106,6 +1350,7 @@ export default function DashboardPage() {
                   fontFamily: "inherit",
                   resize: "vertical",
                   boxSizing: "border-box",
+                  color: "#2d3a47",
                 }}
               />
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
@@ -1196,6 +1441,163 @@ export default function DashboardPage() {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Schedule Modal */}
+      {showSchedule && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowSchedule(false); }}
+        >
+          <div style={{
+            background: "white",
+            borderRadius: 16,
+            padding: 28,
+            width: "90%",
+            maxWidth: 580,
+            maxHeight: "85vh",
+            overflowY: "auto",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: COLORS.dark }}>
+                🕐 Bell Schedule
+              </h2>
+              <button
+                onClick={() => setShowSchedule(false)}
+                style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#999" }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* School Selection */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: COLORS.dark, marginBottom: 8 }}>
+                Select Your School
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {SCHOOLS.map((school) => (
+                  <button
+                    key={school}
+                    onClick={() => handleSelectSchool(school)}
+                    style={{
+                      background: selectedSchool === school ? COLORS.secondary : "#f5f5f0",
+                      color: selectedSchool === school ? "white" : COLORS.dark,
+                      border: selectedSchool === school ? "none" : "1px solid #d0d0d0",
+                      borderRadius: 10,
+                      padding: "14px 18px",
+                      fontSize: 15,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      textAlign: "left",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    🏫 {school}
+                    <span style={{ display: "block", fontSize: 11, fontWeight: 500, marginTop: 2, opacity: 0.8 }}>
+                      Elk Grove Unified School District
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Schedule Type Selection */}
+            {selectedSchool && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: COLORS.dark, marginBottom: 8 }}>
+                  Schedule Type
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {SCHEDULE_TYPES.map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => setSelectedSchedule(type)}
+                      style={{
+                        background: selectedSchedule === type ? COLORS.accent : "#f0f0f0",
+                        color: selectedSchedule === type ? "white" : COLORS.dark,
+                        border: "none",
+                        borderRadius: 8,
+                        padding: "8px 16px",
+                        fontSize: 13,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Schedule Preview */}
+            {selectedSchool && (
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: COLORS.dark, marginBottom: 8 }}>
+                  {selectedSchedule} Schedule Preview
+                </div>
+                <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ background: COLORS.dark }}>
+                      <th style={{ padding: "8px 12px", textAlign: "left", color: "white", fontSize: 11, fontWeight: 700 }}>Period</th>
+                      <th style={{ padding: "8px 12px", textAlign: "center", color: "white", fontSize: 11, fontWeight: 700 }}>Start</th>
+                      <th style={{ padding: "8px 12px", textAlign: "center", color: "white", fontSize: 11, fontWeight: 700 }}>End</th>
+                      <th style={{ padding: "8px 12px", textAlign: "center", color: "white", fontSize: 11, fontWeight: 700 }}>Tracked</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {BELL_SCHEDULES[selectedSchool][selectedSchedule].periods.map((slot, i) => {
+                      const isTracked = slot.label !== "Lunch" && slot.label !== "Rally";
+                      return (
+                        <tr key={slot.label + i} style={{ background: i % 2 === 0 ? "#fafaf7" : "white", borderTop: "1px solid #eee" }}>
+                          <td style={{ padding: "8px 12px", fontWeight: 600, color: COLORS.dark }}>{slot.label}</td>
+                          <td style={{ padding: "8px 12px", textAlign: "center", color: "#666" }}>{slot.start}</td>
+                          <td style={{ padding: "8px 12px", textAlign: "center", color: "#666" }}>{slot.end}</td>
+                          <td style={{ padding: "8px 12px", textAlign: "center" }}>
+                            {isTracked ? (
+                              <span style={{ color: COLORS.secondary, fontWeight: 700 }}>✓</span>
+                            ) : (
+                              <span style={{ color: "#ccc" }}>—</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20 }}>
+              <button
+                onClick={() => setShowSchedule(false)}
+                style={{
+                  background: COLORS.secondary,
+                  color: "white",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "10px 24px",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Done
+              </button>
+            </div>
           </div>
         </div>
       )}
