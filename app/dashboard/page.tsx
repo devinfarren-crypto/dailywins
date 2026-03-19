@@ -42,10 +42,24 @@ interface PeriodScores {
 }
 
 interface StudentNote {
-  id: number;
+  id: string;
   text: string;
   shared: boolean;
   timestamp: string;
+}
+
+interface DbStudent {
+  id: string;
+  display_name: string;
+  school_id: string;
+}
+
+interface TeacherProfile {
+  teacher_id: string;
+  school_id: string;
+  school_name: string;
+  full_name: string;
+  email: string;
 }
 
 const DEFAULT_SCORES: PeriodScores = {
@@ -345,8 +359,9 @@ export default function DashboardPage() {
   const supabase = createClient();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [students, setStudents] = useState<string[]>([]);
-  const [selectedStudent, setSelectedStudent] = useState("");
+  const [teacher, setTeacher] = useState<TeacherProfile | null>(null);
+  const [dbStudents, setDbStudents] = useState<DbStudent[]>([]);
+  const [selectedStudentId, setSelectedStudentId] = useState("");
   const [selectedDate, setSelectedDate] = useState(formatDate(new Date()));
   const [scores, setScores] = useState<Record<string, PeriodScores>>(() => {
     const initial: Record<string, PeriodScores> = {};
@@ -368,6 +383,7 @@ export default function DashboardPage() {
   const [noteShared, setNoteShared] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [showParentView, setShowParentView] = useState(false);
+  const [savingScore, setSavingScore] = useState(false);
   // Draggable zone thresholds: [needsSupport→workingOnIt, workingOnIt→onTrack, onTrack→exceptional]
   const [thresholds, setThresholds] = useState<[number, number, number]>(() => {
     if (typeof window !== "undefined") {
@@ -379,27 +395,72 @@ export default function DashboardPage() {
   const draggingRef = useRef<number | null>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const prevPctRef = useRef(0);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Derived: selected student display name
+  const selectedStudent = dbStudents.find((s) => s.id === selectedStudentId)?.display_name ?? "";
+  const students = dbStudents.map((s) => s.display_name);
+  const hasStudents = dbStudents.length > 0;
+
+  // --- Auth + teacher profile setup ---
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user: u } }) => {
+    supabase.auth.getUser().then(async ({ data: { user: u } }) => {
       if (!u) {
         router.replace("/");
-      } else {
-        setUser(u);
+        setLoading(false);
+        return;
       }
+      setUser(u);
+
+      // Ensure teacher record exists (creates school + teacher on first login)
+      const { data, error } = await supabase.rpc("ensure_teacher_exists", {
+        p_auth_id: u.id,
+        p_email: u.email ?? "",
+        p_full_name: u.user_metadata?.full_name ?? u.email?.split("@")[0] ?? "Teacher",
+      });
+
+      if (error) {
+        console.error("Failed to ensure teacher:", error);
+        setLoading(false);
+        return;
+      }
+
+      const profile = data as TeacherProfile;
+      setTeacher(profile);
+
+      // Load students for this school
+      await loadStudents(profile.school_id);
       setLoading(false);
     });
-  }, [router, supabase.auth]);
-
-  // Load students from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem("dailywins_students");
-    if (saved) {
-      const parsed = JSON.parse(saved) as string[];
-      setStudents(parsed);
-      if (parsed.length > 0) setSelectedStudent(parsed[0]);
-    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadStudents = async (schoolId: string) => {
+    const { data, error } = await supabase
+      .from("students")
+      .select("id, display_name, school_id")
+      .eq("school_id", schoolId)
+      .order("display_name");
+
+    if (error) {
+      console.error("Failed to load students:", error);
+      // Fall back to localStorage cache
+      const cached = localStorage.getItem("dailywins_students");
+      if (cached) {
+        const names = JSON.parse(cached) as string[];
+        // Can't use cached names as DB students without IDs, so just show empty
+      }
+      return;
+    }
+
+    const list = (data ?? []) as DbStudent[];
+    setDbStudents(list);
+    // Cache display names in localStorage as fallback
+    localStorage.setItem("dailywins_students", JSON.stringify(list.map((s) => s.display_name)));
+    if (list.length > 0 && !selectedStudentId) {
+      setSelectedStudentId(list[0].id);
+    }
+  };
 
   // Confetti trigger
   const { pct } = calculateProgress(scores);
@@ -460,17 +521,149 @@ export default function DashboardPage() {
     (p) => p.label !== "Lunch" && p.label !== "Rally"
   );
 
-  // Re-initialize scores when schedule changes
+  // --- Map period labels to period numbers (1-8) for DB ---
+  const periodLabelToNumber = (label: string): number => {
+    const match = label.match(/Period (\d)/);
+    if (match) return parseInt(match[1], 10);
+    if (label === "Advocacy") return 8;
+    // Finals or other custom labels — map by index
+    const idx = trackablePeriods.findIndex((p) => p.label === label);
+    return idx >= 0 ? idx + 1 : 1;
+  };
+
+  const periodNumberToLabel = (num: number): string => {
+    if (num === 8) return "Advocacy";
+    return `Period ${num}`;
+  };
+
+  // --- Convert between DB row and UI score ---
+  const arrivalFromDb = (val: number | null): ArrivalValue | null => {
+    if (val === null) return null;
+    if (val === 3) return "On Time";
+    if (val === 1) return "L/E";
+    return "L";
+  };
+
+  const arrivalToDb = (val: ArrivalValue | null): number | null => {
+    if (val === null) return null;
+    if (val === "On Time") return 3;
+    if (val === "L/E") return 1;
+    return 0;
+  };
+
+  const phoneFromDb = (val: boolean | null): ToggleValue | null => {
+    if (val === null) return null;
+    return val ? "Yes" : "No";
+  };
+
+  const phoneToDb = (val: ToggleValue | null): boolean | null => {
+    if (val === null) return null;
+    return val === "Yes";
+  };
+
+  // --- Load scores from Supabase when student/date changes ---
+  const loadScores = useCallback(async (studentId: string, date: string) => {
+    if (!teacher) return;
+    const { data, error } = await supabase
+      .from("behavior_scores")
+      .select("*")
+      .eq("student_id", studentId)
+      .eq("teacher_id", teacher.teacher_id)
+      .eq("score_date", date);
+
+    const newScores: Record<string, PeriodScores> = {};
+    for (const p of trackablePeriods) {
+      newScores[p.label] = { ...DEFAULT_SCORES };
+    }
+
+    if (!error && data) {
+      for (const row of data) {
+        const label = periodNumberToLabel(row.period);
+        if (label in newScores) {
+          newScores[label] = {
+            arrival: arrivalFromDb(row.arrival),
+            compliance: row.compliance as ScaleValue | null,
+            social: row.social as ScaleValue | null,
+            onTask: row.on_task as ScaleValue | null,
+            phoneAway: phoneFromDb(row.phone_away),
+          };
+        }
+      }
+    }
+
+    setScores(newScores);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teacher, trackablePeriods.length]);
+
+  // --- Load notes from Supabase ---
+  const loadNotes = useCallback(async (studentId: string) => {
+    if (!teacher) return;
+    const { data, error } = await supabase
+      .from("notes")
+      .select("*")
+      .eq("student_id", studentId)
+      .order("created_at", { ascending: false });
+
+    if (!error && data) {
+      setNotes(data.map((n) => ({
+        id: n.id as string,
+        text: n.content as string,
+        shared: !(n.is_private as boolean),
+        timestamp: new Date(n.created_at as string).toLocaleString(),
+      })));
+    }
+  }, [teacher, supabase]);
+
+  // Trigger score + note load when student/date/schedule changes
   useEffect(() => {
-    setScores(() => {
+    if (selectedStudentId && teacher) {
+      loadScores(selectedStudentId, selectedDate);
+      loadNotes(selectedStudentId);
+    } else {
+      // Reset to defaults
       const initial: Record<string, PeriodScores> = {};
       for (const p of trackablePeriods) {
         initial[p.label] = { ...DEFAULT_SCORES };
       }
-      return initial;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSchool, selectedSchedule]);
+      setScores(initial);
+      setNotes([]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStudentId, selectedDate, selectedSchool, selectedSchedule, teacher]);
+
+  // --- Save a single period's scores to Supabase (debounced) ---
+  const saveScoresToDb = useCallback(async (periodScores: Record<string, PeriodScores>) => {
+    if (!teacher || !selectedStudentId) return;
+
+    const upserts = trackablePeriods
+      .map((slot) => {
+        const ps = periodScores[slot.label];
+        if (!ps) return null;
+        return {
+          student_id: selectedStudentId,
+          teacher_id: teacher.teacher_id,
+          score_date: selectedDate,
+          period: periodLabelToNumber(slot.label),
+          arrival: arrivalToDb(ps.arrival),
+          compliance: ps.compliance,
+          social: ps.social,
+          on_task: ps.onTask,
+          phone_away: phoneToDb(ps.phoneAway),
+        };
+      })
+      .filter(Boolean);
+
+    if (upserts.length === 0) return;
+
+    const { error } = await supabase
+      .from("behavior_scores")
+      .upsert(upserts, { onConflict: "student_id,teacher_id,score_date,period" });
+
+    if (error) {
+      console.error("Failed to save scores:", error);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teacher, selectedStudentId, selectedDate, trackablePeriods.length]);
 
   const handleSelectSchool = (school: SchoolName) => {
     setSelectedSchool(school);
@@ -488,10 +681,16 @@ export default function DashboardPage() {
     category: K,
     value: PeriodScores[K]
   ) => {
-    setScores((prev) => ({
-      ...prev,
-      [period]: { ...prev[period], [category]: value },
-    }));
+    setScores((prev) => {
+      const updated = {
+        ...prev,
+        [period]: { ...prev[period], [category]: value },
+      };
+      // Debounced save to Supabase
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => saveScoresToDb(updated), 500);
+      return updated;
+    });
   };
 
   const quickFillAll = () => {
@@ -500,6 +699,8 @@ export default function DashboardPage() {
       for (const p of trackablePeriods) {
         filled[p.label] = { ...QUICK_FILL_DEFAULTS };
       }
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => saveScoresToDb(filled), 500);
       return filled;
     });
   };
@@ -510,6 +711,8 @@ export default function DashboardPage() {
       for (const p of trackablePeriods) {
         cleared[p.label] = { ...DEFAULT_SCORES };
       }
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => saveScoresToDb(cleared), 500);
       return cleared;
     });
   };
@@ -520,37 +723,89 @@ export default function DashboardPage() {
       for (const p of trackablePeriods) {
         updated[p.label] = { ...updated[p.label], [category]: QUICK_FILL_DEFAULTS[category] };
       }
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => saveScoresToDb(updated), 500);
       return updated;
     });
   };
 
-  const handleAddStudents = () => {
+  const handleAddStudents = async () => {
     const names = addStudentsText
       .split("\n")
       .map((n) => n.trim())
       .filter((n) => n.length > 0);
-    if (names.length === 0) return;
-    const updated = [...new Set([...students, ...names])];
-    setStudents(updated);
-    localStorage.setItem("dailywins_students", JSON.stringify(updated));
-    if (!selectedStudent && updated.length > 0) setSelectedStudent(updated[0]);
+    if (names.length === 0 || !teacher) return;
+
+    // Insert into students table
+    const rows = names.map((name) => ({
+      school_id: teacher.school_id,
+      display_name: name,
+      first_name: name,
+      last_name: "",
+    }));
+
+    const { data, error } = await supabase
+      .from("students")
+      .insert(rows)
+      .select("id, display_name, school_id");
+
+    if (error) {
+      console.error("Failed to add students:", error);
+      return;
+    }
+
+    const newStudents = data as DbStudent[];
+    setDbStudents((prev) => {
+      const updated = [...prev, ...newStudents].sort((a, b) =>
+        a.display_name.localeCompare(b.display_name)
+      );
+      localStorage.setItem("dailywins_students", JSON.stringify(updated.map((s) => s.display_name)));
+      return updated;
+    });
+
+    if (!selectedStudentId && newStudents.length > 0) {
+      setSelectedStudentId(newStudents[0].id);
+    }
     setAddStudentsText("");
     setShowAddStudents(false);
   };
 
-  const handleAddNote = () => {
-    if (!noteText.trim()) return;
+  const handleAddNote = async () => {
+    if (!noteText.trim() || !teacher || !selectedStudentId) return;
+
+    const { data, error } = await supabase
+      .from("notes")
+      .insert({
+        student_id: selectedStudentId,
+        teacher_id: teacher.teacher_id,
+        note_date: selectedDate,
+        content: noteText.trim(),
+        is_private: !noteShared,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Failed to save note:", error);
+      return;
+    }
+
     const note: StudentNote = {
-      id: Date.now(),
-      text: noteText.trim(),
-      shared: noteShared,
-      timestamp: new Date().toLocaleString(),
+      id: data.id as string,
+      text: data.content as string,
+      shared: !(data.is_private as boolean),
+      timestamp: new Date(data.created_at as string).toLocaleString(),
     };
     setNotes((prev) => [note, ...prev]);
     setNoteText("");
   };
 
-  const handleDeleteNote = (id: number) => {
+  const handleDeleteNote = async (id: string) => {
+    const { error } = await supabase.from("notes").delete().eq("id", id);
+    if (error) {
+      console.error("Failed to delete note:", error);
+      return;
+    }
     setNotes((prev) => prev.filter((n) => n.id !== id));
   };
 
@@ -676,8 +931,6 @@ export default function DashboardPage() {
 
   if (!user) return null;
 
-  const hasStudents = students.length > 0;
-
   return (
     <div style={{ minHeight: "100vh", background: "#f5f5f0", fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif" }}>
       <ConfettiCanvas active={showConfetti} />
@@ -788,8 +1041,8 @@ export default function DashboardPage() {
                 Student
               </label>
               <select
-                value={selectedStudent}
-                onChange={(e) => setSelectedStudent(e.target.value)}
+                value={selectedStudentId}
+                onChange={(e) => setSelectedStudentId(e.target.value)}
                 style={{
                   borderRadius: 8,
                   border: "1px solid #d0d0d0",
@@ -801,8 +1054,8 @@ export default function DashboardPage() {
                   minWidth: 160,
                 }}
               >
-                {students.map((s) => (
-                  <option key={s} value={s}>{s}</option>
+                {dbStudents.map((s) => (
+                  <option key={s.id} value={s.id}>{s.display_name}</option>
                 ))}
               </select>
             </div>
@@ -1475,15 +1728,15 @@ export default function DashboardPage() {
                 Add Students
               </button>
             </div>
-            {students.length > 0 && (
+            {dbStudents.length > 0 && (
               <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid #eee" }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.dark, marginBottom: 8 }}>
-                  Current Students ({students.length})
+                  Current Students ({dbStudents.length})
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {students.map((s) => (
+                  {dbStudents.map((s) => (
                     <span
-                      key={s}
+                      key={s.id}
                       style={{
                         background: "#f0f0f0",
                         borderRadius: 6,
@@ -1495,14 +1748,20 @@ export default function DashboardPage() {
                         gap: 6,
                       }}
                     >
-                      {s}
+                      {s.display_name}
                       <button
-                        onClick={() => {
-                          const updated = students.filter((st) => st !== s);
-                          setStudents(updated);
-                          localStorage.setItem("dailywins_students", JSON.stringify(updated));
-                          if (selectedStudent === s && updated.length > 0) setSelectedStudent(updated[0]);
-                          if (updated.length === 0) setSelectedStudent("");
+                        onClick={async () => {
+                          const { error } = await supabase.from("students").delete().eq("id", s.id);
+                          if (error) { console.error("Failed to delete student:", error); return; }
+                          setDbStudents((prev) => {
+                            const updated = prev.filter((st) => st.id !== s.id);
+                            localStorage.setItem("dailywins_students", JSON.stringify(updated.map((st) => st.display_name)));
+                            return updated;
+                          });
+                          if (selectedStudentId === s.id) {
+                            const remaining = dbStudents.filter((st) => st.id !== s.id);
+                            setSelectedStudentId(remaining.length > 0 ? remaining[0].id : "");
+                          }
                         }}
                         style={{
                           background: "none",
