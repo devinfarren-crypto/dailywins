@@ -368,6 +368,16 @@ export default function DashboardPage() {
   const [noteShared, setNoteShared] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [showParentView, setShowParentView] = useState(false);
+  // Draggable zone thresholds: [needsSupport→workingOnIt, workingOnIt→onTrack, onTrack→exceptional]
+  const [thresholds, setThresholds] = useState<[number, number, number]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("dailywins_thresholds");
+      if (saved) return JSON.parse(saved) as [number, number, number];
+    }
+    return [50, 70, 90];
+  });
+  const draggingRef = useRef<number | null>(null);
+  const barRef = useRef<HTMLDivElement>(null);
   const prevPctRef = useRef(0);
 
   useEffect(() => {
@@ -394,13 +404,51 @@ export default function DashboardPage() {
   // Confetti trigger
   const { pct } = calculateProgress(scores);
   useEffect(() => {
-    if (pct >= 90 && prevPctRef.current < 90) {
+    if (pct >= thresholds[2] && prevPctRef.current < thresholds[2]) {
       setShowConfetti(true);
       const timer = setTimeout(() => setShowConfetti(false), 4000);
       return () => clearTimeout(timer);
     }
     prevPctRef.current = pct;
-  }, [pct]);
+  }, [pct, thresholds]);
+
+  const zoneColor = (p: number) =>
+    p >= thresholds[2] ? COLORS.blue : p >= thresholds[1] ? COLORS.green : p >= thresholds[0] ? COLORS.gold : COLORS.red;
+
+  const handleThresholdDrag = useCallback((clientX: number) => {
+    const idx = draggingRef.current;
+    if (idx === null || !barRef.current) return;
+    const rect = barRef.current.getBoundingClientRect();
+    let pctVal = Math.round(((clientX - rect.left) / rect.width) * 100);
+    // Clamp: min 5 apart from neighbors, within 5-95
+    const min = idx === 0 ? 5 : thresholds[idx - 1] + 5;
+    const max = idx === 2 ? 95 : thresholds[idx + 1] - 5;
+    pctVal = Math.max(min, Math.min(max, pctVal));
+    setThresholds((prev) => {
+      const next = [...prev] as [number, number, number];
+      next[idx] = pctVal;
+      localStorage.setItem("dailywins_thresholds", JSON.stringify(next));
+      return next;
+    });
+  }, [thresholds]);
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => handleThresholdDrag(e.clientX);
+    const onTouchMove = (e: TouchEvent) => handleThresholdDrag(e.touches[0].clientX);
+    const onUp = () => { draggingRef.current = null; };
+    if (draggingRef.current !== null) {
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+      window.addEventListener("touchmove", onTouchMove);
+      window.addEventListener("touchend", onUp);
+    }
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onUp);
+    };
+  }, [handleThresholdDrag]);
 
   // Derive active periods from schedule
   const activePeriods: PeriodSlot[] = selectedSchool
@@ -879,17 +927,20 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Progress Bar */}
+          {/* Progress Bar with Draggable Thresholds */}
           <div style={{ marginLeft: "auto", flex: 1, minWidth: 220, maxWidth: 420 }}>
             <label style={{ display: "block", marginBottom: 4, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: COLORS.dark }}>
               Daily Score
             </label>
-            <div style={{ position: "relative", height: 28, borderRadius: 14, overflow: "hidden", background: "#e0e0e0" }}>
+            <div
+              ref={barRef}
+              style={{ position: "relative", height: 28, borderRadius: 14, background: "#e0e0e0", userSelect: "none" }}
+            >
               {/* Zone segments */}
-              <div style={{ position: "absolute", top: 0, left: 0, width: "50%", height: "100%", background: COLORS.red, opacity: 0.25 }} />
-              <div style={{ position: "absolute", top: 0, left: "50%", width: "20%", height: "100%", background: COLORS.gold, opacity: 0.25 }} />
-              <div style={{ position: "absolute", top: 0, left: "70%", width: "20%", height: "100%", background: COLORS.green, opacity: 0.25 }} />
-              <div style={{ position: "absolute", top: 0, left: "90%", width: "10%", height: "100%", background: COLORS.blue, opacity: 0.25 }} />
+              <div style={{ position: "absolute", top: 0, left: 0, width: `${thresholds[0]}%`, height: "100%", background: COLORS.red, opacity: 0.25, borderRadius: "14px 0 0 14px" }} />
+              <div style={{ position: "absolute", top: 0, left: `${thresholds[0]}%`, width: `${thresholds[1] - thresholds[0]}%`, height: "100%", background: COLORS.gold, opacity: 0.25 }} />
+              <div style={{ position: "absolute", top: 0, left: `${thresholds[1]}%`, width: `${thresholds[2] - thresholds[1]}%`, height: "100%", background: COLORS.green, opacity: 0.25 }} />
+              <div style={{ position: "absolute", top: 0, left: `${thresholds[2]}%`, width: `${100 - thresholds[2]}%`, height: "100%", background: COLORS.blue, opacity: 0.25, borderRadius: "0 14px 14px 0" }} />
               {/* Fill */}
               <div style={{
                 position: "absolute",
@@ -898,8 +949,8 @@ export default function DashboardPage() {
                 height: "100%",
                 width: `${pct}%`,
                 borderRadius: 14,
-                background: pct >= 90 ? COLORS.blue : pct >= 70 ? COLORS.green : pct >= 50 ? COLORS.gold : COLORS.red,
-                transition: "width 0.4s ease, background 0.4s ease",
+                background: zoneColor(pct),
+                transition: draggingRef.current !== null ? "none" : "width 0.4s ease, background 0.4s ease",
               }} />
               {/* Star icon and label */}
               <div style={{
@@ -916,10 +967,48 @@ export default function DashboardPage() {
                 color: pct > 45 ? "white" : COLORS.dark,
                 textShadow: pct > 45 ? "0 1px 2px rgba(0,0,0,0.3)" : "none",
                 gap: 4,
+                pointerEvents: "none",
               }}>
                 <span>⭐</span>
                 <span>{earned} / {possible} pts ({pct}%)</span>
               </div>
+              {/* Draggable handles */}
+              {thresholds.map((t, idx) => (
+                <div
+                  key={idx}
+                  onMouseDown={(e) => { e.preventDefault(); draggingRef.current = idx; handleThresholdDrag(e.clientX); }}
+                  onTouchStart={(e) => { draggingRef.current = idx; handleThresholdDrag(e.touches[0].clientX); }}
+                  style={{
+                    position: "absolute",
+                    left: `${t}%`,
+                    top: -3,
+                    width: 14,
+                    height: 34,
+                    marginLeft: -7,
+                    cursor: "ew-resize",
+                    zIndex: 10,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <div style={{
+                    width: 6,
+                    height: 20,
+                    borderRadius: 3,
+                    background: "white",
+                    border: "2px solid #999",
+                    boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
+                  }} />
+                </div>
+              ))}
+            </div>
+            {/* Zone labels */}
+            <div style={{ position: "relative", height: 16, marginTop: 3, fontSize: 9, fontWeight: 700, color: "#999" }}>
+              <span style={{ position: "absolute", left: 0, width: `${thresholds[0]}%`, textAlign: "center", overflow: "hidden", whiteSpace: "nowrap" }}>Needs Support</span>
+              <span style={{ position: "absolute", left: `${thresholds[0]}%`, width: `${thresholds[1] - thresholds[0]}%`, textAlign: "center", overflow: "hidden", whiteSpace: "nowrap" }}>Working On It</span>
+              <span style={{ position: "absolute", left: `${thresholds[1]}%`, width: `${thresholds[2] - thresholds[1]}%`, textAlign: "center", overflow: "hidden", whiteSpace: "nowrap" }}>On Track</span>
+              <span style={{ position: "absolute", left: `${thresholds[2]}%`, width: `${100 - thresholds[2]}%`, textAlign: "center", overflow: "hidden", whiteSpace: "nowrap" }}>Exceptional</span>
             </div>
           </div>
         </div>
@@ -1633,7 +1722,7 @@ export default function DashboardPage() {
 
             {/* Progress summary */}
             <div style={{
-              background: pct >= 90 ? COLORS.blue : pct >= 70 ? COLORS.green : pct >= 50 ? COLORS.gold : COLORS.red,
+              background: zoneColor(pct),
               borderRadius: 12,
               padding: "16px 20px",
               marginBottom: 16,
