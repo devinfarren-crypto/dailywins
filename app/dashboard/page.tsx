@@ -1190,7 +1190,7 @@ export default function DashboardPage() {
             alignItems: "center",
             gap: 8,
           }}>
-            👁️ Parent View
+            🏠 Parent View
           </button>
         </div>
       </main>
