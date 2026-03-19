@@ -7,6 +7,8 @@ import type { User } from "@supabase/supabase-js";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
+// ─── Colors & Constants ───────────────────────────────────────────────────────
+
 const COLORS = {
   primary: "#e07850",
   secondary: "#3a7c6a",
@@ -29,17 +31,26 @@ const PERIODS = [
   "Advocacy",
 ];
 
-type ArrivalValue = "On Time" | "L" | "L/E";
-type ToggleValue = "Yes" | "No";
-type ScaleValue = 0 | 1 | 2 | 3;
+// ─── Category Data Model ──────────────────────────────────────────────────────
 
-interface PeriodScores {
-  arrival: ArrivalValue | null;
-  compliance: ScaleValue | null;
-  social: ScaleValue | null;
-  onTask: ScaleValue | null;
-  phoneAway: ToggleValue | null;
+interface Category {
+  id: string;
+  name: string;
+  type: "arrival" | "scale" | "toggle";
+  options: string[];
+  pointValues: number[];
+  maxPoints: number;
 }
+
+const DEFAULT_CATEGORIES: Category[] = [
+  { id: "arrival", name: "Arrival", type: "arrival", options: ["On Time", "L", "L/E"], pointValues: [3, 0, 1], maxPoints: 3 },
+  { id: "compliance", name: "Compliance", type: "scale", options: ["0", "1", "2", "3"], pointValues: [0, 1, 2, 3], maxPoints: 3 },
+  { id: "social", name: "Social", type: "scale", options: ["0", "1", "2", "3"], pointValues: [0, 1, 2, 3], maxPoints: 3 },
+  { id: "onTask", name: "On-Task", type: "scale", options: ["0", "1", "2", "3"], pointValues: [0, 1, 2, 3], maxPoints: 3 },
+  { id: "phoneAway", name: "Phone Away", type: "toggle", options: ["Yes", "No"], pointValues: [3, 0], maxPoints: 3 },
+];
+
+// ─── Interfaces ───────────────────────────────────────────────────────────────
 
 interface StudentNote {
   id: string;
@@ -60,15 +71,8 @@ interface TeacherProfile {
   school_name: string;
   full_name: string;
   email: string;
+  categories: Category[];
 }
-
-const DEFAULT_SCORES: PeriodScores = {
-  arrival: null,
-  compliance: null,
-  social: null,
-  onTask: null,
-  phoneAway: null,
-};
 
 type ScheduleType = "Regular" | "Wednesday" | "Minimum Day" | "Reverse Minimum" | "Finals" | "Rally";
 type SchoolName = "Cosumnes Oaks High School" | "Pleasant Grove High School";
@@ -82,6 +86,8 @@ interface PeriodSlot {
 interface BellSchedule {
   periods: PeriodSlot[];
 }
+
+// ─── Bell Schedules ───────────────────────────────────────────────────────────
 
 const BELL_SCHEDULES: Record<SchoolName, Record<ScheduleType, BellSchedule>> = {
   "Cosumnes Oaks High School": {
@@ -233,36 +239,41 @@ const BELL_SCHEDULES: Record<SchoolName, Record<ScheduleType, BellSchedule>> = {
 const SCHOOLS: SchoolName[] = ["Cosumnes Oaks High School", "Pleasant Grove High School"];
 const SCHEDULE_TYPES: ScheduleType[] = ["Regular", "Wednesday", "Minimum Day", "Reverse Minimum", "Finals", "Rally"];
 
-const QUICK_FILL_DEFAULTS: PeriodScores = {
-  arrival: "On Time",
-  compliance: 2,
-  social: 2,
-  onTask: 2,
-  phoneAway: "Yes",
-};
+// ─── Score Helpers ────────────────────────────────────────────────────────────
+
+// Scores: Record<period label, Record<category id, point value | null>>
+type PeriodScores = Record<string, number | null>;
+type AllScores = Record<string, PeriodScores>;
 
 function formatDate(date: Date): string {
   return date.toISOString().split("T")[0];
 }
 
-function periodPoints(p: PeriodScores): number {
-  const arrivalPts = p.arrival === "On Time" ? 3 : p.arrival === "L/E" ? 1 : 0;
-  const phonePts = p.phoneAway === "Yes" ? 3 : 0;
-  return arrivalPts + (p.compliance ?? 0) + (p.social ?? 0) + (p.onTask ?? 0) + phonePts;
+function calculatePeriodPoints(periodScores: PeriodScores, categories: Category[]): number {
+  let pts = 0;
+  for (const cat of categories) {
+    pts += periodScores[cat.id] ?? 0;
+  }
+  return pts;
 }
 
-function calculateProgress(scores: Record<string, PeriodScores>): { earned: number; possible: number; pct: number } {
+function calculateMaxPoints(categories: Category[]): number {
+  return categories.reduce((sum, cat) => sum + cat.maxPoints, 0);
+}
+
+function calculateProgress(scores: AllScores, categories: Category[]): { earned: number; possible: number; pct: number } {
   const periods = Object.values(scores);
   if (periods.length === 0) return { earned: 0, possible: 0, pct: 0 };
+  const maxPerPeriod = calculateMaxPoints(categories);
+  const possible = periods.length * maxPerPeriod;
   let earned = 0;
-  const possible = periods.length * 15;
   for (const p of periods) {
-    earned += periodPoints(p);
+    earned += calculatePeriodPoints(p, categories);
   }
   return { earned, possible, pct: possible === 0 ? 0 : Math.round((earned / possible) * 100) };
 }
 
-function scaleColor(value: ScaleValue | null): string {
+function scaleColor(value: number | null): string {
   switch (value) {
     case 3: return COLORS.secondary;
     case 2: return COLORS.accent;
@@ -272,7 +283,66 @@ function scaleColor(value: ScaleValue | null): string {
   }
 }
 
-// Confetti particle
+/** Get the point value for a given option index in a category */
+function getPointValue(cat: Category, optionIndex: number): number {
+  return cat.pointValues[optionIndex] ?? 0;
+}
+
+/** Find which option index corresponds to a stored point value. Returns -1 if not found. */
+function getOptionIndexForPoints(cat: Category, points: number): number {
+  return cat.pointValues.indexOf(points);
+}
+
+/** Get the option label for a stored point value */
+function getOptionLabel(cat: Category, points: number | null): string {
+  if (points === null) return "\u2014";
+  const idx = getOptionIndexForPoints(cat, points);
+  if (idx >= 0) return cat.options[idx];
+  return String(points);
+}
+
+/** Get color for an arrival-type button based on option index */
+function arrivalButtonColor(cat: Category, optionIndex: number): string {
+  const pv = cat.pointValues[optionIndex];
+  if (pv === cat.maxPoints) return COLORS.secondary;
+  if (pv === 0) return COLORS.primary;
+  return COLORS.accent;
+}
+
+/** Get color for a toggle-type button based on option index */
+function toggleButtonColor(optionIndex: number): string {
+  return optionIndex === 0 ? COLORS.secondary : COLORS.primary;
+}
+
+/** Quick fill default value for a category */
+function quickFillDefault(cat: Category): number {
+  if (cat.type === "scale") {
+    // Default to highest - 1 (e.g. 2 for 0-3 scale)
+    const sorted = [...cat.pointValues].sort((a, b) => b - a);
+    return sorted.length > 1 ? sorted[1] : sorted[0];
+  }
+  // For toggle and arrival, default to maxPoints (first/best option)
+  return cat.maxPoints;
+}
+
+/** Quick fill default label for a category */
+function quickFillLabel(cat: Category): string {
+  const defaultVal = quickFillDefault(cat);
+  const idx = getOptionIndexForPoints(cat, defaultVal);
+  if (idx >= 0) return cat.options[idx];
+  return String(defaultVal);
+}
+
+function makeEmptyPeriodScores(categories: Category[]): PeriodScores {
+  const ps: PeriodScores = {};
+  for (const cat of categories) {
+    ps[cat.id] = null;
+  }
+  return ps;
+}
+
+// ─── Confetti ─────────────────────────────────────────────────────────────────
+
 interface Particle {
   x: number;
   y: number;
@@ -354,19 +424,22 @@ function ConfettiCanvas({ active }: { active: boolean }) {
   );
 }
 
+// ─── Main Component ───────────────────────────────────────────────────────────
+
 export default function DashboardPage() {
   const router = useRouter();
   const supabase = createClient();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [teacher, setTeacher] = useState<TeacherProfile | null>(null);
+  const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
   const [dbStudents, setDbStudents] = useState<DbStudent[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [selectedDate, setSelectedDate] = useState(formatDate(new Date()));
-  const [scores, setScores] = useState<Record<string, PeriodScores>>(() => {
-    const initial: Record<string, PeriodScores> = {};
+  const [scores, setScores] = useState<AllScores>(() => {
+    const initial: AllScores = {};
     for (const period of PERIODS) {
-      initial[period] = { ...DEFAULT_SCORES };
+      initial[period] = makeEmptyPeriodScores(DEFAULT_CATEGORIES);
     }
     return initial;
   });
@@ -383,8 +456,9 @@ export default function DashboardPage() {
   const [noteShared, setNoteShared] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [showParentView, setShowParentView] = useState(false);
+  const [showCategories, setShowCategories] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [savingScore, setSavingScore] = useState(false);
-  // Draggable zone thresholds: [needsSupport→workingOnIt, workingOnIt→onTrack, onTrack→exceptional]
   const [thresholds, setThresholds] = useState<[number, number, number]>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("dailywins_thresholds");
@@ -397,12 +471,18 @@ export default function DashboardPage() {
   const prevPctRef = useRef(0);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Derived: selected student display name
+  // Categories editor state
+  const [editCategories, setEditCategories] = useState<Category[]>([]);
+  const [newCatName, setNewCatName] = useState("");
+  const [newCatType, setNewCatType] = useState<"scale" | "toggle" | "arrival">("scale");
+  const [newCatOptions, setNewCatOptions] = useState("");
+
+  // Derived values
   const selectedStudent = dbStudents.find((s) => s.id === selectedStudentId)?.display_name ?? "";
-  const students = dbStudents.map((s) => s.display_name);
   const hasStudents = dbStudents.length > 0;
 
-  // --- Auth + teacher profile setup ---
+  // ─── Auth + Teacher Profile Setup ───────────────────────────────────────────
+
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user: u } }) => {
       if (!u) {
@@ -412,7 +492,6 @@ export default function DashboardPage() {
       }
       setUser(u);
 
-      // Ensure teacher record exists (creates school + teacher on first login)
       const { data, error } = await supabase.rpc("ensure_teacher_exists", {
         p_auth_id: u.id,
         p_email: u.email ?? "",
@@ -426,9 +505,18 @@ export default function DashboardPage() {
       }
 
       const profile = data as TeacherProfile;
+
+      // Load categories from teacher profile or use defaults
+      if (profile.categories && Array.isArray(profile.categories) && profile.categories.length > 0) {
+        setCategories(profile.categories);
+      } else {
+        // Save defaults to the teacher profile
+        profile.categories = DEFAULT_CATEGORIES;
+        setCategories(DEFAULT_CATEGORIES);
+      }
+
       setTeacher(profile);
 
-      // Load students for this school
       await loadStudents(profile.school_id);
       setLoading(false);
     });
@@ -444,26 +532,20 @@ export default function DashboardPage() {
 
     if (error) {
       console.error("Failed to load students:", error);
-      // Fall back to localStorage cache
-      const cached = localStorage.getItem("dailywins_students");
-      if (cached) {
-        const names = JSON.parse(cached) as string[];
-        // Can't use cached names as DB students without IDs, so just show empty
-      }
       return;
     }
 
     const list = (data ?? []) as DbStudent[];
     setDbStudents(list);
-    // Cache display names in localStorage as fallback
     localStorage.setItem("dailywins_students", JSON.stringify(list.map((s) => s.display_name)));
     if (list.length > 0 && !selectedStudentId) {
       setSelectedStudentId(list[0].id);
     }
   };
 
-  // Confetti trigger
-  const { pct } = calculateProgress(scores);
+  // ─── Confetti Trigger ───────────────────────────────────────────────────────
+
+  const { pct } = calculateProgress(scores, categories);
   useEffect(() => {
     if (pct >= thresholds[2] && prevPctRef.current < thresholds[2]) {
       setShowConfetti(true);
@@ -476,12 +558,13 @@ export default function DashboardPage() {
   const zoneColor = (p: number) =>
     p >= thresholds[2] ? COLORS.blue : p >= thresholds[1] ? COLORS.green : p >= thresholds[0] ? COLORS.gold : COLORS.red;
 
+  // ─── Threshold Dragging ─────────────────────────────────────────────────────
+
   const handleThresholdDrag = useCallback((clientX: number) => {
     const idx = draggingRef.current;
     if (idx === null || !barRef.current) return;
     const rect = barRef.current.getBoundingClientRect();
     let pctVal = Math.round(((clientX - rect.left) / rect.width) * 100);
-    // Clamp: min 5 apart from neighbors, within 5-95
     const min = idx === 0 ? 5 : thresholds[idx - 1] + 5;
     const max = idx === 2 ? 95 : thresholds[idx + 1] - 5;
     pctVal = Math.max(min, Math.min(max, pctVal));
@@ -511,22 +594,22 @@ export default function DashboardPage() {
     };
   }, [handleThresholdDrag]);
 
-  // Derive active periods from schedule
+  // ─── Active Periods ─────────────────────────────────────────────────────────
+
   const activePeriods: PeriodSlot[] = selectedSchool
     ? BELL_SCHEDULES[selectedSchool][selectedSchedule].periods
     : PERIODS.map((p) => ({ label: p, start: "", end: "" }));
 
-  // Trackable periods (exclude Lunch, Rally)
   const trackablePeriods = activePeriods.filter(
     (p) => p.label !== "Lunch" && p.label !== "Rally"
   );
 
-  // --- Map period labels to period numbers (1-8) for DB ---
+  // ─── Period Label / Number Mapping ──────────────────────────────────────────
+
   const periodLabelToNumber = (label: string): number => {
     const match = label.match(/Period (\d)/);
     if (match) return parseInt(match[1], 10);
     if (label === "Advocacy") return 8;
-    // Finals or other custom labels — map by index
     const idx = trackablePeriods.findIndex((p) => p.label === label);
     return idx >= 0 ? idx + 1 : 1;
   };
@@ -536,32 +619,8 @@ export default function DashboardPage() {
     return `Period ${num}`;
   };
 
-  // --- Convert between DB row and UI score ---
-  const arrivalFromDb = (val: number | null): ArrivalValue | null => {
-    if (val === null) return null;
-    if (val === 3) return "On Time";
-    if (val === 1) return "L/E";
-    return "L";
-  };
+  // ─── Score Loading ──────────────────────────────────────────────────────────
 
-  const arrivalToDb = (val: ArrivalValue | null): number | null => {
-    if (val === null) return null;
-    if (val === "On Time") return 3;
-    if (val === "L/E") return 1;
-    return 0;
-  };
-
-  const phoneFromDb = (val: boolean | null): ToggleValue | null => {
-    if (val === null) return null;
-    return val ? "Yes" : "No";
-  };
-
-  const phoneToDb = (val: ToggleValue | null): boolean | null => {
-    if (val === null) return null;
-    return val === "Yes";
-  };
-
-  // --- Load scores from Supabase when student/date changes ---
   const loadScores = useCallback(async (studentId: string, date: string) => {
     if (!teacher) return;
     const { data, error } = await supabase
@@ -571,31 +630,47 @@ export default function DashboardPage() {
       .eq("teacher_id", teacher.teacher_id)
       .eq("score_date", date);
 
-    const newScores: Record<string, PeriodScores> = {};
+    const newScores: AllScores = {};
     for (const p of trackablePeriods) {
-      newScores[p.label] = { ...DEFAULT_SCORES };
+      newScores[p.label] = makeEmptyPeriodScores(categories);
     }
 
     if (!error && data) {
       for (const row of data) {
-        const label = periodNumberToLabel(row.period);
+        const label = periodNumberToLabel(row.period as number);
         if (label in newScores) {
-          newScores[label] = {
-            arrival: arrivalFromDb(row.arrival),
-            compliance: row.compliance as ScaleValue | null,
-            social: row.social as ScaleValue | null,
-            onTask: row.on_task as ScaleValue | null,
-            phoneAway: phoneFromDb(row.phone_away),
-          };
+          // Read the scores JSONB column
+          const dbScores = row.scores as Record<string, number | null> | null;
+          if (dbScores) {
+            for (const cat of categories) {
+              if (cat.id in dbScores) {
+                newScores[label][cat.id] = dbScores[cat.id];
+              }
+            }
+          } else {
+            // Legacy format: read from individual columns
+            const legacyArrival = row.arrival as number | null;
+            const legacyCompliance = row.compliance as number | null;
+            const legacySocial = row.social as number | null;
+            const legacyOnTask = row.on_task as number | null;
+            const legacyPhone = row.phone_away as boolean | null;
+
+            if (legacyArrival !== undefined && legacyArrival !== null) newScores[label]["arrival"] = legacyArrival;
+            if (legacyCompliance !== undefined && legacyCompliance !== null) newScores[label]["compliance"] = legacyCompliance;
+            if (legacySocial !== undefined && legacySocial !== null) newScores[label]["social"] = legacySocial;
+            if (legacyOnTask !== undefined && legacyOnTask !== null) newScores[label]["onTask"] = legacyOnTask;
+            if (legacyPhone !== undefined && legacyPhone !== null) newScores[label]["phoneAway"] = legacyPhone ? 3 : 0;
+          }
         }
       }
     }
 
     setScores(newScores);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teacher, trackablePeriods.length]);
+  }, [teacher, trackablePeriods.length, categories]);
 
-  // --- Load notes from Supabase ---
+  // ─── Notes Loading ──────────────────────────────────────────────────────────
+
   const loadNotes = useCallback(async (studentId: string) => {
     if (!teacher) return;
     const { data, error } = await supabase
@@ -614,16 +689,16 @@ export default function DashboardPage() {
     }
   }, [teacher, supabase]);
 
-  // Trigger score + note load when student/date/schedule changes
+  // ─── Trigger Score + Note Load ──────────────────────────────────────────────
+
   useEffect(() => {
     if (selectedStudentId && teacher) {
       loadScores(selectedStudentId, selectedDate);
       loadNotes(selectedStudentId);
     } else {
-      // Reset to defaults
-      const initial: Record<string, PeriodScores> = {};
+      const initial: AllScores = {};
       for (const p of trackablePeriods) {
-        initial[p.label] = { ...DEFAULT_SCORES };
+        initial[p.label] = makeEmptyPeriodScores(categories);
       }
       setScores(initial);
       setNotes([]);
@@ -631,24 +706,26 @@ export default function DashboardPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStudentId, selectedDate, selectedSchool, selectedSchedule, teacher]);
 
-  // --- Save a single period's scores to Supabase (debounced) ---
-  const saveScoresToDb = useCallback(async (periodScores: Record<string, PeriodScores>) => {
+  // ─── Save Scores to DB ──────────────────────────────────────────────────────
+
+  const saveScoresToDb = useCallback(async (allScores: AllScores) => {
     if (!teacher || !selectedStudentId) return;
 
     const upserts = trackablePeriods
       .map((slot) => {
-        const ps = periodScores[slot.label];
+        const ps = allScores[slot.label];
         if (!ps) return null;
+        // Build the scores JSONB object
+        const scoresJson: Record<string, number | null> = {};
+        for (const cat of categories) {
+          scoresJson[cat.id] = ps[cat.id] ?? null;
+        }
         return {
           student_id: selectedStudentId,
           teacher_id: teacher.teacher_id,
           score_date: selectedDate,
           period: periodLabelToNumber(slot.label),
-          arrival: arrivalToDb(ps.arrival),
-          compliance: ps.compliance,
-          social: ps.social,
-          on_task: ps.onTask,
-          phone_away: phoneToDb(ps.phoneAway),
+          scores: scoresJson,
         };
       })
       .filter(Boolean);
@@ -663,7 +740,9 @@ export default function DashboardPage() {
       console.error("Failed to save scores:", error);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teacher, selectedStudentId, selectedDate, trackablePeriods.length]);
+  }, [teacher, selectedStudentId, selectedDate, trackablePeriods.length, categories]);
+
+  // ─── Event Handlers ─────────────────────────────────────────────────────────
 
   const handleSelectSchool = (school: SchoolName) => {
     setSelectedSchool(school);
@@ -676,17 +755,12 @@ export default function DashboardPage() {
     router.replace("/");
   };
 
-  const updateScore = <K extends keyof PeriodScores>(
-    period: string,
-    category: K,
-    value: PeriodScores[K]
-  ) => {
+  const updateScore = (period: string, categoryId: string, value: number | null) => {
     setScores((prev) => {
       const updated = {
         ...prev,
-        [period]: { ...prev[period], [category]: value },
+        [period]: { ...prev[period], [categoryId]: value },
       };
-      // Debounced save to Supabase
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => saveScoresToDb(updated), 500);
       return updated;
@@ -695,9 +769,13 @@ export default function DashboardPage() {
 
   const quickFillAll = () => {
     setScores(() => {
-      const filled: Record<string, PeriodScores> = {};
+      const filled: AllScores = {};
       for (const p of trackablePeriods) {
-        filled[p.label] = { ...QUICK_FILL_DEFAULTS };
+        const ps: PeriodScores = {};
+        for (const cat of categories) {
+          ps[cat.id] = quickFillDefault(cat);
+        }
+        filled[p.label] = ps;
       }
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => saveScoresToDb(filled), 500);
@@ -707,9 +785,9 @@ export default function DashboardPage() {
 
   const quickClearAll = () => {
     setScores(() => {
-      const cleared: Record<string, PeriodScores> = {};
+      const cleared: AllScores = {};
       for (const p of trackablePeriods) {
-        cleared[p.label] = { ...DEFAULT_SCORES };
+        cleared[p.label] = makeEmptyPeriodScores(categories);
       }
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => saveScoresToDb(cleared), 500);
@@ -717,17 +795,22 @@ export default function DashboardPage() {
     });
   };
 
-  const quickFillColumn = (category: keyof PeriodScores) => {
+  const quickFillColumn = (categoryId: string) => {
+    const cat = categories.find((c) => c.id === categoryId);
+    if (!cat) return;
+    const defaultVal = quickFillDefault(cat);
     setScores((prev) => {
       const updated = { ...prev };
       for (const p of trackablePeriods) {
-        updated[p.label] = { ...updated[p.label], [category]: QUICK_FILL_DEFAULTS[category] };
+        updated[p.label] = { ...updated[p.label], [categoryId]: defaultVal };
       }
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => saveScoresToDb(updated), 500);
       return updated;
     });
   };
+
+  // ─── Student Management ─────────────────────────────────────────────────────
 
   const handleAddStudents = async () => {
     const names = addStudentsText
@@ -736,7 +819,6 @@ export default function DashboardPage() {
       .filter((n) => n.length > 0);
     if (names.length === 0 || !teacher) return;
 
-    // Insert into students table
     const rows = names.map((name) => ({
       school_id: teacher.school_id,
       display_name: name,
@@ -769,6 +851,8 @@ export default function DashboardPage() {
     setAddStudentsText("");
     setShowAddStudents(false);
   };
+
+  // ─── Notes ──────────────────────────────────────────────────────────────────
 
   const handleAddNote = async () => {
     if (!noteText.trim() || !teacher || !selectedStudentId) return;
@@ -809,40 +893,141 @@ export default function DashboardPage() {
     setNotes((prev) => prev.filter((n) => n.id !== id));
   };
 
-  const formatScoreDisplay = (val: ScaleValue | null): string => val === null ? "—" : String(val);
-  const formatArrivalDisplay = (val: ArrivalValue | null): string => val ?? "—";
-  const formatPhoneDisplay = (val: ToggleValue | null): string => val ?? "—";
+  // ─── Categories Editor ──────────────────────────────────────────────────────
+
+  const openCategoriesEditor = () => {
+    setEditCategories(categories.map((c) => ({ ...c, options: [...c.options], pointValues: [...c.pointValues] })));
+    setNewCatName("");
+    setNewCatType("scale");
+    setNewCatOptions("");
+    setShowCategories(true);
+  };
+
+  const moveCategoryUp = (idx: number) => {
+    if (idx === 0) return;
+    setEditCategories((prev) => {
+      const next = [...prev];
+      [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+      return next;
+    });
+  };
+
+  const moveCategoryDown = (idx: number) => {
+    setEditCategories((prev) => {
+      if (idx >= prev.length - 1) return prev;
+      const next = [...prev];
+      [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+      return next;
+    });
+  };
+
+  const deleteCategoryFromEditor = (idx: number) => {
+    setEditCategories((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const updateCategoryName = (idx: number, name: string) => {
+    setEditCategories((prev) => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], name };
+      return next;
+    });
+  };
+
+  const addNewCategory = () => {
+    if (!newCatName.trim()) return;
+    const id = newCatName.trim().toLowerCase().replace(/[^a-z0-9]/g, "_");
+
+    let options: string[];
+    let pointValues: number[];
+    let maxPoints: number;
+
+    if (newCatType === "scale") {
+      options = ["0", "1", "2", "3"];
+      pointValues = [0, 1, 2, 3];
+      maxPoints = 3;
+    } else if (newCatType === "toggle") {
+      const parts = newCatOptions.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+      options = parts.length >= 2 ? [parts[0], parts[1]] : ["Yes", "No"];
+      pointValues = [3, 0];
+      maxPoints = 3;
+    } else {
+      // arrival
+      const parts = newCatOptions.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+      options = parts.length >= 2 ? parts : ["On Time", "L", "L/E"];
+      // First option = maxPoints, rest distributed
+      maxPoints = 3;
+      pointValues = options.map((_, i) => {
+        if (i === 0) return maxPoints;
+        if (i === options.length - 1) return Math.min(1, maxPoints);
+        return 0;
+      });
+    }
+
+    // Make sure id is unique
+    let uniqueId = id;
+    let counter = 1;
+    while (editCategories.some((c) => c.id === uniqueId)) {
+      uniqueId = `${id}_${counter}`;
+      counter++;
+    }
+
+    setEditCategories((prev) => [
+      ...prev,
+      { id: uniqueId, name: newCatName.trim(), type: newCatType, options, pointValues, maxPoints },
+    ]);
+    setNewCatName("");
+    setNewCatOptions("");
+  };
+
+  const saveCategories = async () => {
+    if (!teacher) return;
+    setCategories(editCategories);
+
+    const { error } = await supabase
+      .from("teachers")
+      .update({ categories: editCategories })
+      .eq("id", teacher.teacher_id);
+
+    if (error) {
+      console.error("Failed to save categories:", error);
+    }
+
+    setShowCategories(false);
+  };
+
+  // ─── PDF Generation ─────────────────────────────────────────────────────────
 
   const generateDailyPDF = () => {
     const doc = new jsPDF();
-    const { earned: e, possible: p, pct: pc } = calculateProgress(scores);
+    const { earned: e, possible: p, pct: pc } = calculateProgress(scores, categories);
 
     doc.setFontSize(18);
     doc.setTextColor(44, 62, 80);
-    doc.text("DailyWins — Daily Report", 14, 20);
+    doc.text("DailyWins \u2014 Daily Report", 14, 20);
 
     doc.setFontSize(12);
     doc.text(`Student: ${selectedStudent || "N/A"}`, 14, 32);
     doc.text(`Date: ${selectedDate}`, 14, 40);
     doc.text(`Daily Score: ${e} / ${p} pts (${pc}%)`, 14, 48);
 
+    const headerRow = ["Period", "Time", ...categories.map((c) => c.name), "Pts"];
+
     const rows = trackablePeriods.map((slot) => {
-      const ps = scores[slot.label] ?? { ...DEFAULT_SCORES };
-      return [
+      const ps = scores[slot.label] ?? makeEmptyPeriodScores(categories);
+      const row: string[] = [
         slot.label,
-        slot.start ? `${slot.start}–${slot.end}` : "",
-        formatArrivalDisplay(ps.arrival),
-        formatScoreDisplay(ps.compliance),
-        formatScoreDisplay(ps.social),
-        formatScoreDisplay(ps.onTask),
-        formatPhoneDisplay(ps.phoneAway),
-        String(periodPoints(ps)),
+        slot.start ? `${slot.start}\u2013${slot.end}` : "",
       ];
+      for (const cat of categories) {
+        row.push(getOptionLabel(cat, ps[cat.id]));
+      }
+      row.push(String(calculatePeriodPoints(ps, categories)));
+      return row;
     });
 
     autoTable(doc, {
       startY: 56,
-      head: [["Period", "Time", "Arrival", "Comply", "Social", "On-Task", "Phone", "Pts"]],
+      head: [headerRow],
       body: rows,
       theme: "grid",
       headStyles: { fillColor: [44, 62, 80], fontSize: 9 },
@@ -858,7 +1043,7 @@ export default function DashboardPage() {
 
     doc.setFontSize(18);
     doc.setTextColor(44, 62, 80);
-    doc.text("DailyWins — Weekly Report", 14, 20);
+    doc.text("DailyWins \u2014 Weekly Report", 14, 20);
 
     doc.setFontSize(12);
     doc.text(`Student: ${selectedStudent || "N/A"}`, 14, 32);
@@ -878,26 +1063,26 @@ export default function DashboardPage() {
     doc.text(`Week of: ${days[0]} to ${days[4]}`, 14, 40);
 
     const rows = trackablePeriods.map((slot) => {
-      const ps = scores[slot.label] ?? { ...DEFAULT_SCORES };
-      const todayPts = periodPoints(ps);
+      const ps = scores[slot.label] ?? makeEmptyPeriodScores(categories);
+      const todayPts = calculatePeriodPoints(ps, categories);
       const row: string[] = [slot.label];
       for (let d = 0; d < 5; d++) {
         if (days[d] === selectedDate) {
           row.push(String(todayPts));
         } else {
-          row.push("—");
+          row.push("\u2014");
         }
       }
       return row;
     });
 
-    const { earned: e, possible: p, pct: pc } = calculateProgress(scores);
+    const { earned: e, possible: p, pct: pc } = calculateProgress(scores, categories);
     const totalRow = ["TOTAL"];
     for (let d = 0; d < 5; d++) {
       if (days[d] === selectedDate) {
         totalRow.push(`${e}/${p} (${pc}%)`);
       } else {
-        totalRow.push("—");
+        totalRow.push("\u2014");
       }
     }
     rows.push(totalRow);
@@ -919,7 +1104,11 @@ export default function DashboardPage() {
     doc.save(`DailyWins_Weekly_${selectedStudent || "report"}_${days[0]}.pdf`);
   };
 
-  const { earned, possible } = calculateProgress(scores);
+  // ─── Derived Progress Values ────────────────────────────────────────────────
+
+  const { earned, possible } = calculateProgress(scores, categories);
+
+  // ─── Loading State ──────────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -930,6 +1119,111 @@ export default function DashboardPage() {
   }
 
   if (!user) return null;
+
+  // ─── Render Cell Based on Category Type ─────────────────────────────────────
+
+  const renderCategoryCell = (cat: Category, period: string, periodScores: PeriodScores) => {
+    const currentValue = periodScores[cat.id];
+
+    if (cat.type === "arrival") {
+      return (
+        <div style={{ display: "flex", gap: 3, justifyContent: "center" }}>
+          {cat.options.map((optLabel, optIdx) => {
+            const optPoints = getPointValue(cat, optIdx);
+            const isActive = currentValue !== null && currentValue === optPoints &&
+              getOptionIndexForPoints(cat, currentValue) === optIdx;
+            // For arrival with duplicate point values, check by finding first match
+            const isSelected = currentValue !== null && optIdx === getOptionIndexForPoints(cat, currentValue);
+            return (
+              <button
+                key={optLabel}
+                onClick={() => updateScore(period, cat.id, isSelected ? null : optPoints)}
+                style={{
+                  background: isSelected ? arrivalButtonColor(cat, optIdx) : "#e8e8e8",
+                  color: isSelected ? "white" : "#888",
+                  border: "none",
+                  borderRadius: 6,
+                  padding: "5px 8px",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                  minWidth: optLabel.length > 3 ? 58 : 32,
+                }}
+              >
+                {optLabel}
+              </button>
+            );
+          })}
+        </div>
+      );
+    }
+
+    if (cat.type === "scale") {
+      return (
+        <div style={{ display: "flex", gap: 3, justifyContent: "center" }}>
+          {cat.options.map((optLabel, optIdx) => {
+            const optPoints = getPointValue(cat, optIdx);
+            const isSelected = currentValue !== null && currentValue === optPoints;
+            return (
+              <button
+                key={optLabel}
+                onClick={() => updateScore(period, cat.id, isSelected ? null : optPoints)}
+                style={{
+                  background: isSelected ? scaleColor(optPoints) : "#e8e8e8",
+                  color: isSelected ? "white" : "#888",
+                  border: "none",
+                  borderRadius: 6,
+                  width: 32,
+                  height: 32,
+                  fontSize: 13,
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                {optLabel}
+              </button>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // toggle
+    return (
+      <div style={{ display: "flex", gap: 3, justifyContent: "center" }}>
+        {cat.options.map((optLabel, optIdx) => {
+          const optPoints = getPointValue(cat, optIdx);
+          const isSelected = currentValue !== null && currentValue === optPoints &&
+            optIdx === getOptionIndexForPoints(cat, currentValue);
+          return (
+            <button
+              key={optLabel}
+              onClick={() => updateScore(period, cat.id, isSelected ? null : optPoints)}
+              style={{
+                background: isSelected ? toggleButtonColor(optIdx) : "#e8e8e8",
+                color: isSelected ? "white" : "#888",
+                border: "none",
+                borderRadius: 6,
+                padding: "5px 12px",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+              }}
+            >
+              {optLabel}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // ─── Render ─────────────────────────────────────────────────────────────────
+
+  const maxPerPeriod = calculateMaxPoints(categories);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f5f5f0", fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif" }}>
@@ -1007,7 +1301,7 @@ export default function DashboardPage() {
             boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
             border: `2px dashed ${COLORS.accent}`,
           }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🏆</div>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>&#127942;</div>
             <h2 style={{ color: COLORS.dark, fontSize: 24, fontWeight: 700, margin: "0 0 8px" }}>
               Welcome to DailyWins!
             </h2>
@@ -1034,7 +1328,7 @@ export default function DashboardPage() {
 
         {/* Controls Row */}
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 16, marginBottom: 20 }}>
-          {/* Student Selector - only shown when students exist */}
+          {/* Student Selector */}
           {hasStudents && (
             <div>
               <label style={{ display: "block", marginBottom: 4, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: COLORS.dark }}>
@@ -1116,7 +1410,7 @@ export default function DashboardPage() {
               position: "relative",
             }}
           >
-            📝 Notes
+            &#128221; Notes
             {notes.length > 0 && (
               <span style={{
                 position: "absolute",
@@ -1138,6 +1432,24 @@ export default function DashboardPage() {
             )}
           </button>
 
+          {/* Categories Button */}
+          <button
+            onClick={openCategoriesEditor}
+            style={{
+              background: COLORS.blue,
+              color: "white",
+              border: "none",
+              borderRadius: 8,
+              padding: "8px 16px",
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: "pointer",
+              height: 38,
+            }}
+          >
+            &#9881; Categories
+          </button>
+
           {/* Schedule Button */}
           <button
             onClick={() => setShowSchedule(true)}
@@ -1153,7 +1465,7 @@ export default function DashboardPage() {
               height: 38,
             }}
           >
-            🕐 Schedule
+            &#128336; Schedule
           </button>
 
           {/* Quick Schedule Switcher */}
@@ -1185,7 +1497,7 @@ export default function DashboardPage() {
             {/* Score line above bar */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, fontWeight: 800, color: COLORS.dark }}>
-                <span>⭐</span>
+                <span>&#11088;</span>
                 <span>{earned} / {possible} pts ({pct}%)</span>
               </div>
               <span style={{
@@ -1270,21 +1582,11 @@ export default function DashboardPage() {
                   <th style={{ padding: "12px 14px", textAlign: "left", color: "white", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
                     Period
                   </th>
-                  <th style={{ padding: "12px 8px", textAlign: "center", color: "white", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
-                    Arrival
-                  </th>
-                  <th style={{ padding: "12px 8px", textAlign: "center", color: "white", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
-                    Compliance
-                  </th>
-                  <th style={{ padding: "12px 8px", textAlign: "center", color: "white", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
-                    Social
-                  </th>
-                  <th style={{ padding: "12px 8px", textAlign: "center", color: "white", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
-                    On-Task
-                  </th>
-                  <th style={{ padding: "12px 8px", textAlign: "center", color: "white", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
-                    Phone Away
-                  </th>
+                  {categories.map((cat) => (
+                    <th key={cat.id} style={{ padding: "12px 8px", textAlign: "center", color: "white", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
+                      {cat.name}
+                    </th>
+                  ))}
                   <th style={{ padding: "12px 8px", textAlign: "center", color: "white", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
                     Pts
                   </th>
@@ -1306,7 +1608,7 @@ export default function DashboardPage() {
                           cursor: "pointer",
                         }}
                       >
-                        ⚡ All
+                        &#9889; All
                       </button>
                       <button
                         onClick={quickClearAll}
@@ -1321,57 +1623,38 @@ export default function DashboardPage() {
                           cursor: "pointer",
                         }}
                       >
-                        ✕ Clear
+                        &#10005; Clear
                       </button>
                     </div>
                   </td>
-                  <td style={{ padding: "8px 8px", textAlign: "center" }}>
-                    <button
-                      onClick={() => quickFillColumn("arrival")}
-                      style={{ background: COLORS.secondary, color: "white", border: "none", borderRadius: 6, padding: "4px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
-                    >
-                      All → On Time
-                    </button>
-                  </td>
-                  <td style={{ padding: "8px 8px", textAlign: "center" }}>
-                    <button
-                      onClick={() => quickFillColumn("compliance")}
-                      style={{ background: COLORS.accent, color: "white", border: "none", borderRadius: 6, padding: "4px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
-                    >
-                      All → 2
-                    </button>
-                  </td>
-                  <td style={{ padding: "8px 8px", textAlign: "center" }}>
-                    <button
-                      onClick={() => quickFillColumn("social")}
-                      style={{ background: COLORS.accent, color: "white", border: "none", borderRadius: 6, padding: "4px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
-                    >
-                      All → 2
-                    </button>
-                  </td>
-                  <td style={{ padding: "8px 8px", textAlign: "center" }}>
-                    <button
-                      onClick={() => quickFillColumn("onTask")}
-                      style={{ background: COLORS.accent, color: "white", border: "none", borderRadius: 6, padding: "4px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
-                    >
-                      All → 2
-                    </button>
-                  </td>
-                  <td style={{ padding: "8px 8px", textAlign: "center" }}>
-                    <button
-                      onClick={() => quickFillColumn("phoneAway")}
-                      style={{ background: COLORS.secondary, color: "white", border: "none", borderRadius: 6, padding: "4px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
-                    >
-                      All → Yes
-                    </button>
-                  </td>
-                  <td style={{ padding: "8px 8px", textAlign: "center", fontSize: 11, color: "#999" }}>—</td>
+                  {categories.map((cat) => (
+                    <td key={cat.id} style={{ padding: "8px 8px", textAlign: "center" }}>
+                      <button
+                        onClick={() => quickFillColumn(cat.id)}
+                        style={{
+                          background: cat.type === "scale" ? COLORS.accent : COLORS.secondary,
+                          color: "white",
+                          border: "none",
+                          borderRadius: 6,
+                          padding: "4px 8px",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                        }}
+                      >
+                        All &rarr; {quickFillLabel(cat)}
+                      </button>
+                    </td>
+                  ))}
+                  <td style={{ padding: "8px 8px", textAlign: "center", fontSize: 11, color: "#999" }}>&mdash;</td>
                 </tr>
               </thead>
               <tbody>
                 {trackablePeriods.map((slot, i) => {
-                  const ps = scores[slot.label] ?? { ...DEFAULT_SCORES };
-                  const pts = periodPoints(ps);
+                  const ps = scores[slot.label] ?? makeEmptyPeriodScores(categories);
+                  const pts = calculatePeriodPoints(ps, categories);
+                  const ptsHighThreshold = Math.round(maxPerPeriod * 0.8);
+                  const ptsMidThreshold = Math.round(maxPerPeriod * 0.53);
                   return (
                     <tr
                       key={slot.label + i}
@@ -1384,143 +1667,16 @@ export default function DashboardPage() {
                         <div>{slot.label}</div>
                         {slot.start && (
                           <div style={{ fontSize: 10, fontWeight: 500, color: "#999", marginTop: 1 }}>
-                            {slot.start} – {slot.end}
+                            {slot.start} &ndash; {slot.end}
                           </div>
                         )}
                       </td>
 
-                      {/* Arrival - 3 separate buttons */}
-                      <td style={{ padding: "8px 6px", textAlign: "center" }}>
-                        <div style={{ display: "flex", gap: 3, justifyContent: "center" }}>
-                          {(["On Time", "L", "L/E"] as ArrivalValue[]).map((val) => (
-                            <button
-                              key={val}
-                              onClick={() => updateScore(slot.label, "arrival", ps.arrival === val ? null : val)}
-                              style={{
-                                background: ps.arrival === val
-                                  ? (val === "On Time" ? COLORS.secondary : val === "L/E" ? COLORS.accent : COLORS.primary)
-                                  : "#e8e8e8",
-                                color: ps.arrival === val ? "white" : "#888",
-                                border: "none",
-                                borderRadius: 6,
-                                padding: "5px 8px",
-                                fontSize: 11,
-                                fontWeight: 700,
-                                cursor: "pointer",
-                                transition: "all 0.15s ease",
-                                minWidth: val === "On Time" ? 58 : 32,
-                              }}
-                            >
-                              {val}
-                            </button>
-                          ))}
-                        </div>
-                      </td>
-
-                      {/* Compliance 0-3 buttons */}
-                      <td style={{ padding: "8px 6px", textAlign: "center" }}>
-                        <div style={{ display: "flex", gap: 3, justifyContent: "center" }}>
-                          {([0, 1, 2, 3] as ScaleValue[]).map((val) => (
-                            <button
-                              key={val}
-                              onClick={() => updateScore(slot.label, "compliance", ps.compliance === val ? null : val)}
-                              style={{
-                                background: ps.compliance === val ? scaleColor(val) : "#e8e8e8",
-                                color: ps.compliance === val ? "white" : "#888",
-                                border: "none",
-                                borderRadius: 6,
-                                width: 32,
-                                height: 32,
-                                fontSize: 13,
-                                fontWeight: 800,
-                                cursor: "pointer",
-                                transition: "all 0.15s ease",
-                              }}
-                            >
-                              {val}
-                            </button>
-                          ))}
-                        </div>
-                      </td>
-
-                      {/* Social 0-3 buttons */}
-                      <td style={{ padding: "8px 6px", textAlign: "center" }}>
-                        <div style={{ display: "flex", gap: 3, justifyContent: "center" }}>
-                          {([0, 1, 2, 3] as ScaleValue[]).map((val) => (
-                            <button
-                              key={val}
-                              onClick={() => updateScore(slot.label, "social", ps.social === val ? null : val)}
-                              style={{
-                                background: ps.social === val ? scaleColor(val) : "#e8e8e8",
-                                color: ps.social === val ? "white" : "#888",
-                                border: "none",
-                                borderRadius: 6,
-                                width: 32,
-                                height: 32,
-                                fontSize: 13,
-                                fontWeight: 800,
-                                cursor: "pointer",
-                                transition: "all 0.15s ease",
-                              }}
-                            >
-                              {val}
-                            </button>
-                          ))}
-                        </div>
-                      </td>
-
-                      {/* On-Task 0-3 buttons */}
-                      <td style={{ padding: "8px 6px", textAlign: "center" }}>
-                        <div style={{ display: "flex", gap: 3, justifyContent: "center" }}>
-                          {([0, 1, 2, 3] as ScaleValue[]).map((val) => (
-                            <button
-                              key={val}
-                              onClick={() => updateScore(slot.label, "onTask", ps.onTask === val ? null : val)}
-                              style={{
-                                background: ps.onTask === val ? scaleColor(val) : "#e8e8e8",
-                                color: ps.onTask === val ? "white" : "#888",
-                                border: "none",
-                                borderRadius: 6,
-                                width: 32,
-                                height: 32,
-                                fontSize: 13,
-                                fontWeight: 800,
-                                cursor: "pointer",
-                                transition: "all 0.15s ease",
-                              }}
-                            >
-                              {val}
-                            </button>
-                          ))}
-                        </div>
-                      </td>
-
-                      {/* Phone Away - Yes/No buttons */}
-                      <td style={{ padding: "8px 6px", textAlign: "center" }}>
-                        <div style={{ display: "flex", gap: 3, justifyContent: "center" }}>
-                          {(["Yes", "No"] as ToggleValue[]).map((val) => (
-                            <button
-                              key={val}
-                              onClick={() => updateScore(slot.label, "phoneAway", ps.phoneAway === val ? null : val)}
-                              style={{
-                                background: ps.phoneAway === val
-                                  ? (val === "Yes" ? COLORS.secondary : COLORS.primary)
-                                  : "#e8e8e8",
-                                color: ps.phoneAway === val ? "white" : "#888",
-                                border: "none",
-                                borderRadius: 6,
-                                padding: "5px 12px",
-                                fontSize: 12,
-                                fontWeight: 700,
-                                cursor: "pointer",
-                                transition: "all 0.15s ease",
-                              }}
-                            >
-                              {val}
-                            </button>
-                          ))}
-                        </div>
-                      </td>
+                      {categories.map((cat) => (
+                        <td key={cat.id} style={{ padding: "8px 6px", textAlign: "center" }}>
+                          {renderCategoryCell(cat, slot.label, ps)}
+                        </td>
+                      ))}
 
                       {/* Period Points */}
                       <td style={{
@@ -1528,7 +1684,7 @@ export default function DashboardPage() {
                         textAlign: "center",
                         fontWeight: 800,
                         fontSize: 15,
-                        color: pts >= 12 ? COLORS.secondary : pts >= 8 ? COLORS.accent : COLORS.primary,
+                        color: pts >= ptsHighThreshold ? COLORS.secondary : pts >= ptsMidThreshold ? COLORS.accent : COLORS.primary,
                       }}>
                         {pts}
                       </td>
@@ -1542,58 +1698,89 @@ export default function DashboardPage() {
 
         {/* Legends */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginTop: 16 }}>
-          {/* Arrival Legend */}
-          <div style={{
-            background: "white",
-            borderRadius: 10,
-            padding: "12px 18px",
-            boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
-            flex: 1,
-            minWidth: 280,
-          }}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: COLORS.dark, marginBottom: 6 }}>
-              Arrival
+          {/* Arrival-type legends */}
+          {categories.filter((c) => c.type === "arrival").map((cat) => (
+            <div key={cat.id} style={{
+              background: "white",
+              borderRadius: 10,
+              padding: "12px 18px",
+              boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+              flex: 1,
+              minWidth: 280,
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: COLORS.dark, marginBottom: 6 }}>
+                {cat.name}
+              </div>
+              <div style={{ fontSize: 13, color: "#555", lineHeight: 1.6 }}>
+                {cat.options.map((opt, idx) => (
+                  <span key={opt}>
+                    {idx > 0 && " \u00B7 "}
+                    <span style={{ color: arrivalButtonColor(cat, idx), fontWeight: 700 }}>{opt}</span>
+                    {cat.pointValues[idx] === cat.maxPoints ? "" : cat.pointValues[idx] === 0 ? " = 0 pts" : ` = ${cat.pointValues[idx]} pts`}
+                  </span>
+                ))}
+              </div>
             </div>
-            <div style={{ fontSize: 13, color: "#555", lineHeight: 1.6 }}>
-              <span style={{ color: COLORS.secondary, fontWeight: 700 }}>On Time</span>
-              {" · "}
-              <span style={{ color: COLORS.primary, fontWeight: 700 }}>L</span> = Late
-              {" · "}
-              <span style={{ color: COLORS.accent, fontWeight: 700 }}>L/E</span> = Late Excused
-            </div>
-          </div>
+          ))}
 
-          {/* Score Legend */}
-          <div style={{
-            background: "white",
-            borderRadius: 10,
-            padding: "12px 18px",
-            boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
-            flex: 1,
-            minWidth: 280,
-          }}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: COLORS.dark, marginBottom: 6 }}>
-              Score Scale
+          {/* Scale-type legends */}
+          {categories.filter((c) => c.type === "scale").length > 0 && (
+            <div style={{
+              background: "white",
+              borderRadius: 10,
+              padding: "12px 18px",
+              boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+              flex: 1,
+              minWidth: 280,
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: COLORS.dark, marginBottom: 6 }}>
+                Score Scale
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 12, fontSize: 13 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: "#b0b0b0" }} />
+                  <span style={{ color: "#555" }}><b>0</b> Unacceptable</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: COLORS.primary }} />
+                  <span style={{ color: "#555" }}><b>1</b> Needs Work</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: COLORS.accent }} />
+                  <span style={{ color: "#555" }}><b>2</b> Good</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: COLORS.secondary }} />
+                  <span style={{ color: "#555" }}><b>3</b> Exceptional</span>
+                </div>
+              </div>
             </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 12, fontSize: 13 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: "#b0b0b0" }} />
-                <span style={{ color: "#555" }}><b>0</b> Unacceptable</span>
+          )}
+
+          {/* Toggle-type legends */}
+          {categories.filter((c) => c.type === "toggle").map((cat) => (
+            <div key={cat.id} style={{
+              background: "white",
+              borderRadius: 10,
+              padding: "12px 18px",
+              boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+              flex: 1,
+              minWidth: 280,
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: COLORS.dark, marginBottom: 6 }}>
+                {cat.name}
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: COLORS.primary }} />
-                <span style={{ color: "#555" }}><b>1</b> Needs Work</span>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: COLORS.accent }} />
-                <span style={{ color: "#555" }}><b>2</b> Good</span>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: COLORS.secondary }} />
-                <span style={{ color: "#555" }}><b>3</b> Exceptional</span>
+              <div style={{ fontSize: 13, color: "#555", lineHeight: 1.6 }}>
+                {cat.options.map((opt, idx) => (
+                  <span key={opt}>
+                    {idx > 0 && " \u00B7 "}
+                    <span style={{ color: toggleButtonColor(idx), fontWeight: 700 }}>{opt}</span>
+                    {` = ${cat.pointValues[idx]} pts`}
+                  </span>
+                ))}
               </div>
             </div>
-          </div>
+          ))}
         </div>
 
         {/* Action Buttons */}
@@ -1614,7 +1801,7 @@ export default function DashboardPage() {
               gap: 8,
             }}
           >
-            📄 Daily PDF
+            &#128196; Daily PDF
           </button>
           <button
             onClick={generateWeeklyPDF}
@@ -1632,7 +1819,7 @@ export default function DashboardPage() {
               gap: 8,
             }}
           >
-            📊 Weekly PDF
+            &#128202; Weekly PDF
           </button>
           <button
             onClick={() => setShowParentView(true)}
@@ -1650,12 +1837,12 @@ export default function DashboardPage() {
               gap: 8,
             }}
           >
-            🏠 Parent View
+            &#127968; Parent View
           </button>
         </div>
       </main>
 
-      {/* Add Students Modal */}
+      {/* ─── Add Students Modal ──────────────────────────────────────────────── */}
       {showAddStudents && (
         <div
           style={{
@@ -1773,7 +1960,7 @@ export default function DashboardPage() {
                           lineHeight: 1,
                         }}
                       >
-                        ×
+                        &times;
                       </button>
                     </span>
                   ))}
@@ -1784,7 +1971,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Notes Modal */}
+      {/* ─── Notes Modal ─────────────────────────────────────────────────────── */}
       {showNotes && (
         <div
           style={{
@@ -1810,13 +1997,13 @@ export default function DashboardPage() {
           }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: COLORS.dark }}>
-                📝 Notes {selectedStudent ? `— ${selectedStudent}` : ""}
+                &#128221; Notes {selectedStudent ? `\u2014 ${selectedStudent}` : ""}
               </h2>
               <button
                 onClick={() => setShowNotes(false)}
                 style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#999" }}
               >
-                ✕
+                &#10005;
               </button>
             </div>
 
@@ -1908,7 +2095,7 @@ export default function DashboardPage() {
                         onClick={() => handleDeleteNote(note.id)}
                         style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", fontSize: 16, marginLeft: 8, flexShrink: 0 }}
                       >
-                        ✕
+                        &#10005;
                       </button>
                     </div>
                     <div style={{ display: "flex", gap: 10, marginTop: 6, fontSize: 11, color: "#999" }}>
@@ -1931,7 +2118,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Parent View Modal */}
+      {/* ─── Parent View Modal ───────────────────────────────────────────────── */}
       {showParentView && (
         <div
           style={{
@@ -1957,13 +2144,13 @@ export default function DashboardPage() {
           }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: COLORS.dark }}>
-                🏠 Parent View
+                &#127968; Parent View
               </h2>
               <button
                 onClick={() => setShowParentView(false)}
                 style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#999" }}
               >
-                ✕
+                &#10005;
               </button>
             </div>
 
@@ -1992,27 +2179,29 @@ export default function DashboardPage() {
               <thead>
                 <tr style={{ background: COLORS.dark }}>
                   <th style={{ padding: "8px 10px", textAlign: "left", color: "white", fontSize: 11, fontWeight: 700 }}>Period</th>
-                  <th style={{ padding: "8px 6px", textAlign: "center", color: "white", fontSize: 11, fontWeight: 700 }}>Arrival</th>
-                  <th style={{ padding: "8px 6px", textAlign: "center", color: "white", fontSize: 11, fontWeight: 700 }}>Comply</th>
-                  <th style={{ padding: "8px 6px", textAlign: "center", color: "white", fontSize: 11, fontWeight: 700 }}>Social</th>
-                  <th style={{ padding: "8px 6px", textAlign: "center", color: "white", fontSize: 11, fontWeight: 700 }}>On-Task</th>
-                  <th style={{ padding: "8px 6px", textAlign: "center", color: "white", fontSize: 11, fontWeight: 700 }}>Phone</th>
+                  {categories.map((cat) => (
+                    <th key={cat.id} style={{ padding: "8px 6px", textAlign: "center", color: "white", fontSize: 11, fontWeight: 700 }}>
+                      {cat.name}
+                    </th>
+                  ))}
                   <th style={{ padding: "8px 6px", textAlign: "center", color: "white", fontSize: 11, fontWeight: 700 }}>Pts</th>
                 </tr>
               </thead>
               <tbody>
                 {trackablePeriods.map((slot, i) => {
-                  const ps = scores[slot.label] ?? { ...DEFAULT_SCORES };
-                  const pts = periodPoints(ps);
+                  const ps = scores[slot.label] ?? makeEmptyPeriodScores(categories);
+                  const pts = calculatePeriodPoints(ps, categories);
+                  const ptsHighThreshold = Math.round(maxPerPeriod * 0.8);
+                  const ptsMidThreshold = Math.round(maxPerPeriod * 0.53);
                   return (
                     <tr key={slot.label + i} style={{ background: i % 2 === 0 ? "#fafaf7" : "white", borderTop: "1px solid #eee" }}>
                       <td style={{ padding: "8px 10px", fontWeight: 600, color: COLORS.dark }}>{slot.label}</td>
-                      <td style={{ padding: "8px 6px", textAlign: "center", color: "#555" }}>{formatArrivalDisplay(ps.arrival)}</td>
-                      <td style={{ padding: "8px 6px", textAlign: "center", color: "#555" }}>{formatScoreDisplay(ps.compliance)}</td>
-                      <td style={{ padding: "8px 6px", textAlign: "center", color: "#555" }}>{formatScoreDisplay(ps.social)}</td>
-                      <td style={{ padding: "8px 6px", textAlign: "center", color: "#555" }}>{formatScoreDisplay(ps.onTask)}</td>
-                      <td style={{ padding: "8px 6px", textAlign: "center", color: "#555" }}>{formatPhoneDisplay(ps.phoneAway)}</td>
-                      <td style={{ padding: "8px 6px", textAlign: "center", fontWeight: 700, color: pts >= 12 ? COLORS.secondary : pts >= 8 ? COLORS.accent : COLORS.primary }}>{pts}</td>
+                      {categories.map((cat) => (
+                        <td key={cat.id} style={{ padding: "8px 6px", textAlign: "center", color: "#555" }}>
+                          {getOptionLabel(cat, ps[cat.id])}
+                        </td>
+                      ))}
+                      <td style={{ padding: "8px 6px", textAlign: "center", fontWeight: 700, color: pts >= ptsHighThreshold ? COLORS.secondary : pts >= ptsMidThreshold ? COLORS.accent : COLORS.primary }}>{pts}</td>
                     </tr>
                   );
                 })}
@@ -2037,7 +2226,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Schedule Modal */}
+      {/* ─── Schedule Modal ──────────────────────────────────────────────────── */}
       {showSchedule && (
         <div
           style={{
@@ -2063,13 +2252,13 @@ export default function DashboardPage() {
           }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: COLORS.dark }}>
-                🕐 Bell Schedule
+                &#128336; Bell Schedule
               </h2>
               <button
                 onClick={() => setShowSchedule(false)}
                 style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#999" }}
               >
-                ✕
+                &#10005;
               </button>
             </div>
 
@@ -2096,7 +2285,7 @@ export default function DashboardPage() {
                       transition: "all 0.15s ease",
                     }}
                   >
-                    🏫 {school}
+                    &#127979; {school}
                     <span style={{ display: "block", fontSize: 11, fontWeight: 500, marginTop: 2, opacity: 0.8 }}>
                       Elk Grove Unified School District
                     </span>
@@ -2160,9 +2349,9 @@ export default function DashboardPage() {
                           <td style={{ padding: "8px 12px", textAlign: "center", color: "#666" }}>{slot.end}</td>
                           <td style={{ padding: "8px 12px", textAlign: "center" }}>
                             {isTracked ? (
-                              <span style={{ color: COLORS.secondary, fontWeight: 700 }}>✓</span>
+                              <span style={{ color: COLORS.secondary, fontWeight: 700 }}>&#10003;</span>
                             ) : (
-                              <span style={{ color: "#ccc" }}>—</span>
+                              <span style={{ color: "#ccc" }}>&mdash;</span>
                             )}
                           </td>
                         </tr>
@@ -2188,6 +2377,273 @@ export default function DashboardPage() {
                 }}
               >
                 Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Categories Editor Modal ─────────────────────────────────────────── */}
+      {showCategories && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowCategories(false); }}
+        >
+          <div style={{
+            background: "white",
+            borderRadius: 16,
+            padding: 28,
+            width: "90%",
+            maxWidth: 560,
+            maxHeight: "85vh",
+            overflowY: "auto",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: COLORS.dark }}>
+                &#9881; Behavior Categories
+              </h2>
+              <button
+                onClick={() => setShowCategories(false)}
+                style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#999" }}
+              >
+                &#10005;
+              </button>
+            </div>
+
+            {/* Current categories list */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+              {editCategories.map((cat, idx) => (
+                <div
+                  key={cat.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    background: "#f8f8f5",
+                    borderRadius: 10,
+                    padding: "10px 14px",
+                    border: "1px solid #eee",
+                  }}
+                >
+                  {/* Reorder buttons */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    <button
+                      onClick={() => moveCategoryUp(idx)}
+                      disabled={idx === 0}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: idx === 0 ? "default" : "pointer",
+                        fontSize: 14,
+                        color: idx === 0 ? "#ccc" : COLORS.dark,
+                        padding: 0,
+                        lineHeight: 1,
+                      }}
+                    >
+                      &#9650;
+                    </button>
+                    <button
+                      onClick={() => moveCategoryDown(idx)}
+                      disabled={idx === editCategories.length - 1}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: idx === editCategories.length - 1 ? "default" : "pointer",
+                        fontSize: 14,
+                        color: idx === editCategories.length - 1 ? "#ccc" : COLORS.dark,
+                        padding: 0,
+                        lineHeight: 1,
+                      }}
+                    >
+                      &#9660;
+                    </button>
+                  </div>
+
+                  {/* Editable name */}
+                  <input
+                    type="text"
+                    value={cat.name}
+                    onChange={(e) => updateCategoryName(idx, e.target.value)}
+                    style={{
+                      flex: 1,
+                      border: "1px solid #d0d0d0",
+                      borderRadius: 6,
+                      padding: "6px 10px",
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: COLORS.dark,
+                      fontFamily: "inherit",
+                    }}
+                  />
+
+                  {/* Type badge */}
+                  <span style={{
+                    background: cat.type === "scale" ? COLORS.accent : cat.type === "toggle" ? COLORS.secondary : COLORS.primary,
+                    color: "white",
+                    borderRadius: 6,
+                    padding: "3px 8px",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    whiteSpace: "nowrap",
+                  }}>
+                    {cat.type}
+                  </span>
+
+                  {/* Delete button */}
+                  <button
+                    onClick={() => deleteCategoryFromEditor(idx)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: COLORS.red,
+                      cursor: "pointer",
+                      fontSize: 18,
+                      padding: 0,
+                      lineHeight: 1,
+                      flexShrink: 0,
+                    }}
+                  >
+                    &times;
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Add new category */}
+            <div style={{
+              background: "#f0f8ff",
+              borderRadius: 10,
+              padding: 16,
+              border: `1px dashed ${COLORS.blue}`,
+              marginBottom: 20,
+            }}>
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: COLORS.dark, marginBottom: 10 }}>
+                Add Category
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
+                <div style={{ flex: 1, minWidth: 140 }}>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#666", marginBottom: 3 }}>Name</label>
+                  <input
+                    type="text"
+                    value={newCatName}
+                    onChange={(e) => setNewCatName(e.target.value)}
+                    placeholder="e.g. Homework"
+                    style={{
+                      width: "100%",
+                      border: "1px solid #d0d0d0",
+                      borderRadius: 6,
+                      padding: "6px 10px",
+                      fontSize: 14,
+                      fontFamily: "inherit",
+                      color: COLORS.dark,
+                      boxSizing: "border-box",
+                    }}
+                  />
+                </div>
+                <div style={{ minWidth: 100 }}>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#666", marginBottom: 3 }}>Type</label>
+                  <select
+                    value={newCatType}
+                    onChange={(e) => setNewCatType(e.target.value as "scale" | "toggle" | "arrival")}
+                    style={{
+                      width: "100%",
+                      border: "1px solid #d0d0d0",
+                      borderRadius: 6,
+                      padding: "6px 10px",
+                      fontSize: 14,
+                      fontFamily: "inherit",
+                      color: COLORS.dark,
+                      background: "white",
+                    }}
+                  >
+                    <option value="scale">Scale (0-3)</option>
+                    <option value="toggle">Toggle</option>
+                    <option value="arrival">Arrival</option>
+                  </select>
+                </div>
+                {(newCatType === "toggle" || newCatType === "arrival") && (
+                  <div style={{ flex: 1, minWidth: 160 }}>
+                    <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#666", marginBottom: 3 }}>
+                      Options (comma-separated)
+                    </label>
+                    <input
+                      type="text"
+                      value={newCatOptions}
+                      onChange={(e) => setNewCatOptions(e.target.value)}
+                      placeholder={newCatType === "toggle" ? "Yes, No" : "On Time, L, L/E"}
+                      style={{
+                        width: "100%",
+                        border: "1px solid #d0d0d0",
+                        borderRadius: 6,
+                        padding: "6px 10px",
+                        fontSize: 14,
+                        fontFamily: "inherit",
+                        color: COLORS.dark,
+                        boxSizing: "border-box",
+                      }}
+                    />
+                  </div>
+                )}
+                <button
+                  onClick={addNewCategory}
+                  disabled={!newCatName.trim()}
+                  style={{
+                    background: newCatName.trim() ? COLORS.blue : "#ccc",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 6,
+                    padding: "6px 16px",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: newCatName.trim() ? "pointer" : "default",
+                    height: 34,
+                  }}
+                >
+                  + Add
+                </button>
+              </div>
+            </div>
+
+            {/* Save / Cancel */}
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setShowCategories(false)}
+                style={{
+                  background: "#eee",
+                  color: COLORS.dark,
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "10px 20px",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveCategories}
+                style={{
+                  background: COLORS.secondary,
+                  color: "white",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "10px 24px",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Save Categories
               </button>
             </div>
           </div>
