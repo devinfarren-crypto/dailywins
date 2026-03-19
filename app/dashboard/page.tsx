@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/src/lib/supabase";
 import type { User } from "@supabase/supabase-js";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const COLORS = {
   primary: "#e07850",
@@ -32,11 +34,11 @@ type ToggleValue = "Yes" | "No";
 type ScaleValue = 0 | 1 | 2 | 3;
 
 interface PeriodScores {
-  arrival: ArrivalValue;
-  compliance: ScaleValue;
-  social: ScaleValue;
-  onTask: ScaleValue;
-  phoneAway: ToggleValue;
+  arrival: ArrivalValue | null;
+  compliance: ScaleValue | null;
+  social: ScaleValue | null;
+  onTask: ScaleValue | null;
+  phoneAway: ToggleValue | null;
 }
 
 interface StudentNote {
@@ -47,11 +49,11 @@ interface StudentNote {
 }
 
 const DEFAULT_SCORES: PeriodScores = {
-  arrival: "On Time",
-  compliance: 0,
-  social: 0,
-  onTask: 0,
-  phoneAway: "No",
+  arrival: null,
+  compliance: null,
+  social: null,
+  onTask: null,
+  phoneAway: null,
 };
 
 type ScheduleType = "Regular" | "Wednesday" | "Minimum Day" | "Reverse Minimum" | "Finals" | "Rally";
@@ -232,7 +234,7 @@ function formatDate(date: Date): string {
 function periodPoints(p: PeriodScores): number {
   const arrivalPts = p.arrival === "On Time" ? 3 : p.arrival === "L/E" ? 1 : 0;
   const phonePts = p.phoneAway === "Yes" ? 3 : 0;
-  return arrivalPts + p.compliance + p.social + p.onTask + phonePts;
+  return arrivalPts + (p.compliance ?? 0) + (p.social ?? 0) + (p.onTask ?? 0) + phonePts;
 }
 
 function calculateProgress(scores: Record<string, PeriodScores>): { earned: number; possible: number; pct: number } {
@@ -246,12 +248,13 @@ function calculateProgress(scores: Record<string, PeriodScores>): { earned: numb
   return { earned, possible, pct: possible === 0 ? 0 : Math.round((earned / possible) * 100) };
 }
 
-function scaleColor(value: ScaleValue): string {
+function scaleColor(value: ScaleValue | null): string {
   switch (value) {
     case 3: return COLORS.secondary;
     case 2: return COLORS.accent;
     case 1: return COLORS.primary;
     case 0: return "#b0b0b0";
+    default: return "#e8e8e8";
   }
 }
 
@@ -364,6 +367,7 @@ export default function DashboardPage() {
   const [noteText, setNoteText] = useState("");
   const [noteShared, setNoteShared] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [showParentView, setShowParentView] = useState(false);
   const prevPctRef = useRef(0);
 
   useEffect(() => {
@@ -502,6 +506,116 @@ export default function DashboardPage() {
     setNotes((prev) => prev.filter((n) => n.id !== id));
   };
 
+  const formatScoreDisplay = (val: ScaleValue | null): string => val === null ? "—" : String(val);
+  const formatArrivalDisplay = (val: ArrivalValue | null): string => val ?? "—";
+  const formatPhoneDisplay = (val: ToggleValue | null): string => val ?? "—";
+
+  const generateDailyPDF = () => {
+    const doc = new jsPDF();
+    const { earned: e, possible: p, pct: pc } = calculateProgress(scores);
+
+    doc.setFontSize(18);
+    doc.setTextColor(44, 62, 80);
+    doc.text("DailyWins — Daily Report", 14, 20);
+
+    doc.setFontSize(12);
+    doc.text(`Student: ${selectedStudent || "N/A"}`, 14, 32);
+    doc.text(`Date: ${selectedDate}`, 14, 40);
+    doc.text(`Daily Score: ${e} / ${p} pts (${pc}%)`, 14, 48);
+
+    const rows = trackablePeriods.map((slot) => {
+      const ps = scores[slot.label] ?? { ...DEFAULT_SCORES };
+      return [
+        slot.label,
+        slot.start ? `${slot.start}–${slot.end}` : "",
+        formatArrivalDisplay(ps.arrival),
+        formatScoreDisplay(ps.compliance),
+        formatScoreDisplay(ps.social),
+        formatScoreDisplay(ps.onTask),
+        formatPhoneDisplay(ps.phoneAway),
+        String(periodPoints(ps)),
+      ];
+    });
+
+    autoTable(doc, {
+      startY: 56,
+      head: [["Period", "Time", "Arrival", "Comply", "Social", "On-Task", "Phone", "Pts"]],
+      body: rows,
+      theme: "grid",
+      headStyles: { fillColor: [44, 62, 80], fontSize: 9 },
+      bodyStyles: { fontSize: 9 },
+      columnStyles: { 0: { fontStyle: "bold" } },
+    });
+
+    doc.save(`DailyWins_${selectedStudent || "report"}_${selectedDate}.pdf`);
+  };
+
+  const generateWeeklyPDF = () => {
+    const doc = new jsPDF({ orientation: "landscape" });
+
+    doc.setFontSize(18);
+    doc.setTextColor(44, 62, 80);
+    doc.text("DailyWins — Weekly Report", 14, 20);
+
+    doc.setFontSize(12);
+    doc.text(`Student: ${selectedStudent || "N/A"}`, 14, 32);
+
+    const dateObj = new Date(selectedDate + "T12:00:00");
+    const dayOfWeek = dateObj.getDay();
+    const monday = new Date(dateObj);
+    monday.setDate(dateObj.getDate() - ((dayOfWeek + 6) % 7));
+
+    const days = Array.from({ length: 5 }, (_, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      return formatDate(d);
+    });
+    const dayLabels = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+
+    doc.text(`Week of: ${days[0]} to ${days[4]}`, 14, 40);
+
+    const rows = trackablePeriods.map((slot) => {
+      const ps = scores[slot.label] ?? { ...DEFAULT_SCORES };
+      const todayPts = periodPoints(ps);
+      const row: string[] = [slot.label];
+      for (let d = 0; d < 5; d++) {
+        if (days[d] === selectedDate) {
+          row.push(String(todayPts));
+        } else {
+          row.push("—");
+        }
+      }
+      return row;
+    });
+
+    const { earned: e, possible: p, pct: pc } = calculateProgress(scores);
+    const totalRow = ["TOTAL"];
+    for (let d = 0; d < 5; d++) {
+      if (days[d] === selectedDate) {
+        totalRow.push(`${e}/${p} (${pc}%)`);
+      } else {
+        totalRow.push("—");
+      }
+    }
+    rows.push(totalRow);
+
+    autoTable(doc, {
+      startY: 48,
+      head: [["Period", ...dayLabels]],
+      body: rows,
+      theme: "grid",
+      headStyles: { fillColor: [44, 62, 80], fontSize: 9 },
+      bodyStyles: { fontSize: 9 },
+      columnStyles: { 0: { fontStyle: "bold" } },
+    });
+
+    doc.setFontSize(9);
+    doc.setTextColor(150, 150, 150);
+    doc.text("Note: Only today's data is shown. Other days will populate as data is saved.", 14, (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable?.finalY + 12 || 200);
+
+    doc.save(`DailyWins_Weekly_${selectedStudent || "report"}_${days[0]}.pdf`);
+  };
+
   const { earned, possible } = calculateProgress(scores);
 
   if (loading) {
@@ -592,7 +706,7 @@ export default function DashboardPage() {
             boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
             border: `2px dashed ${COLORS.accent}`,
           }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>🏆</div>
             <h2 style={{ color: COLORS.dark, fontSize: 24, fontWeight: 700, margin: "0 0 8px" }}>
               Welcome to DailyWins!
             </h2>
@@ -944,7 +1058,7 @@ export default function DashboardPage() {
                           {(["On Time", "L", "L/E"] as ArrivalValue[]).map((val) => (
                             <button
                               key={val}
-                              onClick={() => updateScore(slot.label, "arrival", val)}
+                              onClick={() => updateScore(slot.label, "arrival", ps.arrival === val ? null : val)}
                               style={{
                                 background: ps.arrival === val
                                   ? (val === "On Time" ? COLORS.secondary : val === "L/E" ? COLORS.accent : COLORS.primary)
@@ -972,7 +1086,7 @@ export default function DashboardPage() {
                           {([0, 1, 2, 3] as ScaleValue[]).map((val) => (
                             <button
                               key={val}
-                              onClick={() => updateScore(slot.label, "compliance", val)}
+                              onClick={() => updateScore(slot.label, "compliance", ps.compliance === val ? null : val)}
                               style={{
                                 background: ps.compliance === val ? scaleColor(val) : "#e8e8e8",
                                 color: ps.compliance === val ? "white" : "#888",
@@ -998,7 +1112,7 @@ export default function DashboardPage() {
                           {([0, 1, 2, 3] as ScaleValue[]).map((val) => (
                             <button
                               key={val}
-                              onClick={() => updateScore(slot.label, "social", val)}
+                              onClick={() => updateScore(slot.label, "social", ps.social === val ? null : val)}
                               style={{
                                 background: ps.social === val ? scaleColor(val) : "#e8e8e8",
                                 color: ps.social === val ? "white" : "#888",
@@ -1024,7 +1138,7 @@ export default function DashboardPage() {
                           {([0, 1, 2, 3] as ScaleValue[]).map((val) => (
                             <button
                               key={val}
-                              onClick={() => updateScore(slot.label, "onTask", val)}
+                              onClick={() => updateScore(slot.label, "onTask", ps.onTask === val ? null : val)}
                               style={{
                                 background: ps.onTask === val ? scaleColor(val) : "#e8e8e8",
                                 color: ps.onTask === val ? "white" : "#888",
@@ -1050,7 +1164,7 @@ export default function DashboardPage() {
                           {(["Yes", "No"] as ToggleValue[]).map((val) => (
                             <button
                               key={val}
-                              onClick={() => updateScore(slot.label, "phoneAway", val)}
+                              onClick={() => updateScore(slot.label, "phoneAway", ps.phoneAway === val ? null : val)}
                               style={{
                                 background: ps.phoneAway === val
                                   ? (val === "Yes" ? COLORS.secondary : COLORS.primary)
@@ -1147,49 +1261,58 @@ export default function DashboardPage() {
 
         {/* Action Buttons */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 20, justifyContent: "center" }}>
-          <button style={{
-            background: COLORS.dark,
-            color: "white",
-            border: "none",
-            borderRadius: 10,
-            padding: "12px 24px",
-            fontSize: 14,
-            fontWeight: 700,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-          }}>
+          <button
+            onClick={generateDailyPDF}
+            style={{
+              background: COLORS.dark,
+              color: "white",
+              border: "none",
+              borderRadius: 10,
+              padding: "12px 24px",
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
             📄 Daily PDF
           </button>
-          <button style={{
-            background: COLORS.dark,
-            color: "white",
-            border: "none",
-            borderRadius: 10,
-            padding: "12px 24px",
-            fontSize: 14,
-            fontWeight: 700,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-          }}>
+          <button
+            onClick={generateWeeklyPDF}
+            style={{
+              background: COLORS.dark,
+              color: "white",
+              border: "none",
+              borderRadius: 10,
+              padding: "12px 24px",
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
             📊 Weekly PDF
           </button>
-          <button style={{
-            background: COLORS.secondary,
-            color: "white",
-            border: "none",
-            borderRadius: 10,
-            padding: "12px 24px",
-            fontSize: 14,
-            fontWeight: 700,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-          }}>
+          <button
+            onClick={() => setShowParentView(true)}
+            style={{
+              background: COLORS.secondary,
+              color: "white",
+              border: "none",
+              borderRadius: 10,
+              padding: "12px 24px",
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
             🏠 Parent View
           </button>
         </div>
@@ -1222,7 +1345,7 @@ export default function DashboardPage() {
             <textarea
               value={addStudentsText}
               onChange={(e) => setAddStudentsText(e.target.value)}
-              placeholder={"Alex Johnson\nMaria Garcia\nJames Wilson"}
+              placeholder={"J.D.\nS.M.\nA.R."}
               rows={8}
               style={{
                 width: "100%",
@@ -1457,6 +1580,112 @@ export default function DashboardPage() {
                         {note.shared ? "Shared" : "Private"}
                       </span>
                     </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Parent View Modal */}
+      {showParentView && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowParentView(false); }}
+        >
+          <div style={{
+            background: "white",
+            borderRadius: 16,
+            padding: 28,
+            width: "90%",
+            maxWidth: 560,
+            maxHeight: "85vh",
+            overflowY: "auto",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: COLORS.dark }}>
+                🏠 Parent View
+              </h2>
+              <button
+                onClick={() => setShowParentView(false)}
+                style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#999" }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ background: "#f8f8f5", borderRadius: 12, padding: 20, marginBottom: 16 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.dark, marginBottom: 4 }}>
+                {selectedStudent || "No student selected"}
+              </div>
+              <div style={{ fontSize: 13, color: "#888" }}>{selectedDate}</div>
+            </div>
+
+            {/* Progress summary */}
+            <div style={{
+              background: pct >= 90 ? COLORS.blue : pct >= 70 ? COLORS.green : pct >= 50 ? COLORS.gold : COLORS.red,
+              borderRadius: 12,
+              padding: "16px 20px",
+              marginBottom: 16,
+              color: "white",
+              textAlign: "center",
+            }}>
+              <div style={{ fontSize: 28, fontWeight: 800 }}>{pct}%</div>
+              <div style={{ fontSize: 13, fontWeight: 600, opacity: 0.9 }}>{earned} / {possible} points</div>
+            </div>
+
+            {/* Read-only scores table */}
+            <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ background: COLORS.dark }}>
+                  <th style={{ padding: "8px 10px", textAlign: "left", color: "white", fontSize: 11, fontWeight: 700 }}>Period</th>
+                  <th style={{ padding: "8px 6px", textAlign: "center", color: "white", fontSize: 11, fontWeight: 700 }}>Arrival</th>
+                  <th style={{ padding: "8px 6px", textAlign: "center", color: "white", fontSize: 11, fontWeight: 700 }}>Comply</th>
+                  <th style={{ padding: "8px 6px", textAlign: "center", color: "white", fontSize: 11, fontWeight: 700 }}>Social</th>
+                  <th style={{ padding: "8px 6px", textAlign: "center", color: "white", fontSize: 11, fontWeight: 700 }}>On-Task</th>
+                  <th style={{ padding: "8px 6px", textAlign: "center", color: "white", fontSize: 11, fontWeight: 700 }}>Phone</th>
+                  <th style={{ padding: "8px 6px", textAlign: "center", color: "white", fontSize: 11, fontWeight: 700 }}>Pts</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trackablePeriods.map((slot, i) => {
+                  const ps = scores[slot.label] ?? { ...DEFAULT_SCORES };
+                  const pts = periodPoints(ps);
+                  return (
+                    <tr key={slot.label + i} style={{ background: i % 2 === 0 ? "#fafaf7" : "white", borderTop: "1px solid #eee" }}>
+                      <td style={{ padding: "8px 10px", fontWeight: 600, color: COLORS.dark }}>{slot.label}</td>
+                      <td style={{ padding: "8px 6px", textAlign: "center", color: "#555" }}>{formatArrivalDisplay(ps.arrival)}</td>
+                      <td style={{ padding: "8px 6px", textAlign: "center", color: "#555" }}>{formatScoreDisplay(ps.compliance)}</td>
+                      <td style={{ padding: "8px 6px", textAlign: "center", color: "#555" }}>{formatScoreDisplay(ps.social)}</td>
+                      <td style={{ padding: "8px 6px", textAlign: "center", color: "#555" }}>{formatScoreDisplay(ps.onTask)}</td>
+                      <td style={{ padding: "8px 6px", textAlign: "center", color: "#555" }}>{formatPhoneDisplay(ps.phoneAway)}</td>
+                      <td style={{ padding: "8px 6px", textAlign: "center", fontWeight: 700, color: pts >= 12 ? COLORS.secondary : pts >= 8 ? COLORS.accent : COLORS.primary }}>{pts}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            {/* Shared notes */}
+            {notes.filter((n) => n.shared).length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: COLORS.dark, marginBottom: 8 }}>
+                  Teacher Notes
+                </div>
+                {notes.filter((n) => n.shared).map((note) => (
+                  <div key={note.id} style={{ background: "#f8f8f5", borderRadius: 8, padding: "10px 12px", marginBottom: 6, borderLeft: `3px solid ${COLORS.secondary}` }}>
+                    <p style={{ margin: 0, fontSize: 13, color: COLORS.dark }}>{note.text}</p>
+                    <span style={{ fontSize: 11, color: "#999" }}>{note.timestamp}</span>
                   </div>
                 ))}
               </div>
