@@ -525,17 +525,17 @@ export default function DashboardPage() {
         <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             {/* EGUSD Logo */}
-            <svg width="130" height="28" viewBox="0 0 130 28" style={{ flexShrink: 0 }}>
+            <svg width="164" height="28" viewBox="0 0 164 28" style={{ flexShrink: 0 }}>
               {([
-                { letter: "E", color: "#e74c3c", cx: 14 },
-                { letter: "G", color: "#27ae60", cx: 38 },
-                { letter: "U", color: "#3498db", cx: 62 },
-                { letter: "S", color: "#e67e22", cx: 86 },
-                { letter: "D", color: "#8e44ad", cx: 110 },
+                { letter: "E", color: "#ed1c24", cx: 14 },
+                { letter: "G", color: "#3bb54a", cx: 48 },
+                { letter: "U", color: "#00aeef", cx: 82 },
+                { letter: "S", color: "#f7941d", cx: 116 },
+                { letter: "D", color: "#92278f", cx: 150 },
               ] as const).map(({ letter, color, cx }) => (
                 <g key={letter}>
-                  <circle cx={cx} cy={14} r={13} fill={color} />
-                  <text x={cx} y={14} textAnchor="middle" dominantBaseline="central" fill="white" fontSize="13" fontWeight="800" fontFamily="system-ui, sans-serif">
+                  <circle cx={cx} cy={14} r={14} fill={color} />
+                  <text x={cx} y={14} textAnchor="middle" dominantBaseline="central" fill="white" fontSize="14" fontWeight="800" fontFamily="system-ui, sans-serif">
                     {letter}
                   </text>
                 </g>
