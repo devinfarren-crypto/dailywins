@@ -929,18 +929,33 @@ export default function DashboardPage() {
 
           {/* Progress Bar with Draggable Thresholds */}
           <div style={{ marginLeft: "auto", flex: 1, minWidth: 220, maxWidth: 420 }}>
-            <label style={{ display: "block", marginBottom: 4, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: COLORS.dark }}>
-              Daily Score
-            </label>
+            {/* Score line above bar */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, fontWeight: 800, color: COLORS.dark }}>
+                <span>⭐</span>
+                <span>{earned} / {possible} pts ({pct}%)</span>
+              </div>
+              <span style={{
+                background: zoneColor(pct),
+                color: "white",
+                borderRadius: 6,
+                padding: "2px 8px",
+                fontSize: 10,
+                fontWeight: 800,
+                letterSpacing: 0.5,
+              }}>
+                {pct >= thresholds[2] ? "Exceptional" : pct >= thresholds[1] ? "On Track" : pct >= thresholds[0] ? "Working On It" : "Needs Support"}
+              </span>
+            </div>
             <div
               ref={barRef}
-              style={{ position: "relative", height: 28, borderRadius: 14, background: "#e0e0e0", userSelect: "none" }}
+              style={{ position: "relative", height: 22, borderRadius: 11, background: "#e0e0e0", userSelect: "none" }}
             >
               {/* Zone segments */}
-              <div style={{ position: "absolute", top: 0, left: 0, width: `${thresholds[0]}%`, height: "100%", background: COLORS.red, opacity: 0.25, borderRadius: "14px 0 0 14px" }} />
+              <div style={{ position: "absolute", top: 0, left: 0, width: `${thresholds[0]}%`, height: "100%", background: COLORS.red, opacity: 0.25, borderRadius: "11px 0 0 11px" }} />
               <div style={{ position: "absolute", top: 0, left: `${thresholds[0]}%`, width: `${thresholds[1] - thresholds[0]}%`, height: "100%", background: COLORS.gold, opacity: 0.25 }} />
               <div style={{ position: "absolute", top: 0, left: `${thresholds[1]}%`, width: `${thresholds[2] - thresholds[1]}%`, height: "100%", background: COLORS.green, opacity: 0.25 }} />
-              <div style={{ position: "absolute", top: 0, left: `${thresholds[2]}%`, width: `${100 - thresholds[2]}%`, height: "100%", background: COLORS.blue, opacity: 0.25, borderRadius: "0 14px 14px 0" }} />
+              <div style={{ position: "absolute", top: 0, left: `${thresholds[2]}%`, width: `${100 - thresholds[2]}%`, height: "100%", background: COLORS.blue, opacity: 0.25, borderRadius: "0 11px 11px 0" }} />
               {/* Fill */}
               <div style={{
                 position: "absolute",
@@ -948,30 +963,10 @@ export default function DashboardPage() {
                 left: 0,
                 height: "100%",
                 width: `${pct}%`,
-                borderRadius: 14,
+                borderRadius: 11,
                 background: zoneColor(pct),
                 transition: draggingRef.current !== null ? "none" : "width 0.4s ease, background 0.4s ease",
               }} />
-              {/* Star icon and label */}
-              <div style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 13,
-                fontWeight: 800,
-                color: pct > 45 ? "white" : COLORS.dark,
-                textShadow: pct > 45 ? "0 1px 2px rgba(0,0,0,0.3)" : "none",
-                gap: 4,
-                pointerEvents: "none",
-              }}>
-                <span>⭐</span>
-                <span>{earned} / {possible} pts ({pct}%)</span>
-              </div>
               {/* Draggable handles */}
               {thresholds.map((t, idx) => (
                 <div
@@ -983,7 +978,7 @@ export default function DashboardPage() {
                     left: `${t}%`,
                     top: -3,
                     width: 14,
-                    height: 34,
+                    height: 28,
                     marginLeft: -7,
                     cursor: "ew-resize",
                     zIndex: 10,
