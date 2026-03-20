@@ -2,17 +2,9 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
-  // ─── WWW redirect ─────────────────────────────────────────────────────────
-  // Canonical domain is dailywins.school (no www).
-  // PKCE code_verifier cookie is set on the domain the user started on,
-  // so www vs non-www mismatch breaks the auth code exchange.
-  const host = request.headers.get("host") ?? "";
-  if (host.startsWith("www.")) {
-    const url = request.nextUrl.clone();
-    url.host = host.replace("www.", "");
-    url.port = "";
-    return NextResponse.redirect(url, 301);
-  }
+  // NOTE: www → non-www redirect should be configured in Vercel project
+  // settings (Settings → Domains), not here. Doing it in middleware can
+  // cause infinite redirect loops with certain proxy/CDN configurations.
 
   // ─── Supabase client with cookie bridge ───────────────────────────────────
   let supabaseResponse = NextResponse.next({ request });
