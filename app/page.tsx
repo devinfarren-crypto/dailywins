@@ -1,20 +1,42 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/src/lib/supabase";
 
 export default function LoginPage() {
+  const router = useRouter();
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    const supabase = createClient();
+
+    // If there's a ?code= in the URL, redirect to /auth/callback to exchange it.
+    // This handles the PKCE flow where Supabase redirects to the site URL with ?code=.
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    if (code) {
+      // Redirect to the server-side callback route which exchanges the code
+      window.location.href = `/auth/callback?code=${encodeURIComponent(code)}`;
+      return;
+    }
+
+    // Check if user already has a session — redirect to dashboard
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        router.replace("/dashboard");
+      } else {
+        setChecking(false);
+      }
+    });
+  }, [router]);
+
   const handleGoogleSignIn = async () => {
     const supabase = createClient();
-    // Note: With PKCE flow (@supabase/ssr), Supabase redirects back to the
-    // Site URL with ?code=. The middleware intercepts this and exchanges the
-    // code for a session. redirectTo here tells Supabase where to go AFTER
-    // the code is appended — we use the canonical domain (no www) to ensure
-    // the PKCE code_verifier cookie domain matches.
-    const canonicalOrigin = window.location.origin.replace("://www.", "://");
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${canonicalOrigin}/auth/callback`,
+        redirectTo: `${window.location.origin}/auth/callback`,
         scopes: "https://www.googleapis.com/auth/drive.file",
         queryParams: {
           access_type: "offline",
@@ -23,6 +45,15 @@ export default function LoginPage() {
       },
     });
   };
+
+  // Show nothing while checking session or handling code exchange
+  if (checking) {
+    return (
+      <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center", background: "#f0f2f5" }}>
+        <div style={{ color: "#888", fontSize: 14 }}>Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
