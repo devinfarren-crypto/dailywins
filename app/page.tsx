@@ -19,16 +19,17 @@ export default function LoginPage() {
     const code = params.get("code");
 
     if (code) {
-      // Clean the URL immediately so refresh doesn't re-exchange
-      window.history.replaceState({}, "", "/");
+      supabase.auth.exchangeCodeForSession(code).then(({ data, error: err }) => {
+        // Clean the URL after exchange attempt (not before — Supabase may read location)
+        window.history.replaceState({}, "", "/");
 
-      supabase.auth.exchangeCodeForSession(code).then(({ error: err }) => {
         if (err) {
-          console.error("Code exchange failed:", err.message);
-          setError("Sign in failed. Please try again.");
+          console.error("Code exchange failed:", err.message, err);
+          setError(`Sign in failed: ${err.message}`);
           setChecking(false);
           return;
         }
+        console.log("Code exchange succeeded, session:", !!data.session);
         // Session is now stored in cookies by the browser client
         router.replace("/dashboard");
       });
