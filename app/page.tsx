@@ -30,6 +30,10 @@ export default function LoginPage() {
           return;
         }
         console.log("Code exchange succeeded, session:", !!data.session);
+        // Persist the Google access token for Drive API exports
+        if (data.session?.provider_token) {
+          localStorage.setItem("dailywins_google_token", data.session.provider_token);
+        }
         // Session is now stored in cookies by the browser client
         router.replace("/dashboard");
       });

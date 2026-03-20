@@ -526,6 +526,11 @@ export default function DashboardClient() {
       const { data: sessionData } = await supabase.auth.getSession();
       if (sessionData.session?.provider_token) {
         setGoogleAccessToken(sessionData.session.provider_token);
+        localStorage.setItem("dailywins_google_token", sessionData.session.provider_token);
+      } else {
+        // Fallback: use stored token from previous login
+        const stored = localStorage.getItem("dailywins_google_token");
+        if (stored) setGoogleAccessToken(stored);
       }
 
       const { data, error } = await supabase.rpc("ensure_teacher_exists", {
@@ -789,6 +794,7 @@ export default function DashboardClient() {
   };
 
   const handleSignOut = async () => {
+    localStorage.removeItem("dailywins_google_token");
     await supabase.auth.signOut();
     router.replace("/");
   };
@@ -1258,11 +1264,14 @@ export default function DashboardClient() {
 
       if (!createResponse.ok) {
         const errBody = await createResponse.text();
-        console.error("Drive export failed:", errBody);
+        console.error("Drive export failed:", createResponse.status, errBody);
         if (createResponse.status === 401 || createResponse.status === 403) {
-          alert("Drive permission expired. Please sign out and sign back in to refresh permissions.");
+          // Token expired — clear it so next login gets a fresh one
+          localStorage.removeItem("dailywins_google_token");
+          setGoogleAccessToken(null);
+          alert("Google Drive permission expired. Please sign out and sign back in to refresh permissions.");
         } else {
-          alert("Failed to create Google Sheet. Check console for details.");
+          alert(`Failed to create Google Sheet (${createResponse.status}). Check console for details.`);
         }
         return;
       }
