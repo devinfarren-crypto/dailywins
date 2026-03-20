@@ -6,6 +6,9 @@ import { createClient } from "@/src/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import dynamic from "next/dynamic";
+
+const ChartViews = dynamic(() => import("./ChartViews"), { ssr: false });
 
 // ─── Colors & Constants ───────────────────────────────────────────────────────
 
@@ -482,6 +485,7 @@ export default function DashboardPage() {
   const [noteShared, setNoteShared] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [showParentView, setShowParentView] = useState(false);
+  const [activeView, setActiveView] = useState<"entry" | "weekly" | "monthly" | "annual">("entry");
   const [showCategories, setShowCategories] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [savingScore, setSavingScore] = useState(false);
@@ -1743,8 +1747,47 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Scoring Grid */}
+        {/* View Tabs */}
         {hasStudents && (
+          <div style={{ display: "flex", gap: 4, marginBottom: 16 }}>
+            {(["entry", "weekly", "monthly", "annual"] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => setActiveView(v)}
+                style={{
+                  background: activeView === v ? COLORS.dark : "#e8e8e8",
+                  color: activeView === v ? "white" : COLORS.dark,
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "8px 18px",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  textTransform: "capitalize",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                {v === "entry" ? "Entry" : v === "weekly" ? "Weekly" : v === "monthly" ? "Monthly" : "Annual"}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Chart Views */}
+        {hasStudents && activeView !== "entry" && teacher && (
+          <ChartViews
+            view={activeView}
+            supabase={supabase as never}
+            studentId={selectedStudentId}
+            studentName={selectedStudent}
+            teacherId={teacher.teacher_id}
+            selectedDate={selectedDate}
+            categories={categories}
+          />
+        )}
+
+        {/* Scoring Grid */}
+        {hasStudents && activeView === "entry" && (
           <div style={{ overflowX: "auto", borderRadius: 14, background: "white", boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}>
             <table style={{ width: "100%", fontSize: 14, borderCollapse: "collapse" }}>
               <thead>
@@ -1866,8 +1909,8 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Legends */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginTop: 16 }}>
+        {/* Legends (entry view only) */}
+        {activeView === "entry" && <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginTop: 16 }}>
           {/* Arrival-type legends */}
           {categories.filter((c) => c.type === "arrival").map((cat) => (
             <div key={cat.id} style={{
@@ -1951,7 +1994,7 @@ export default function DashboardPage() {
               </div>
             </div>
           ))}
-        </div>
+        </div>}
 
         {/* Action Buttons */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 20, justifyContent: "center" }}>
