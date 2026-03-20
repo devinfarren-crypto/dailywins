@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, Component, type ErrorInfo, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/src/lib/supabase";
 import type { User } from "@supabase/supabase-js";
@@ -451,9 +451,58 @@ function ConfettiCanvas({ active }: { active: boolean }) {
   );
 }
 
+// ─── Error Boundary ──────────────────────────────────────────────────────────
+
+class DashboardErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("Dashboard error boundary caught:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f5f5f0", padding: 20 }}>
+          <div style={{ background: "white", borderRadius: 16, padding: 32, maxWidth: 500, textAlign: "center", boxShadow: "0 2px 12px rgba(0,0,0,0.1)" }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>&#9888;&#65039;</div>
+            <h2 style={{ color: "#2c3e50", fontSize: 20, fontWeight: 700, margin: "0 0 8px" }}>Something went wrong</h2>
+            <p style={{ color: "#888", fontSize: 14, margin: "0 0 16px" }}>{this.state.error?.message}</p>
+            <button
+              onClick={() => window.location.reload()}
+              style={{ background: "#e07850", color: "white", border: "none", borderRadius: 8, padding: "10px 24px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}
+            >
+              Reload Page
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
+  return (
+    <DashboardErrorBoundary>
+      <DashboardInner />
+    </DashboardErrorBoundary>
+  );
+}
+
+function DashboardInner() {
   const router = useRouter();
   const supabase = createClient();
   const [user, setUser] = useState<User | null>(null);
@@ -1288,8 +1337,23 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center", background: COLORS.dark }}>
-        <div style={{ color: "white", fontSize: 18 }}>Loading...</div>
+      <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", alignItems: "center", justifyContent: "center", background: "#f5f5f0" }}>
+        <div style={{ background: "white", borderRadius: 16, padding: 32, textAlign: "center", boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}>
+          <div style={{
+            background: COLORS.primary,
+            width: 48,
+            height: 48,
+            borderRadius: 12,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "white",
+            fontWeight: 800,
+            fontSize: 18,
+            margin: "0 auto 16px",
+          }}>DW</div>
+          <div style={{ color: COLORS.dark, fontSize: 16, fontWeight: 600 }}>Loading DailyWins...</div>
+        </div>
       </div>
     );
   }
