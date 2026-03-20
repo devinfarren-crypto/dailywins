@@ -2,9 +2,20 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  });
+  // ─── WWW redirect ─────────────────────────────────────────────────────────
+  // Canonical domain is dailywins.school (no www).
+  // PKCE code_verifier cookie is set on the domain the user started on,
+  // so www vs non-www mismatch breaks the auth code exchange.
+  const host = request.headers.get("host") ?? "";
+  if (host.startsWith("www.")) {
+    const url = request.nextUrl.clone();
+    url.host = host.replace("www.", "");
+    url.port = "";
+    return NextResponse.redirect(url, 301);
+  }
+
+  // ─── Supabase client with cookie bridge ───────────────────────────────────
+  let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,12 +26,13 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
+          // Write to the request so subsequent reads in this middleware see them
+          cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           );
-          supabaseResponse = NextResponse.next({
-            request,
-          });
+          // Rebuild supabaseResponse so it carries the updated request cookies
+          supabaseResponse = NextResponse.next({ request });
+          // Also set on the outgoing response so the browser receives them
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           );
@@ -29,20 +41,44 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Check for auth code in URL (PKCE flow — Google redirects here with ?code=)
+  // ─── Auth code exchange (PKCE flow) ───────────────────────────────────────
+  // Google/Supabase redirects here with ?code=... after OAuth consent.
   const code = request.nextUrl.searchParams.get("code");
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+    // Build redirect to /dashboard (or back to / on error)
+    const url = request.nextUrl.clone();
+    url.searchParams.delete("code");
+
     if (!error) {
-      // Redirect to dashboard after successful exchange
-      const url = request.nextUrl.clone();
       url.pathname = "/dashboard";
-      url.searchParams.delete("code");
-      return NextResponse.redirect(url);
+    } else {
+      console.error("Auth code exchange failed:", error.message);
+      url.pathname = "/";
+      url.searchParams.set("error", "auth");
     }
+
+    // CRITICAL: Copy session cookies from supabaseResponse onto the redirect.
+    // exchangeCodeForSession() calls setAll() which writes cookies to
+    // supabaseResponse, but we're returning a redirect instead — so we must
+    // transfer those cookies or the session is lost.
+    const redirect = NextResponse.redirect(url);
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      redirect.cookies.set(cookie.name, cookie.value, {
+        // Preserve the options that Supabase SSR sets
+        path: "/",
+        httpOnly: true,
+        secure: true,
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 365, // 1 year
+      });
+    });
+    return redirect;
   }
 
-  // Refresh session (important for keeping cookies alive)
+  // ─── Session refresh ──────────────────────────────────────────────────────
+  // getUser() validates the JWT and refreshes the session if needed.
   const {
     data: { user },
   } = await supabase.auth.getUser();

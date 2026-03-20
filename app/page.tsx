@@ -5,10 +5,16 @@ import { createClient } from "@/src/lib/supabase";
 export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     const supabase = createClient();
+    // Note: With PKCE flow (@supabase/ssr), Supabase redirects back to the
+    // Site URL with ?code=. The middleware intercepts this and exchanges the
+    // code for a session. redirectTo here tells Supabase where to go AFTER
+    // the code is appended — we use the canonical domain (no www) to ensure
+    // the PKCE code_verifier cookie domain matches.
+    const canonicalOrigin = window.location.origin.replace("://www.", "://");
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${canonicalOrigin}/auth/callback`,
         scopes: "https://www.googleapis.com/auth/drive.file",
         queryParams: {
           access_type: "offline",
