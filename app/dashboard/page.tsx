@@ -4,8 +4,6 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/src/lib/supabase";
 import type { User } from "@supabase/supabase-js";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import dynamic from "next/dynamic";
 
 const ChartViews = dynamic(() => import("./ChartViews"), { ssr: false });
@@ -1037,7 +1035,9 @@ export default function DashboardPage() {
 
   // ─── PDF Generation ─────────────────────────────────────────────────────────
 
-  const generateDailyPDF = () => {
+  const generateDailyPDF = async () => {
+    const { default: jsPDF } = await import("jspdf");
+    const { default: autoTable } = await import("jspdf-autotable");
     const doc = new jsPDF();
     const { earned: e, possible: p, pct: pc } = calculateProgress(scores, categories);
 
@@ -1078,7 +1078,9 @@ export default function DashboardPage() {
     doc.save(`DailyWins_${selectedStudent || "report"}_${selectedDate}.pdf`);
   };
 
-  const generateWeeklyPDF = () => {
+  const generateWeeklyPDF = async () => {
+    const { default: jsPDF } = await import("jspdf");
+    const { default: autoTable } = await import("jspdf-autotable");
     const doc = new jsPDF({ orientation: "landscape" });
 
     doc.setFontSize(18);
@@ -1139,7 +1141,7 @@ export default function DashboardPage() {
 
     doc.setFontSize(9);
     doc.setTextColor(150, 150, 150);
-    doc.text("Note: Only today's data is shown. Other days will populate as data is saved.", 14, (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable?.finalY + 12 || 200);
+    doc.text("Note: Only today's data is shown. Other days will populate as data is saved.", 14, (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ? (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 12 : 200);
 
     doc.save(`DailyWins_Weekly_${selectedStudent || "report"}_${days[0]}.pdf`);
   };
