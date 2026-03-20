@@ -245,6 +245,30 @@ const SCHEDULE_TYPES: ScheduleType[] = ["Regular", "Wednesday", "Minimum Day", "
 type PeriodScores = Record<string, number | null>;
 type AllScores = Record<string, PeriodScores>;
 
+/** Ensure a category has pointValues — derives them from type/options if missing */
+function ensurePointValues(cat: Category): Category {
+  if (cat.pointValues && cat.pointValues.length === cat.options.length) return cat;
+  const maxPts = cat.maxPoints ?? 3;
+  let pointValues: number[];
+  if (cat.type === "scale") {
+    pointValues = cat.options.map((_, i) => i);
+  } else if (cat.type === "toggle") {
+    pointValues = [maxPts, 0];
+    // Pad if more options
+    while (pointValues.length < cat.options.length) pointValues.push(0);
+  } else if (cat.type === "arrival") {
+    // First option = max, second = 0, third = 1 (matching On Time/L/L-E pattern)
+    if (cat.options.length === 3) {
+      pointValues = [maxPts, 0, 1];
+    } else {
+      pointValues = cat.options.map((_, i) => Math.max(0, maxPts - i));
+    }
+  } else {
+    pointValues = cat.options.map((_, i) => i);
+  }
+  return { ...cat, pointValues };
+}
+
 function formatDate(date: Date): string {
   return date.toISOString().split("T")[0];
 }
@@ -285,11 +309,13 @@ function scaleColor(value: number | null): string {
 
 /** Get the point value for a given option index in a category */
 function getPointValue(cat: Category, optionIndex: number): number {
+  if (!cat.pointValues) return optionIndex;
   return cat.pointValues[optionIndex] ?? 0;
 }
 
 /** Find which option index corresponds to a stored point value. Returns -1 if not found. */
 function getOptionIndexForPoints(cat: Category, points: number): number {
+  if (!cat.pointValues) return points;
   return cat.pointValues.indexOf(points);
 }
 
@@ -516,7 +542,9 @@ export default function DashboardPage() {
 
       // Load categories from teacher profile or use defaults
       if (profile.categories && Array.isArray(profile.categories) && profile.categories.length > 0) {
-        setCategories(profile.categories);
+        const normalized = (profile.categories as Category[]).map(ensurePointValues);
+        profile.categories = normalized;
+        setCategories(normalized);
       } else {
         // Save defaults to the teacher profile
         profile.categories = DEFAULT_CATEGORIES;
