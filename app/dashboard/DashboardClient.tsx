@@ -1715,7 +1715,7 @@ export default function DashboardClient() {
             &#128336; Schedule
           </button>
 
-          {/* Staff Sync Button */}
+          {/* School Team Button */}
           <button
             onClick={() => setShowStaffSync(true)}
             style={{
@@ -1730,10 +1730,10 @@ export default function DashboardClient() {
               height: 32,
             }}
           >
-            &#9729;&#65039; Staff Sync
+            &#9729;&#65039; School Team
           </button>
 
-          {/* Sync Now Button */}
+          {/* Student Sync Button */}
           {googleAccessToken && hasStudents && (
             <button
               onClick={handleSyncNow}
@@ -1755,7 +1755,7 @@ export default function DashboardClient() {
                 transition: "background 0.3s",
               }}
             >
-              {syncStatus === "syncing" ? "Syncing..." : syncStatus === "done" ? "\u2713 Synced" : syncStatus === "error" ? "Sync failed" : "\u21BB Sync"}
+              {syncStatus === "syncing" ? "Syncing..." : syncStatus === "done" ? "\u2713 Synced" : syncStatus === "error" ? "Sync failed" : "\u21BB Student Sync"}
             </button>
           )}
 
@@ -3068,7 +3068,7 @@ export default function DashboardClient() {
         </div>
       )}
 
-      {/* ─── Staff Sync Modal ──────────────────────────────────────────────────── */}
+      {/* ─── School Team Modal ──────────────────────────────────────────────────── */}
       {showStaffSync && (
         <div
           style={{
@@ -3093,7 +3093,7 @@ export default function DashboardClient() {
           }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>&#9729;&#65039;</div>
             <h2 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 700, color: COLORS.dark }}>
-              Staff Sync
+              School Team
             </h2>
             <div style={{
               background: COLORS.blue,
