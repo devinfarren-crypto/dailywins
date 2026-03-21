@@ -45,7 +45,7 @@ interface Category {
 }
 
 const DEFAULT_CATEGORIES: Category[] = [
-  { id: "arrival", name: "Arrival", type: "arrival", options: ["On Time", "L", "L/E"], pointValues: [3, 0, 1], maxPoints: 3 },
+  { id: "arrival", name: "Arrival", type: "arrival", options: ["On Time", "L", "L/E"], pointValues: [3, 0, 3], maxPoints: 3 },
   { id: "compliance", name: "Compliance", type: "scale", options: ["0", "1", "2", "3"], pointValues: [0, 1, 2, 3], maxPoints: 3 },
   { id: "social", name: "Social", type: "scale", options: ["0", "1", "2", "3"], pointValues: [0, 1, 2, 3], maxPoints: 3 },
   { id: "onTask", name: "On-Task", type: "scale", options: ["0", "1", "2", "3"], pointValues: [0, 1, 2, 3], maxPoints: 3 },
@@ -259,9 +259,9 @@ function ensurePointValues(cat: Category): Category {
     // Pad if more options
     while (pointValues.length < cat.options.length) pointValues.push(0);
   } else if (cat.type === "arrival") {
-    // First option = max, second = 0, third = 1 (matching On Time/L/L-E pattern)
+    // First option = max, second = 0, third = max (On Time/L/L-E: excused = full pts)
     if (cat.options.length === 3) {
-      pointValues = [maxPts, 0, 1];
+      pointValues = [maxPts, 0, maxPts];
     } else {
       pointValues = cat.options.map((_, i) => Math.max(0, maxPts - i));
     }
@@ -1972,13 +1972,24 @@ export default function DashboardClient() {
                 {cat.name}
               </div>
               <div style={{ fontSize: 13, color: "#555", lineHeight: 1.6 }}>
-                {cat.options.map((opt, idx) => (
-                  <span key={opt}>
-                    {idx > 0 && " \u00B7 "}
-                    <span style={{ color: arrivalButtonColor(cat, idx), fontWeight: 700 }}>{opt}</span>
-                    {cat.pointValues[idx] === cat.maxPoints ? "" : cat.pointValues[idx] === 0 ? " = 0 pts" : ` = ${cat.pointValues[idx]} pts`}
-                  </span>
-                ))}
+                {cat.options.map((opt, idx) => {
+                  const pts = cat.pointValues?.[idx] ?? 0;
+                  // Descriptive labels for the default arrival options
+                  let label = "";
+                  if (opt === "On Time") label = " = full points";
+                  else if (opt === "L") label = " (Late) = 0 pts";
+                  else if (opt === "L/E") label = " (Late/Excused) = full points";
+                  else if (pts === cat.maxPoints) label = " = full points";
+                  else if (pts === 0) label = " = 0 pts";
+                  else label = ` = ${pts} pts`;
+                  return (
+                    <span key={opt}>
+                      {idx > 0 && " \u00B7 "}
+                      <span style={{ color: arrivalButtonColor(cat, idx), fontWeight: 700 }}>{opt}</span>
+                      {label}
+                    </span>
+                  );
+                })}
               </div>
             </div>
           ))}
