@@ -1434,7 +1434,7 @@ export default function DashboardClient() {
 
       {/* Header */}
       <header style={{ background: COLORS.dark, boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 16px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             {/* EGUSD Logo */}
             <svg width="164" height="28" viewBox="0 0 164 28" style={{ flexShrink: 0 }}>
@@ -1458,7 +1458,7 @@ export default function DashboardClient() {
             <div style={{
               background: COLORS.primary,
               width: 38,
-              height: 38,
+              height: 32,
               borderRadius: 10,
               display: "flex",
               alignItems: "center",
@@ -1492,7 +1492,7 @@ export default function DashboardClient() {
         </div>
       </header>
 
-      <main style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 16px" }}>
+      <main style={{ maxWidth: 1200, margin: "0 auto", padding: "12px 16px" }}>
         {/* Welcome Banner */}
         {!hasStudents && (
           <div style={{
@@ -1530,54 +1530,46 @@ export default function DashboardClient() {
         )}
 
         {/* Controls Row */}
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 16, marginBottom: 20 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 8, marginBottom: 10 }}>
           {/* Student Selector */}
           {hasStudents && (
-            <div>
-              <label style={{ display: "block", marginBottom: 4, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: COLORS.dark }}>
-                Student
-              </label>
               <select
                 value={selectedStudentId}
                 onChange={(e) => setSelectedStudentId(e.target.value)}
                 style={{
-                  borderRadius: 8,
+                  borderRadius: 6,
                   border: "1px solid #d0d0d0",
-                  padding: "8px 12px",
-                  fontSize: 14,
+                  padding: "5px 10px",
+                  fontSize: 13,
                   fontWeight: 600,
                   color: COLORS.dark,
                   background: "white",
-                  minWidth: 160,
+                  minWidth: 140,
+                  height: 32,
                 }}
               >
                 {dbStudents.map((s) => (
                   <option key={s.id} value={s.id}>{s.display_name}</option>
                 ))}
               </select>
-            </div>
           )}
 
           {/* Date Picker */}
-          <div>
-            <label style={{ display: "block", marginBottom: 4, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: COLORS.dark }}>
-              Date
-            </label>
             <input
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
               style={{
-                borderRadius: 8,
+                borderRadius: 6,
                 border: "1px solid #d0d0d0",
-                padding: "8px 12px",
-                fontSize: 14,
+                padding: "5px 10px",
+                fontSize: 13,
                 fontWeight: 600,
                 color: COLORS.dark,
                 background: "white",
+                height: 32,
               }}
             />
-          </div>
 
           {/* Add Students Button */}
           <button
@@ -1587,11 +1579,11 @@ export default function DashboardClient() {
               color: "white",
               border: "none",
               borderRadius: 8,
-              padding: "8px 16px",
-              fontSize: 13,
+              padding: "0 12px",
+              fontSize: 12,
               fontWeight: 700,
               cursor: "pointer",
-              height: 38,
+              height: 32,
             }}
           >
             + Students
@@ -1605,11 +1597,11 @@ export default function DashboardClient() {
               color: "white",
               border: "none",
               borderRadius: 8,
-              padding: "8px 16px",
-              fontSize: 13,
+              padding: "0 12px",
+              fontSize: 12,
               fontWeight: 700,
               cursor: "pointer",
-              height: 38,
+              height: 32,
               position: "relative",
             }}
           >
@@ -1643,11 +1635,11 @@ export default function DashboardClient() {
               color: "white",
               border: "none",
               borderRadius: 8,
-              padding: "8px 16px",
-              fontSize: 13,
+              padding: "0 12px",
+              fontSize: 12,
               fontWeight: 700,
               cursor: "pointer",
-              height: 38,
+              height: 32,
             }}
           >
             &#9881; Categories
@@ -1661,11 +1653,11 @@ export default function DashboardClient() {
               color: "white",
               border: "none",
               borderRadius: 8,
-              padding: "8px 16px",
-              fontSize: 13,
+              padding: "0 12px",
+              fontSize: 12,
               fontWeight: 700,
               cursor: "pointer",
-              height: 38,
+              height: 32,
             }}
           >
             &#128336; Schedule
@@ -1679,11 +1671,11 @@ export default function DashboardClient() {
               color: "white",
               border: "none",
               borderRadius: 8,
-              padding: "8px 16px",
-              fontSize: 13,
+              padding: "0 12px",
+              fontSize: 12,
               fontWeight: 700,
               cursor: "pointer",
-              height: 38,
+              height: 32,
             }}
           >
             &#9729;&#65039; Staff Sync
@@ -1703,7 +1695,7 @@ export default function DashboardClient() {
                   fontWeight: 600,
                   color: COLORS.dark,
                   background: "white",
-                  height: 38,
+                  height: 32,
                 }}
               >
                 {SCHEDULE_TYPES.map((t) => (
@@ -1716,8 +1708,8 @@ export default function DashboardClient() {
           {/* Progress Bar with Draggable Thresholds */}
           <div style={{ marginLeft: "auto", flex: 1, minWidth: 220, maxWidth: 420 }}>
             {/* Score line above bar */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, fontWeight: 800, color: COLORS.dark }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 800, color: COLORS.dark }}>
                 <span>&#11088;</span>
                 <span>{earned} / {possible} pts ({pct}%)</span>
               </div>
@@ -1735,13 +1727,13 @@ export default function DashboardClient() {
             </div>
             <div
               ref={barRef}
-              style={{ position: "relative", height: 22, borderRadius: 11, background: "#e0e0e0", userSelect: "none" }}
+              style={{ position: "relative", height: 16, borderRadius: 8, background: "#e0e0e0", userSelect: "none" }}
             >
               {/* Zone segments */}
-              <div style={{ position: "absolute", top: 0, left: 0, width: `${thresholds[0]}%`, height: "100%", background: COLORS.red, opacity: 0.25, borderRadius: "11px 0 0 11px" }} />
+              <div style={{ position: "absolute", top: 0, left: 0, width: `${thresholds[0]}%`, height: "100%", background: COLORS.red, opacity: 0.25, borderRadius: "8px 0 0 8px" }} />
               <div style={{ position: "absolute", top: 0, left: `${thresholds[0]}%`, width: `${thresholds[1] - thresholds[0]}%`, height: "100%", background: COLORS.gold, opacity: 0.25 }} />
               <div style={{ position: "absolute", top: 0, left: `${thresholds[1]}%`, width: `${thresholds[2] - thresholds[1]}%`, height: "100%", background: COLORS.green, opacity: 0.25 }} />
-              <div style={{ position: "absolute", top: 0, left: `${thresholds[2]}%`, width: `${100 - thresholds[2]}%`, height: "100%", background: COLORS.blue, opacity: 0.25, borderRadius: "0 11px 11px 0" }} />
+              <div style={{ position: "absolute", top: 0, left: `${thresholds[2]}%`, width: `${100 - thresholds[2]}%`, height: "100%", background: COLORS.blue, opacity: 0.25, borderRadius: "0 8px 8px 0" }} />
               {/* Fill */}
               <div style={{
                 position: "absolute",
@@ -1749,7 +1741,7 @@ export default function DashboardClient() {
                 left: 0,
                 height: "100%",
                 width: `${pct}%`,
-                borderRadius: 11,
+                borderRadius: 8,
                 background: zoneColor(pct),
                 transition: draggingRef.current !== null ? "none" : "width 0.4s ease, background 0.4s ease",
               }} />
@@ -1762,10 +1754,10 @@ export default function DashboardClient() {
                   style={{
                     position: "absolute",
                     left: `${t}%`,
-                    top: -3,
-                    width: 14,
-                    height: 28,
-                    marginLeft: -7,
+                    top: -2,
+                    width: 12,
+                    height: 20,
+                    marginLeft: -6,
                     cursor: "ew-resize",
                     zIndex: 10,
                     display: "flex",
@@ -1785,7 +1777,7 @@ export default function DashboardClient() {
               ))}
             </div>
             {/* Zone labels */}
-            <div style={{ position: "relative", height: 16, marginTop: 3, fontSize: 9, fontWeight: 700, color: "#999" }}>
+            <div style={{ position: "relative", height: 12, marginTop: 2, fontSize: 8, fontWeight: 700, color: "#aaa" }}>
               <span style={{ position: "absolute", left: 0, width: `${thresholds[0]}%`, textAlign: "center", overflow: "hidden", whiteSpace: "nowrap" }}>Needs Support</span>
               <span style={{ position: "absolute", left: `${thresholds[0]}%`, width: `${thresholds[1] - thresholds[0]}%`, textAlign: "center", overflow: "hidden", whiteSpace: "nowrap" }}>Working On It</span>
               <span style={{ position: "absolute", left: `${thresholds[1]}%`, width: `${thresholds[2] - thresholds[1]}%`, textAlign: "center", overflow: "hidden", whiteSpace: "nowrap" }}>On Track</span>
@@ -1796,7 +1788,7 @@ export default function DashboardClient() {
 
         {/* View Tabs */}
         {hasStudents && (
-          <div style={{ display: "flex", gap: 4, marginBottom: 16 }}>
+          <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
             {(["entry", "weekly", "monthly", "annual"] as const).map((v) => (
               <button
                 key={v}
@@ -1806,8 +1798,8 @@ export default function DashboardClient() {
                   color: activeView === v ? "white" : COLORS.dark,
                   border: "none",
                   borderRadius: 8,
-                  padding: "8px 18px",
-                  fontSize: 13,
+                  padding: "5px 14px",
+                  fontSize: 12,
                   fontWeight: 700,
                   cursor: "pointer",
                   textTransform: "capitalize",
@@ -1839,21 +1831,21 @@ export default function DashboardClient() {
             <table style={{ width: "100%", fontSize: 14, borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ background: COLORS.dark }}>
-                  <th style={{ padding: "12px 14px", textAlign: "left", color: "white", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
+                  <th style={{ padding: "6px 10px", textAlign: "left", color: "white", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
                     Period
                   </th>
                   {categories.map((cat) => (
-                    <th key={cat.id} style={{ padding: "12px 8px", textAlign: "center", color: "white", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
+                    <th key={cat.id} style={{ padding: "6px 6px", textAlign: "center", color: "white", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>
                       {cat.name}
                     </th>
                   ))}
-                  <th style={{ padding: "12px 8px", textAlign: "center", color: "white", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
+                  <th style={{ padding: "6px 6px", textAlign: "center", color: "white", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>
                     Pts
                   </th>
                 </tr>
                 {/* Quick Fill Row */}
                 <tr style={{ background: "#f8f4ef" }}>
-                  <td style={{ padding: "8px 14px" }}>
+                  <td style={{ padding: "4px 10px" }}>
                     <div style={{ display: "flex", gap: 4 }}>
                       <button
                         onClick={quickFillAll}
@@ -1888,7 +1880,7 @@ export default function DashboardClient() {
                     </div>
                   </td>
                   {categories.map((cat) => (
-                    <td key={cat.id} style={{ padding: "8px 8px", textAlign: "center" }}>
+                    <td key={cat.id} style={{ padding: "4px 4px", textAlign: "center" }}>
                       <button
                         onClick={() => quickFillColumn(cat.id)}
                         style={{
@@ -1906,7 +1898,7 @@ export default function DashboardClient() {
                       </button>
                     </td>
                   ))}
-                  <td style={{ padding: "8px 8px", textAlign: "center", fontSize: 11, color: "#999" }}>&mdash;</td>
+                  <td style={{ padding: "4px 4px", textAlign: "center", fontSize: 10, color: "#999" }}>&mdash;</td>
                 </tr>
               </thead>
               <tbody>
@@ -1923,7 +1915,7 @@ export default function DashboardClient() {
                         borderTop: "1px solid #eee",
                       }}
                     >
-                      <td style={{ padding: "10px 14px", fontWeight: 700, color: COLORS.dark }}>
+                      <td style={{ padding: "4px 10px", fontWeight: 700, color: COLORS.dark, fontSize: 13 }}>
                         <div>{slot.label}</div>
                         {slot.start && (
                           <div style={{ fontSize: 10, fontWeight: 500, color: "#999", marginTop: 1 }}>
@@ -1933,17 +1925,17 @@ export default function DashboardClient() {
                       </td>
 
                       {categories.map((cat) => (
-                        <td key={cat.id} style={{ padding: "8px 6px", textAlign: "center" }}>
+                        <td key={cat.id} style={{ padding: "3px 4px", textAlign: "center" }}>
                           {renderCategoryCell(cat, slot.label, ps)}
                         </td>
                       ))}
 
                       {/* Period Points */}
                       <td style={{
-                        padding: "8px 10px",
+                        padding: "3px 6px",
                         textAlign: "center",
                         fontWeight: 800,
-                        fontSize: 15,
+                        fontSize: 14,
                         color: pts >= ptsHighThreshold ? COLORS.secondary : pts >= ptsMidThreshold ? COLORS.accent : COLORS.primary,
                       }}>
                         {pts}
@@ -1957,16 +1949,16 @@ export default function DashboardClient() {
         )}
 
         {/* Legends (entry view only) */}
-        {activeView === "entry" && <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginTop: 16 }}>
+        {activeView === "entry" && <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
           {/* Arrival-type legends */}
           {categories.filter((c) => c.type === "arrival").map((cat) => (
             <div key={cat.id} style={{
               background: "white",
               borderRadius: 10,
-              padding: "12px 18px",
-              boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+              padding: "8px 12px",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
               flex: 1,
-              minWidth: 280,
+              minWidth: 220,
             }}>
               <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: COLORS.dark, marginBottom: 6 }}>
                 {cat.name}
@@ -1999,10 +1991,10 @@ export default function DashboardClient() {
             <div style={{
               background: "white",
               borderRadius: 10,
-              padding: "12px 18px",
-              boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+              padding: "8px 12px",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
               flex: 1,
-              minWidth: 280,
+              minWidth: 220,
             }}>
               <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: COLORS.dark, marginBottom: 6 }}>
                 Score Scale
@@ -2033,10 +2025,10 @@ export default function DashboardClient() {
             <div key={cat.id} style={{
               background: "white",
               borderRadius: 10,
-              padding: "12px 18px",
-              boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+              padding: "8px 12px",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
               flex: 1,
-              minWidth: 280,
+              minWidth: 220,
             }}>
               <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: COLORS.dark, marginBottom: 6 }}>
                 {cat.name}
@@ -2055,7 +2047,7 @@ export default function DashboardClient() {
         </div>}
 
         {/* Action Buttons */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 20, justifyContent: "center" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10, justifyContent: "center" }}>
           <button
             onClick={generateDailyPDF}
             style={{
@@ -2063,13 +2055,13 @@ export default function DashboardClient() {
               color: "white",
               border: "none",
               borderRadius: 10,
-              padding: "12px 24px",
-              fontSize: 14,
+              padding: "8px 16px",
+              fontSize: 13,
               fontWeight: 700,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
-              gap: 8,
+              gap: 6,
             }}
           >
             &#128196; Daily PDF
@@ -2081,13 +2073,13 @@ export default function DashboardClient() {
               color: "white",
               border: "none",
               borderRadius: 10,
-              padding: "12px 24px",
-              fontSize: 14,
+              padding: "8px 16px",
+              fontSize: 13,
               fontWeight: 700,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
-              gap: 8,
+              gap: 6,
             }}
           >
             &#128202; Weekly PDF
@@ -2099,13 +2091,13 @@ export default function DashboardClient() {
               color: "white",
               border: "none",
               borderRadius: 10,
-              padding: "12px 24px",
-              fontSize: 14,
+              padding: "8px 16px",
+              fontSize: 13,
               fontWeight: 700,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
-              gap: 8,
+              gap: 6,
             }}
           >
             &#127968; Parent View
