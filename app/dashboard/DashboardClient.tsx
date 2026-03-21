@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/src/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import dynamic from "next/dynamic";
+import { syncToGoogleSheets } from "./sheetsSync";
 
 const ChartViews = dynamic(() => import("./ChartViews"), { ssr: false });
 
@@ -499,6 +500,8 @@ export default function DashboardClient() {
   });
   const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(null);
   const [exportingDrive, setExportingDrive] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "done" | "error">("idle");
+  const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draggingRef = useRef<number | null>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const prevPctRef = useRef(0);
@@ -752,6 +755,52 @@ export default function DashboardClient() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStudentId, selectedDate, selectedSchool, selectedSchedule, teacher]);
 
+  // ─── Google Sheets Auto-Sync ────────────────────────────────────────────────
+
+  const triggerSheetSync = useCallback(async (allScores: AllScores) => {
+    const token = googleAccessToken ?? localStorage.getItem("dailywins_google_token");
+    if (!token || !teacher || !selectedStudentId || !selectedStudent) return;
+
+    setSyncStatus("syncing");
+    const sharedNotes = notes.filter((n) => n.shared).map((n) => n.text);
+
+    const result = await syncToGoogleSheets({
+      token,
+      studentId: selectedStudentId,
+      studentName: selectedStudent,
+      teacherId: teacher.teacher_id,
+      date: selectedDate,
+      scores: allScores,
+      categories,
+      trackablePeriods,
+      sharedNotes,
+      supabase: supabase as never,
+    });
+
+    if (result.tokenExpired) {
+      localStorage.removeItem("dailywins_google_token");
+      setGoogleAccessToken(null);
+      setSyncStatus("error");
+    } else if (result.success) {
+      setSyncStatus("done");
+      setTimeout(() => setSyncStatus("idle"), 2000);
+    } else {
+      console.error("Sheet sync failed:", result.error);
+      setSyncStatus("error");
+      setTimeout(() => setSyncStatus("idle"), 3000);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [googleAccessToken, teacher, selectedStudentId, selectedStudent, selectedDate, categories, trackablePeriods, notes]);
+
+  const scheduleSheetSync = useCallback((allScores: AllScores) => {
+    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    syncTimerRef.current = setTimeout(() => triggerSheetSync(allScores), 2000);
+  }, [triggerSheetSync]);
+
+  const handleSyncNow = () => {
+    triggerSheetSync(scores);
+  };
+
   // ─── Save Scores to DB ──────────────────────────────────────────────────────
 
   const saveScoresToDb = useCallback(async (allScores: AllScores) => {
@@ -784,9 +833,12 @@ export default function DashboardClient() {
 
     if (error) {
       console.error("Failed to save scores:", error);
+    } else {
+      // Auto-sync to Google Sheets after successful DB save
+      scheduleSheetSync(allScores);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teacher, selectedStudentId, selectedDate, trackablePeriods.length, categories]);
+  }, [teacher, selectedStudentId, selectedDate, trackablePeriods.length, categories, scheduleSheetSync]);
 
   // ─── Event Handlers ─────────────────────────────────────────────────────────
 
@@ -1680,6 +1732,32 @@ export default function DashboardClient() {
           >
             &#9729;&#65039; Staff Sync
           </button>
+
+          {/* Sync Now Button */}
+          {googleAccessToken && hasStudents && (
+            <button
+              onClick={handleSyncNow}
+              disabled={syncStatus === "syncing"}
+              title="Sync current student data to Google Sheets"
+              style={{
+                background: syncStatus === "done" ? COLORS.secondary : syncStatus === "error" ? COLORS.primary : syncStatus === "syncing" ? "#999" : "#4285F4",
+                color: "white",
+                border: "none",
+                borderRadius: 6,
+                padding: "0 10px",
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: syncStatus === "syncing" ? "not-allowed" : "pointer",
+                height: 32,
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                transition: "background 0.3s",
+              }}
+            >
+              {syncStatus === "syncing" ? "Syncing..." : syncStatus === "done" ? "\u2713 Synced" : syncStatus === "error" ? "Sync failed" : "\u21BB Sync"}
+            </button>
+          )}
 
           {/* Quick Schedule Switcher */}
           {selectedSchool && (
