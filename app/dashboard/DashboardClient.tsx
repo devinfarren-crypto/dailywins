@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/src/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import dynamic from "next/dynamic";
-import { syncToGoogleSheets } from "./sheetsSync";
+import { syncToGoogleSheets, getValidGoogleToken } from "./sheetsSync";
 
 const ChartViews = dynamic(() => import("./ChartViews"), { ssr: false });
 
@@ -758,14 +758,18 @@ export default function DashboardClient() {
   // ─── Google Sheets Auto-Sync ────────────────────────────────────────────────
 
   const triggerSheetSync = useCallback(async (allScores: AllScores) => {
-    const token = googleAccessToken ?? localStorage.getItem("dailywins_google_token");
-    if (!token || !teacher || !selectedStudentId || !selectedStudent) return;
+    if (!teacher || !selectedStudentId || !selectedStudent) return;
+
+    // Check if we have any Google token (will auto-refresh if expired)
+    const hasToken = googleAccessToken || localStorage.getItem("dailywins_google_token");
+    if (!hasToken) return; // No token at all — skip silently
 
     setSyncStatus("syncing");
     const sharedNotes = notes.filter((n) => n.shared).map((n) => n.text);
 
     const result = await syncToGoogleSheets({
-      token,
+      // Token is optional — syncToGoogleSheets will auto-refresh via /api/refresh-google-token
+      token: googleAccessToken ?? localStorage.getItem("dailywins_google_token") ?? undefined,
       studentId: selectedStudentId,
       studentName: selectedStudent,
       teacherId: teacher.teacher_id,
@@ -779,9 +783,13 @@ export default function DashboardClient() {
 
     if (result.tokenExpired) {
       localStorage.removeItem("dailywins_google_token");
+      localStorage.removeItem("dailywins_google_token_expiry");
       setGoogleAccessToken(null);
       setSyncStatus("error");
     } else if (result.success) {
+      // Update the local token in case it was refreshed
+      const freshToken = localStorage.getItem("dailywins_google_token");
+      if (freshToken) setGoogleAccessToken(freshToken);
       setSyncStatus("done");
       setTimeout(() => setSyncStatus("idle"), 2000);
     } else {
@@ -1210,12 +1218,16 @@ export default function DashboardClient() {
   // ─── Export to Google Drive ─────────────────────────────────────────────────
 
   const exportToDrive = async () => {
-    if (!googleAccessToken) {
-      alert("Google Drive access not available. Please sign out and sign in again to grant Drive permissions.");
-      return;
-    }
     if (!selectedStudent) {
       alert("Please select a student first.");
+      return;
+    }
+
+    // Auto-refresh token if needed
+    const { getValidGoogleToken: getToken } = await import("./sheetsSync");
+    const { token: validToken, error: tokenErr } = await getToken();
+    if (!validToken) {
+      alert(tokenErr ?? "Google Drive access not available. Please sign out and sign in again.");
       return;
     }
 
@@ -1297,7 +1309,7 @@ export default function DashboardClient() {
       const createResponse = await fetch("https://sheets.googleapis.com/v4/spreadsheets", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${googleAccessToken}`,
+          Authorization: `Bearer ${validToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -1734,7 +1746,7 @@ export default function DashboardClient() {
           </button>
 
           {/* Student Sync Button */}
-          {googleAccessToken && hasStudents && (
+          {hasStudents && (
             <button
               onClick={handleSyncNow}
               disabled={syncStatus === "syncing"}

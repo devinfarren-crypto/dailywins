@@ -4,6 +4,49 @@
 const SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets";
 const DRIVE_API = "https://www.googleapis.com/drive/v3";
 
+// ─── Token Management ────────────────────────────────────────────────────────
+
+/**
+ * Get a valid Google access token, refreshing if expired.
+ * Returns null if no token is available and refresh fails.
+ */
+export async function getValidGoogleToken(): Promise<{ token: string | null; error?: string }> {
+  const stored = localStorage.getItem("dailywins_google_token");
+  const expiryStr = localStorage.getItem("dailywins_google_token_expiry");
+  const expiry = expiryStr ? parseInt(expiryStr, 10) : 0;
+
+  // If token exists and not expired (with 5-min buffer), use it
+  if (stored && Date.now() < expiry - 300_000) {
+    return { token: stored };
+  }
+
+  // Token expired or missing — try to refresh via server API route
+  try {
+    const res = await fetch("/api/refresh-google-token", {
+      method: "POST",
+      credentials: "include", // send auth cookies
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ error: "Unknown error" }));
+      console.error("Token refresh failed:", res.status, body.error);
+      // Clear stale token
+      localStorage.removeItem("dailywins_google_token");
+      localStorage.removeItem("dailywins_google_token_expiry");
+      return { token: null, error: body.error ?? "Token refresh failed" };
+    }
+
+    const data = await res.json();
+    // Store the fresh token
+    localStorage.setItem("dailywins_google_token", data.access_token);
+    localStorage.setItem("dailywins_google_token_expiry", String(Date.now() + (data.expires_in - 60) * 1000));
+    return { token: data.access_token };
+  } catch (err) {
+    console.error("Token refresh request failed:", err);
+    return { token: null, error: "Network error refreshing token" };
+  }
+}
+
 interface Category {
   id: string;
   name: string;
@@ -278,7 +321,7 @@ function buildWeeklySheet(
 // ─── Main sync function ──────────────────────────────────────────────────────
 
 export async function syncToGoogleSheets(params: {
-  token: string;
+  token?: string; // optional — will auto-refresh if missing/expired
   studentId: string;
   studentName: string;
   teacherId: string;
@@ -301,9 +344,27 @@ export async function syncToGoogleSheets(params: {
     };
   };
 }): Promise<SyncResult> {
-  const { token, studentId, studentName, teacherId, date, scores, categories, trackablePeriods, sharedNotes, supabase } = params;
+  const { studentId, studentName, teacherId, date, scores, categories, trackablePeriods, sharedNotes, supabase } = params;
 
   try {
+    // Get a valid token (auto-refresh if expired)
+    let token = params.token;
+    if (!token) {
+      const { token: refreshed, error: refreshErr } = await getValidGoogleToken();
+      if (!refreshed) {
+        return { success: false, error: refreshErr ?? "No Google token", tokenExpired: true };
+      }
+      token = refreshed;
+    } else {
+      // Even if a token was passed, check if it's near expiry and refresh
+      const expiryStr = localStorage.getItem("dailywins_google_token_expiry");
+      const expiry = expiryStr ? parseInt(expiryStr, 10) : 0;
+      if (Date.now() > expiry - 300_000) {
+        const { token: refreshed } = await getValidGoogleToken();
+        if (refreshed) token = refreshed;
+      }
+    }
+
     // 1. Check if we already have a sheet for this student
     const { data: existing } = await supabase
       .from("student_sheets")

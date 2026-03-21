@@ -33,6 +33,18 @@ export default function LoginPage() {
         // Persist the Google access token for Drive API exports
         if (data.session?.provider_token) {
           localStorage.setItem("dailywins_google_token", data.session.provider_token);
+          // Store expiry time (access tokens last ~3600 seconds)
+          localStorage.setItem("dailywins_google_token_expiry", String(Date.now() + 3500 * 1000));
+        }
+        // Store refresh token in Supabase for persistent access
+        if (data.session?.provider_refresh_token) {
+          const supabaseForSave = createClient();
+          supabaseForSave.from("teachers")
+            .update({ google_refresh_token: data.session.provider_refresh_token })
+            .eq("auth_id", data.session.user.id)
+            .then(({ error: saveErr }) => {
+              if (saveErr) console.error("Failed to save refresh token:", saveErr);
+            });
         }
         // Session is now stored in cookies by the browser client
         router.replace("/dashboard");
