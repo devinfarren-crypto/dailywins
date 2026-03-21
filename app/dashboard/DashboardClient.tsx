@@ -1690,12 +1690,13 @@ export default function DashboardClient() {
                 style={{
                   borderRadius: 8,
                   border: "1px solid #d0d0d0",
-                  padding: "8px 12px",
+                  padding: "5px 10px",
                   fontSize: 13,
                   fontWeight: 600,
                   color: COLORS.dark,
                   background: "white",
                   height: 32,
+                  minWidth: 140,
                 }}
               >
                 {SCHEDULE_TYPES.map((t) => (
