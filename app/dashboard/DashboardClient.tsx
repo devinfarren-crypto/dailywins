@@ -41,6 +41,7 @@ interface Category {
   options: string[];
   pointValues: number[];
   maxPoints: number;
+  noPoints?: boolean;
 }
 
 const DEFAULT_CATEGORIES: Category[] = [
@@ -277,13 +278,14 @@ function formatDate(date: Date): string {
 function calculatePeriodPoints(periodScores: PeriodScores, categories: Category[]): number {
   let pts = 0;
   for (const cat of categories) {
+    if (cat.noPoints) continue;
     pts += periodScores[cat.id] ?? 0;
   }
   return pts;
 }
 
 function calculateMaxPoints(categories: Category[]): number {
-  return categories.reduce((sum, cat) => sum + cat.maxPoints, 0);
+  return categories.reduce((sum, cat) => cat.noPoints ? sum : sum + cat.maxPoints, 0);
 }
 
 function calculateProgress(scores: AllScores, categories: Category[]): { earned: number; possible: number; pct: number } {
@@ -485,6 +487,7 @@ export default function DashboardClient() {
   const [showParentView, setShowParentView] = useState(false);
   const [activeView, setActiveView] = useState<"entry" | "weekly" | "monthly" | "annual">("entry");
   const [showCategories, setShowCategories] = useState(false);
+  const [showStaffSync, setShowStaffSync] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [savingScore, setSavingScore] = useState(false);
   const [thresholds, setThresholds] = useState<[number, number, number]>(() => {
@@ -1668,6 +1671,24 @@ export default function DashboardClient() {
             &#128336; Schedule
           </button>
 
+          {/* Staff Sync Button */}
+          <button
+            onClick={() => setShowStaffSync(true)}
+            style={{
+              background: COLORS.blue,
+              color: "white",
+              border: "none",
+              borderRadius: 8,
+              padding: "8px 16px",
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: "pointer",
+              height: 38,
+            }}
+          >
+            &#9729;&#65039; Staff Sync
+          </button>
+
           {/* Quick Schedule Switcher */}
           {selectedSchool && (
             <div>
@@ -2765,6 +2786,54 @@ export default function DashboardClient() {
                     {cat.type}
                   </span>
 
+                  {/* No Points toggle */}
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: cat.noPoints ? COLORS.primary : "#bbb",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      flexShrink: 0,
+                    }}
+                    title="When enabled, this category is tracked but does not count toward the daily score"
+                  >
+                    <div
+                      onClick={() => {
+                        setEditCategories((prev) => {
+                          const next = [...prev];
+                          next[idx] = { ...next[idx], noPoints: !next[idx].noPoints };
+                          return next;
+                        });
+                      }}
+                      style={{
+                        width: 32,
+                        height: 18,
+                        borderRadius: 9,
+                        background: cat.noPoints ? COLORS.primary : "#ddd",
+                        position: "relative",
+                        transition: "background 0.2s",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <div style={{
+                        width: 14,
+                        height: 14,
+                        borderRadius: "50%",
+                        background: "white",
+                        position: "absolute",
+                        top: 2,
+                        left: cat.noPoints ? 16 : 2,
+                        transition: "left 0.2s",
+                        boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
+                      }} />
+                    </div>
+                    No Pts
+                  </label>
+
                   {/* Delete button */}
                   <button
                     onClick={() => deleteCategoryFromEditor(idx)}
@@ -2913,6 +2982,67 @@ export default function DashboardClient() {
                 Save Categories
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Staff Sync Modal ──────────────────────────────────────────────────── */}
+      {showStaffSync && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowStaffSync(false); }}
+        >
+          <div style={{
+            background: "white",
+            borderRadius: 16,
+            padding: 32,
+            width: "90%",
+            maxWidth: 440,
+            textAlign: "center",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>&#9729;&#65039;</div>
+            <h2 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 700, color: COLORS.dark }}>
+              Staff Sync
+            </h2>
+            <div style={{
+              background: COLORS.blue,
+              color: "white",
+              borderRadius: 8,
+              padding: "6px 14px",
+              fontSize: 12,
+              fontWeight: 700,
+              display: "inline-block",
+              marginBottom: 16,
+            }}>
+              Coming Soon
+            </div>
+            <p style={{ color: "#666", fontSize: 14, lineHeight: 1.6, margin: "0 0 20px" }}>
+              Cloud sync between teachers is being developed. This will allow staff at your school to share student behavior data, coordinate on interventions, and view cross-period reports — all in real time.
+            </p>
+            <button
+              onClick={() => setShowStaffSync(false)}
+              style={{
+                background: COLORS.blue,
+                color: "white",
+                border: "none",
+                borderRadius: 8,
+                padding: "10px 28px",
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              Got it
+            </button>
           </div>
         </div>
       )}
