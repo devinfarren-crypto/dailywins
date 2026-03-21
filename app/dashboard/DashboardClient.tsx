@@ -1696,7 +1696,7 @@ export default function DashboardClient() {
                   color: COLORS.dark,
                   background: "white",
                   height: 32,
-                  minWidth: 140,
+                  minWidth: 170,
                 }}
               >
                 {SCHEDULE_TYPES.map((t) => (
