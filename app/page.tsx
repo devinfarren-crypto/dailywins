@@ -30,13 +30,11 @@ export default function LoginPage() {
           return;
         }
         console.log("Code exchange succeeded, session:", !!data.session);
-        // Persist the Google access token for Drive API exports
+        // If Google returned a Drive token (personal accounts only — EGUSD blocks drive.file scope)
         if (data.session?.provider_token) {
           localStorage.setItem("dailywins_google_token", data.session.provider_token);
-          // Store expiry time (access tokens last ~3600 seconds)
           localStorage.setItem("dailywins_google_token_expiry", String(Date.now() + 3500 * 1000));
         }
-        // Store refresh token in Supabase for persistent access
         if (data.session?.provider_refresh_token) {
           const supabaseForSave = createClient();
           supabaseForSave.from("teachers")
@@ -46,7 +44,6 @@ export default function LoginPage() {
               if (saveErr) console.error("Failed to save refresh token:", saveErr);
             });
         }
-        // Session is now stored in cookies by the browser client
         router.replace("/dashboard");
       });
       return;
@@ -68,11 +65,6 @@ export default function LoginPage() {
       provider: "google",
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
-        scopes: "https://www.googleapis.com/auth/drive.file",
-        queryParams: {
-          access_type: "offline",
-          prompt: "consent",
-        },
       },
     });
   };

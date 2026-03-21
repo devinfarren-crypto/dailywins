@@ -516,6 +516,7 @@ export default function DashboardClient() {
   // Derived values
   const selectedStudent = dbStudents.find((s) => s.id === selectedStudentId)?.display_name ?? "";
   const hasStudents = dbStudents.length > 0;
+  const hasDriveAccess = Boolean(googleAccessToken || (typeof window !== "undefined" && localStorage.getItem("dailywins_google_token")));
 
   // ─── Auth + Teacher Profile Setup ───────────────────────────────────────────
 
@@ -1748,11 +1749,17 @@ export default function DashboardClient() {
           {/* Student Sync Button */}
           {hasStudents && (
             <button
-              onClick={handleSyncNow}
+              onClick={() => {
+                if (!hasDriveAccess) {
+                  alert("Google Drive access not available.\n\nYour school account may block Drive permissions. Sign in with a personal Google account to enable Student Sync and Drive exports.");
+                  return;
+                }
+                handleSyncNow();
+              }}
               disabled={syncStatus === "syncing"}
-              title="Sync current student data to Google Sheets"
+              title={hasDriveAccess ? "Sync current student data to Google Sheets" : "Google Drive not available — sign in with a personal account to enable"}
               style={{
-                background: syncStatus === "done" ? COLORS.secondary : syncStatus === "error" ? COLORS.primary : syncStatus === "syncing" ? "#999" : "#4285F4",
+                background: !hasDriveAccess ? "#bbb" : syncStatus === "done" ? COLORS.secondary : syncStatus === "error" ? COLORS.primary : syncStatus === "syncing" ? "#999" : "#4285F4",
                 color: "white",
                 border: "none",
                 borderRadius: 6,
@@ -1767,7 +1774,7 @@ export default function DashboardClient() {
                 transition: "background 0.3s",
               }}
             >
-              {syncStatus === "syncing" ? "Syncing..." : syncStatus === "done" ? "\u2713 Synced" : syncStatus === "error" ? "Sync failed" : "\u21BB Student Sync"}
+              {!hasDriveAccess ? "\u21BB Student Sync" : syncStatus === "syncing" ? "Syncing..." : syncStatus === "done" ? "\u2713 Synced" : syncStatus === "error" ? "Sync failed" : "\u21BB Student Sync"}
             </button>
           )}
 
@@ -2194,21 +2201,27 @@ export default function DashboardClient() {
             &#127968; Parent View
           </button>
           <button
-            onClick={exportToDrive}
+            onClick={() => {
+              if (!hasDriveAccess) {
+                alert("Google Drive access not available.\n\nYour school account may block Drive permissions. Sign in with a personal Google account to enable Student Sync and Drive exports.");
+                return;
+              }
+              exportToDrive();
+            }}
             disabled={exportingDrive}
             style={{
-              background: exportingDrive ? "#999" : "#4285F4",
+              background: !hasDriveAccess ? "#bbb" : exportingDrive ? "#999" : "#4285F4",
               color: "white",
               border: "none",
               borderRadius: 10,
-              padding: "12px 24px",
-              fontSize: 14,
+              padding: "8px 16px",
+              fontSize: 13,
               fontWeight: 700,
               cursor: exportingDrive ? "not-allowed" : "pointer",
               display: "flex",
               alignItems: "center",
-              gap: 8,
-              opacity: exportingDrive ? 0.7 : 1,
+              gap: 6,
+              opacity: !hasDriveAccess ? 0.8 : exportingDrive ? 0.7 : 1,
             }}
           >
             <svg width="16" height="16" viewBox="0 0 87.3 78" style={{ flexShrink: 0 }}>
