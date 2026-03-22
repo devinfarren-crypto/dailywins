@@ -22,22 +22,24 @@ const COLORS = {
   blue: "#3498db",
 };
 
-const THEMES: Record<string, { name: string; header: string; primary: string; secondary: string; accent: string; swatch: string[] }> = {
-  default: { name: "DailyWins", header: "#2c3e50", primary: "#e07850", secondary: "#3a7c6a", accent: "#f0b647", swatch: ["#2c3e50", "#e07850", "#3a7c6a"] },
-  steelBlue: { name: "Steel Blue", header: "#34495e", primary: "#2980b9", secondary: "#27ae60", accent: "#f39c12", swatch: ["#34495e", "#2980b9", "#27ae60"] },
-  warmSlate: { name: "Warm Slate", header: "#4a4a4a", primary: "#c0392b", secondary: "#16a085", accent: "#e67e22", swatch: ["#4a4a4a", "#c0392b", "#16a085"] },
-  sage: { name: "Sage Green", header: "#2d5a3d", primary: "#8e6b47", secondary: "#5d8a68", accent: "#d4a76a", swatch: ["#2d5a3d", "#5d8a68", "#8e6b47"] },
-  lavender: { name: "Lavender", header: "#4a3b6b", primary: "#8e5ea2", secondary: "#5b8a72", accent: "#d4a05a", swatch: ["#4a3b6b", "#8e5ea2", "#5b8a72"] },
-  midnight: { name: "Midnight", header: "#1a1a2e", primary: "#e94560", secondary: "#0f3460", accent: "#f0a500", swatch: ["#1a1a2e", "#e94560", "#0f3460"] },
-  sunset: { name: "Sunset", header: "#2c2c54", primary: "#ff6348", secondary: "#33d9b2", accent: "#ffb142", swatch: ["#2c2c54", "#ff6348", "#33d9b2"] },
-  rose: { name: "Rose", header: "#3d3d3d", primary: "#e84393", secondary: "#00b894", accent: "#fdcb6e", swatch: ["#3d3d3d", "#e84393", "#00b894"] },
+const THEMES: Record<string, { name: string; header: string; primary: string; secondary: string; accent: string; bg: string; swatch: string[] }> = {
+  default: { name: "DailyWins", header: "#2c3e50", primary: "#e07850", secondary: "#3a7c6a", accent: "#f0b647", bg: "#f5f5f0", swatch: ["#2c3e50", "#e07850", "#3a7c6a"] },
+  steelBlue: { name: "Steel Blue", header: "#34495e", primary: "#2980b9", secondary: "#27ae60", accent: "#f39c12", bg: "#eef3f7", swatch: ["#34495e", "#2980b9", "#27ae60"] },
+  warmSlate: { name: "Warm Slate", header: "#4a4a4a", primary: "#c0392b", secondary: "#16a085", accent: "#e67e22", bg: "#f5f0ee", swatch: ["#4a4a4a", "#c0392b", "#16a085"] },
+  sage: { name: "Sage Green", header: "#2d5a3d", primary: "#8e6b47", secondary: "#5d8a68", accent: "#d4a76a", bg: "#eff5f1", swatch: ["#2d5a3d", "#5d8a68", "#8e6b47"] },
+  lavender: { name: "Lavender", header: "#4a3b6b", primary: "#8e5ea2", secondary: "#5b8a72", accent: "#d4a05a", bg: "#f3f0f7", swatch: ["#4a3b6b", "#8e5ea2", "#5b8a72"] },
+  midnight: { name: "Midnight", header: "#1a1a2e", primary: "#e94560", secondary: "#0f3460", accent: "#f0a500", bg: "#f0f0f4", swatch: ["#1a1a2e", "#e94560", "#0f3460"] },
+  sunset: { name: "Sunset", header: "#2c2c54", primary: "#ff6348", secondary: "#33d9b2", accent: "#ffb142", bg: "#f7f2ee", swatch: ["#2c2c54", "#ff6348", "#33d9b2"] },
+  rose: { name: "Rose", header: "#3d3d3d", primary: "#e84393", secondary: "#00b894", accent: "#fdcb6e", bg: "#f7f0f4", swatch: ["#3d3d3d", "#e84393", "#00b894"] },
 };
 
 const FONTS = [
-  { id: "system", name: "System Default", value: "'Segoe UI', system-ui, -apple-system, sans-serif" },
   { id: "nunito", name: "Nunito", value: "'Nunito', sans-serif" },
   { id: "inter", name: "Inter", value: "'Inter', sans-serif" },
-  { id: "poppins", name: "Poppins", value: "'Poppins', sans-serif" },
+  { id: "baloo", name: "Baloo 2", value: "'Baloo 2', cursive" },
+  { id: "fredoka", name: "Fredoka", value: "'Fredoka', sans-serif" },
+  { id: "patrick", name: "Patrick Hand", value: "'Patrick Hand', cursive" },
+  { id: "quicksand", name: "Quicksand", value: "'Quicksand', sans-serif" },
 ];
 
 const STAR_ICONS = ["⭐", "🏆", "🎯", "💪", "🔥", "✨", "🌟", "💎"];
@@ -558,7 +560,7 @@ export default function DashboardClient() {
     secondary: activeTheme.secondary,
     accent: activeTheme.accent,
   };
-  const activeFont = FONTS.find((f) => f.id === (prefs.font ?? "system"))?.value ?? FONTS[0].value;
+  const activeFont = FONTS.find((f) => f.id === (prefs.font ?? "nunito"))?.value ?? FONTS[0].value;
   const starIcon = prefs.starIcon ?? "⭐";
   const confettiEnabled = prefs.confetti !== false;
   const compactMode = prefs.compact === true;
@@ -1572,8 +1574,8 @@ export default function DashboardClient() {
   return (
     <>
       {/* Google Fonts for theme options */}
-      <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Inter:wght@400;600;700;800&family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet" />
-    <div style={{ minHeight: "100vh", background: "#f5f5f0", fontFamily: activeFont }}>
+      <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Inter:wght@400;600;700;800&family=Baloo+2:wght@400;600;700;800&family=Fredoka:wght@400;600;700&family=Patrick+Hand&family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet" />
+    <div style={{ minHeight: "100vh", background: activeTheme.bg, fontFamily: activeFont }}>
       <ConfettiCanvas active={showConfetti && confettiEnabled} />
 
       {/* Header */}
@@ -3245,8 +3247,8 @@ export default function DashboardClient() {
                     key={font.id}
                     onClick={() => savePreferences({ ...prefs, font: font.id })}
                     style={{
-                      background: (prefs.font ?? "system") === font.id ? C.dark : "#f0f0f0",
-                      color: (prefs.font ?? "system") === font.id ? "white" : "#333",
+                      background: (prefs.font ?? "nunito") === font.id ? C.dark : "#f0f0f0",
+                      color: (prefs.font ?? "nunito") === font.id ? "white" : "#333",
                       border: "none",
                       borderRadius: 8,
                       padding: "8px 16px",
