@@ -522,6 +522,8 @@ export default function DashboardClient() {
   const [showStaffSync, setShowStaffSync] = useState(false);
   const [showCustomize, setShowCustomize] = useState(false);
   const [prefs, setPrefs] = useState<Preferences>({});
+  const [streak, setStreak] = useState(0);
+  const [trendPct, setTrendPct] = useState<number | null>(null); // % change vs last week
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [savingScore, setSavingScore] = useState(false);
   const [thresholds, setThresholds] = useState<[number, number, number]>(() => {
@@ -807,6 +809,116 @@ export default function DashboardClient() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStudentId, selectedDate, selectedSchool, selectedSchedule, teacher]);
+
+  // ─── Streak & Trend Calculation ───────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!teacher || !selectedStudentId) {
+      setStreak(0);
+      setTrendPct(null);
+      return;
+    }
+
+    const maxPts = calculateMaxPoints(categories);
+    const onTrackThreshold = thresholds[1]; // "On Track" zone start
+
+    // Fetch last 30 days of scores for streak + trend
+    const today = new Date(selectedDate + "T12:00:00");
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+
+    supabase
+      .from("behavior_scores")
+      .select("score_date, period, scores")
+      .eq("student_id", selectedStudentId)
+      .eq("teacher_id", teacher.teacher_id)
+      .gte("score_date", formatDate(thirtyDaysAgo))
+      .lte("score_date", selectedDate)
+      .order("score_date", { ascending: false })
+      .then(({ data, error }) => {
+        if (error || !data) {
+          setStreak(0);
+          setTrendPct(null);
+          return;
+        }
+
+        // Group by date: compute daily percentage
+        const byDate = new Map<string, { earned: number; possible: number }>();
+        for (const row of data) {
+          const d = row.score_date as string;
+          const s = (row.scores as Record<string, number | null>) ?? {};
+          let earned = 0;
+          for (const cat of categories) {
+            if (cat.noPoints) continue;
+            earned += s[cat.id] ?? 0;
+          }
+          const existing = byDate.get(d);
+          if (existing) {
+            existing.earned += earned;
+            existing.possible += maxPts;
+          } else {
+            byDate.set(d, { earned, possible: maxPts });
+          }
+        }
+
+        // Streak: count consecutive school days (backwards from today) at or above On Track
+        let streakCount = 0;
+        const checkDate = new Date(today);
+        for (let i = 0; i < 60; i++) {
+          const dayOfWeek = checkDate.getDay();
+          if (dayOfWeek === 0 || dayOfWeek === 6) {
+            // Skip weekends
+            checkDate.setDate(checkDate.getDate() - 1);
+            continue;
+          }
+          const dateStr = formatDate(checkDate);
+          const day = byDate.get(dateStr);
+          if (!day) break; // No data for this day — streak ends
+          const dayPct = day.possible > 0 ? Math.round((day.earned / day.possible) * 100) : 0;
+          if (dayPct >= onTrackThreshold) {
+            streakCount++;
+          } else {
+            break;
+          }
+          checkDate.setDate(checkDate.getDate() - 1);
+        }
+        setStreak(streakCount);
+
+        // Trend: this week avg vs last week avg
+        const todayDate = new Date(selectedDate + "T12:00:00");
+        const dayOfWeek = todayDate.getDay();
+        const thisMonday = new Date(todayDate);
+        thisMonday.setDate(todayDate.getDate() - ((dayOfWeek + 6) % 7));
+        const lastMonday = new Date(thisMonday);
+        lastMonday.setDate(thisMonday.getDate() - 7);
+        const lastFriday = new Date(lastMonday);
+        lastFriday.setDate(lastMonday.getDate() + 4);
+
+        let thisWeekTotal = 0, thisWeekDays = 0;
+        let lastWeekTotal = 0, lastWeekDays = 0;
+
+        for (const [dateStr, day] of byDate.entries()) {
+          const d = new Date(dateStr + "T12:00:00");
+          const dayPct = day.possible > 0 ? (day.earned / day.possible) * 100 : 0;
+          if (d >= thisMonday && d <= todayDate) {
+            thisWeekTotal += dayPct;
+            thisWeekDays++;
+          } else if (d >= lastMonday && d <= lastFriday) {
+            lastWeekTotal += dayPct;
+            lastWeekDays++;
+          }
+        }
+
+        if (thisWeekDays > 0 && lastWeekDays > 0) {
+          const thisAvg = thisWeekTotal / thisWeekDays;
+          const lastAvg = lastWeekTotal / lastWeekDays;
+          setTrendPct(Math.round(thisAvg - lastAvg));
+        } else {
+          setTrendPct(null);
+        }
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStudentId, selectedDate, teacher, categories, thresholds]);
 
   // ─── Google Sheets Auto-Sync ────────────────────────────────────────────────
 
@@ -2166,32 +2278,40 @@ export default function DashboardClient() {
             </div>
           ))}
 
-          {/* One Score Scale card covering all scale-type categories */}
-          {categories.some((c) => c.type === "scale") && (() => {
-            // Use the first scale category's options as labels (they're all the same format)
-            const scaleCat = categories.find((c) => c.type === "scale");
-            const labels = scaleCat?.options ?? ["0", "1", "2", "3"];
-            const scaleNames = categories.filter((c) => c.type === "scale").map((c) => c.name);
-            return (
-              <div style={{ background: "white", borderRadius: 8, padding: "6px 10px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", flex: 1, minWidth: 240 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: COLORS.dark, marginBottom: 3 }}>
-                  Score Scale
-                  <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0, color: "#999" }}> — {scaleNames.join(", ")}</span>
-                </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 10, fontSize: 12 }}>
-                  {labels.map((label, idx) => {
-                    const pv = scaleCat?.pointValues?.[idx] ?? idx;
-                    return (
-                      <div key={idx} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                        <span style={{ display: "inline-block", width: 9, height: 9, borderRadius: "50%", background: scaleColor(pv) }} />
-                        <span style={{ color: "#555" }}><b>{label}</b></span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })()}
+          {/* Streak & Trend card */}
+          <div style={{ background: "white", borderRadius: 8, padding: "6px 10px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", flex: 1, minWidth: 200 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: C.dark, marginBottom: 3 }}>
+              Streak &amp; Trend
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 12, fontSize: 12, alignItems: "center" }}>
+              {/* Streak */}
+              <span style={{
+                fontWeight: streak >= 10 ? 900 : 700,
+                fontSize: streak >= 10 ? 14 : 12,
+                color: streak >= 5 ? C.secondary : streak > 0 ? C.dark : "#bbb",
+              }}>
+                {streak > 0
+                  ? `\uD83D\uDD25 ${streak}-day streak${streak >= 10 ? "!!" : streak >= 5 ? "!" : ""}`
+                  : "No active streak"}
+              </span>
+              {/* Trend */}
+              {trendPct !== null && (
+                <span style={{
+                  fontWeight: 700,
+                  color: trendPct > 2 ? C.secondary : trendPct < -2 ? C.primary : "#999",
+                }}>
+                  {trendPct > 2
+                    ? `\u2191 ${trendPct}% vs last week`
+                    : trendPct < -2
+                      ? `\u2193 ${Math.abs(trendPct)}% vs last week`
+                      : `\u2192 Same as last week`}
+                </span>
+              )}
+              {trendPct === null && (
+                <span style={{ color: "#ccc", fontSize: 11 }}>No trend data yet</span>
+              )}
+            </div>
+          </div>
 
           {/* Toggle-type cards */}
           {categories.filter((c) => c.type === "toggle").map((cat) => (
