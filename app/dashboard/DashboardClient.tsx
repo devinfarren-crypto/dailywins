@@ -2489,12 +2489,25 @@ export default function DashboardClient() {
             Export to Drive
           </button>
         </div>
-        <div style={{ textAlign: "center", paddingTop: 12, paddingBottom: 8 }}>
+        <div style={{ display: "flex", justifyContent: "center", paddingTop: 12, paddingBottom: 8 }}>
           <a
             href="https://docs.google.com/document/d/1Xpl7-53_w-qX7IpZXQKmu6ZJ6W8O8atYv7c1JmLbs0M/edit?usp=sharing"
             target="_blank"
             rel="noopener noreferrer"
-            style={{ fontSize: 12, color: "#999", textDecoration: "none" }}
+            style={{
+              background: "#7C3AED",
+              color: "white",
+              border: "none",
+              borderRadius: 10,
+              padding: "8px 16px",
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              textDecoration: "none",
+            }}
           >
             💬 Feedback to Devin
           </a>
