@@ -2069,78 +2069,68 @@ export default function DashboardClient() {
           </div>
         )}
 
-        {/* Legends — dynamically generated from categories (entry view only) */}
+        {/* Legend Keys (entry view only) — Arrival cards + one Score Scale card + Toggle cards */}
         {activeView === "entry" && <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-          {categories.map((cat) => {
-            const noPts = cat.noPoints;
-            const pv = cat.pointValues ?? [];
-
-            return (
-              <div key={cat.id} style={{
-                background: "white",
-                borderRadius: 8,
-                padding: "6px 10px",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-                flex: "1 1 auto",
-                minWidth: 180,
-                maxWidth: 400,
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: COLORS.dark }}>
-                    {cat.name}
-                  </span>
-                  {noPts && (
-                    <span style={{ fontSize: 9, fontWeight: 700, color: COLORS.primary, background: "#fef2f2", borderRadius: 4, padding: "1px 5px" }}>
-                      not scored
-                    </span>
-                  )}
+          {/* Arrival-type cards */}
+          {categories.filter((c) => c.type === "arrival").map((cat) => (
+            <div key={cat.id} style={{ background: "white", borderRadius: 8, padding: "6px 10px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", flex: 1, minWidth: 200 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: COLORS.dark, marginBottom: 3 }}>
+                {cat.name}
+              </div>
+              <div style={{ fontSize: 12, color: "#555", lineHeight: 1.7 }}>
+                <div>
+                  <span style={{ color: arrivalButtonColor(cat, 0), fontWeight: 700 }}>On Time</span>
+                  <span style={{ color: "#888" }}> = full points</span>
+                  <span style={{ color: "#ccc" }}> {"\u00B7"} </span>
+                  <span style={{ color: arrivalButtonColor(cat, 1), fontWeight: 700 }}>L</span>
+                  <span style={{ color: "#888" }}> (Late) = 0 pts</span>
                 </div>
-                <div style={{ fontSize: 12, color: "#555", lineHeight: 1.5 }}>
-                  {cat.type === "arrival" ? (
-                    // Arrival: show each option with descriptive labels, using nowrap spans for clean wrapping
-                    cat.options.map((opt, idx) => {
-                      const pts = pv[idx] ?? 0;
-                      let desc = "";
-                      if (opt === "On Time") desc = "full points";
-                      else if (opt === "L") desc = "Late, 0 pts";
-                      else if (opt === "L/E") desc = "Late/Excused, full points";
-                      else desc = pts === cat.maxPoints ? "full points" : pts === 0 ? "0 pts" : `${pts} pts`;
-                      return (
-                        <span key={opt} style={{ whiteSpace: "nowrap" }}>
-                          {idx > 0 && <span style={{ color: "#ccc" }}> {"\u00B7"} </span>}
-                          <span style={{ color: arrivalButtonColor(cat, idx), fontWeight: 700 }}>{opt}</span>
-                          <span style={{ color: "#888" }}> = {noPts ? "tracked only" : desc}</span>
-                        </span>
-                      );
-                    })
-                  ) : cat.type === "scale" ? (
-                    // Scale: show each option with its color dot and label from options array
-                    <span style={{ display: "inline-flex", flexWrap: "wrap", gap: "6px 10px" }}>
-                      {cat.options.map((opt, idx) => (
-                        <span key={idx} style={{ display: "inline-flex", alignItems: "center", gap: 3, whiteSpace: "nowrap" }}>
-                          <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: scaleColor(pv[idx] ?? idx), flexShrink: 0 }} />
-                          <b>{opt}</b>
-                          {noPts ? "" : idx === (cat.options.length - 1) ? " Best" : idx === 0 ? " Low" : ""}
-                        </span>
-                      ))}
-                      {noPts && <span style={{ color: "#999", fontStyle: "italic" }}>does not count toward points</span>}
-                    </span>
-                  ) : (
-                    // Toggle: show options with point values
-                    cat.options.map((opt, idx) => (
-                      <span key={opt} style={{ whiteSpace: "nowrap" }}>
-                        {idx > 0 && <span style={{ color: "#ccc" }}> {"\u00B7"} </span>}
-                        <span style={{ color: toggleButtonColor(idx), fontWeight: 700 }}>{opt}</span>
-                        <span style={{ color: "#888" }}>
-                          {noPts ? " (tracked)" : ` = ${pv[idx] ?? 0} pts`}
-                        </span>
-                      </span>
-                    ))
-                  )}
+                <div>
+                  <span style={{ color: arrivalButtonColor(cat, 2), fontWeight: 700 }}>L/E</span>
+                  <span style={{ color: "#888" }}> (Late/Excused) = full points</span>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {/* One Score Scale card covering all scale-type categories */}
+          {categories.some((c) => c.type === "scale") && (() => {
+            // Use the first scale category's options as labels (they're all the same format)
+            const scaleCat = categories.find((c) => c.type === "scale");
+            const labels = scaleCat?.options ?? ["0", "1", "2", "3"];
+            const scaleNames = categories.filter((c) => c.type === "scale").map((c) => c.name);
+            return (
+              <div style={{ background: "white", borderRadius: 8, padding: "6px 10px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", flex: 1, minWidth: 240 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: COLORS.dark, marginBottom: 3 }}>
+                  Score Scale
+                  <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0, color: "#999" }}> — {scaleNames.join(", ")}</span>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 10, fontSize: 12 }}>
+                  {labels.map((label, idx) => {
+                    const pv = scaleCat?.pointValues?.[idx] ?? idx;
+                    return (
+                      <div key={idx} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <span style={{ display: "inline-block", width: 9, height: 9, borderRadius: "50%", background: scaleColor(pv) }} />
+                        <span style={{ color: "#555" }}><b>{label}</b></span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );
-          })}
+          })()}
+
+          {/* Toggle-type cards */}
+          {categories.filter((c) => c.type === "toggle").map((cat) => (
+            <div key={cat.id} style={{ background: "white", borderRadius: 8, padding: "6px 10px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", minWidth: 120 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: COLORS.dark, marginBottom: 3 }}>
+                {cat.name}
+              </div>
+              <div style={{ fontSize: 12, color: "#555" }}>
+                {cat.options.join(" / ")}
+              </div>
+            </div>
+          ))}
         </div>}
 
         {/* Action Buttons */}
