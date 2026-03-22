@@ -1002,6 +1002,22 @@ export default function DashboardClient() {
     setNotes((prev) => prev.filter((n) => n.id !== id));
   };
 
+  const handleToggleNoteVisibility = async (id: string, currentlyShared: boolean) => {
+    const newShared = !currentlyShared;
+    // Optimistic update
+    setNotes((prev) => prev.map((n) => n.id === id ? { ...n, shared: newShared } : n));
+    // Persist to Supabase
+    const { error } = await supabase
+      .from("notes")
+      .update({ is_private: !newShared })
+      .eq("id", id);
+    if (error) {
+      console.error("Failed to toggle note visibility:", error);
+      // Revert on failure
+      setNotes((prev) => prev.map((n) => n.id === id ? { ...n, shared: currentlyShared } : n));
+    }
+  };
+
   // ─── Categories Editor ──────────────────────────────────────────────────────
 
   const openCategoriesEditor = () => {
@@ -2482,17 +2498,28 @@ export default function DashboardClient() {
                         &#10005;
                       </button>
                     </div>
-                    <div style={{ display: "flex", gap: 10, marginTop: 6, fontSize: 11, color: "#999" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, fontSize: 11, color: "#999" }}>
                       <span>{note.timestamp}</span>
-                      <span style={{
-                        background: note.shared ? COLORS.secondary : COLORS.accent,
-                        color: "white",
-                        borderRadius: 4,
-                        padding: "1px 6px",
-                        fontWeight: 700,
-                      }}>
-                        {note.shared ? "Shared" : "Private"}
-                      </span>
+                      <button
+                        onClick={() => handleToggleNoteVisibility(note.id, note.shared)}
+                        title={note.shared ? "Click to make private" : "Click to share with parent"}
+                        style={{
+                          background: note.shared ? COLORS.secondary : "#999",
+                          color: "white",
+                          border: "none",
+                          borderRadius: 4,
+                          padding: "2px 8px",
+                          fontWeight: 700,
+                          fontSize: 11,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                          transition: "background 0.2s",
+                        }}
+                      >
+                        {note.shared ? "\uD83D\uDC41 Shared with Parent" : "\uD83D\uDD12 Private"}
+                      </button>
                     </div>
                   </div>
                 ))}
