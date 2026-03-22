@@ -2069,102 +2069,78 @@ export default function DashboardClient() {
           </div>
         )}
 
-        {/* Legends (entry view only) */}
+        {/* Legends — dynamically generated from categories (entry view only) */}
         {activeView === "entry" && <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-          {/* Arrival-type legends */}
-          {categories.filter((c) => c.type === "arrival").map((cat) => (
-            <div key={cat.id} style={{
-              background: "white",
-              borderRadius: 10,
-              padding: "8px 12px",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-              flex: 1,
-              minWidth: 220,
-            }}>
-              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: COLORS.dark, marginBottom: 6 }}>
-                {cat.name}
-              </div>
-              <div style={{ fontSize: 13, color: "#555", lineHeight: 1.6 }}>
-                {cat.options.map((opt, idx) => {
-                  const pts = cat.pointValues?.[idx] ?? 0;
-                  // Descriptive labels for the default arrival options
-                  let label = "";
-                  if (opt === "On Time") label = " = full points";
-                  else if (opt === "L") label = " (Late) = 0 pts";
-                  else if (opt === "L/E") label = " (Late/Excused) = full points";
-                  else if (pts === cat.maxPoints) label = " = full points";
-                  else if (pts === 0) label = " = 0 pts";
-                  else label = ` = ${pts} pts`;
-                  return (
-                    <span key={opt}>
-                      {idx > 0 && " \u00B7 "}
-                      <span style={{ color: arrivalButtonColor(cat, idx), fontWeight: 700 }}>{opt}</span>
-                      {label}
-                    </span>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+          {categories.map((cat) => {
+            const noPts = cat.noPoints;
+            const pv = cat.pointValues ?? [];
 
-          {/* Scale-type legends */}
-          {categories.filter((c) => c.type === "scale").length > 0 && (
-            <div style={{
-              background: "white",
-              borderRadius: 10,
-              padding: "8px 12px",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-              flex: 1,
-              minWidth: 220,
-            }}>
-              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: COLORS.dark, marginBottom: 6 }}>
-                Score Scale
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 12, fontSize: 13 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: "#b0b0b0" }} />
-                  <span style={{ color: "#555" }}><b>0</b> Unacceptable</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: COLORS.primary }} />
-                  <span style={{ color: "#555" }}><b>1</b> Needs Work</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: COLORS.accent }} />
-                  <span style={{ color: "#555" }}><b>2</b> Good</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: COLORS.secondary }} />
-                  <span style={{ color: "#555" }}><b>3</b> Exceptional</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Toggle-type legends */}
-          {categories.filter((c) => c.type === "toggle").map((cat) => (
-            <div key={cat.id} style={{
-              background: "white",
-              borderRadius: 10,
-              padding: "8px 12px",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-              flex: 1,
-              minWidth: 220,
-            }}>
-              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: COLORS.dark, marginBottom: 6 }}>
-                {cat.name}
-              </div>
-              <div style={{ fontSize: 13, color: "#555", lineHeight: 1.6 }}>
-                {cat.options.map((opt, idx) => (
-                  <span key={opt}>
-                    {idx > 0 && " \u00B7 "}
-                    <span style={{ color: toggleButtonColor(idx), fontWeight: 700 }}>{opt}</span>
-                    {` = ${cat.pointValues[idx]} pts`}
+            return (
+              <div key={cat.id} style={{
+                background: "white",
+                borderRadius: 8,
+                padding: "6px 10px",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+                flex: "1 1 auto",
+                minWidth: 180,
+                maxWidth: 400,
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: COLORS.dark }}>
+                    {cat.name}
                   </span>
-                ))}
+                  {noPts && (
+                    <span style={{ fontSize: 9, fontWeight: 700, color: COLORS.primary, background: "#fef2f2", borderRadius: 4, padding: "1px 5px" }}>
+                      not scored
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: 12, color: "#555", lineHeight: 1.5 }}>
+                  {cat.type === "arrival" ? (
+                    // Arrival: show each option with descriptive labels, using nowrap spans for clean wrapping
+                    cat.options.map((opt, idx) => {
+                      const pts = pv[idx] ?? 0;
+                      let desc = "";
+                      if (opt === "On Time") desc = "full points";
+                      else if (opt === "L") desc = "Late, 0 pts";
+                      else if (opt === "L/E") desc = "Late/Excused, full points";
+                      else desc = pts === cat.maxPoints ? "full points" : pts === 0 ? "0 pts" : `${pts} pts`;
+                      return (
+                        <span key={opt} style={{ whiteSpace: "nowrap" }}>
+                          {idx > 0 && <span style={{ color: "#ccc" }}> {"\u00B7"} </span>}
+                          <span style={{ color: arrivalButtonColor(cat, idx), fontWeight: 700 }}>{opt}</span>
+                          <span style={{ color: "#888" }}> = {noPts ? "tracked only" : desc}</span>
+                        </span>
+                      );
+                    })
+                  ) : cat.type === "scale" ? (
+                    // Scale: show each option with its color dot and label from options array
+                    <span style={{ display: "inline-flex", flexWrap: "wrap", gap: "6px 10px" }}>
+                      {cat.options.map((opt, idx) => (
+                        <span key={idx} style={{ display: "inline-flex", alignItems: "center", gap: 3, whiteSpace: "nowrap" }}>
+                          <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: scaleColor(pv[idx] ?? idx), flexShrink: 0 }} />
+                          <b>{opt}</b>
+                          {noPts ? "" : idx === (cat.options.length - 1) ? " Best" : idx === 0 ? " Low" : ""}
+                        </span>
+                      ))}
+                      {noPts && <span style={{ color: "#999", fontStyle: "italic" }}>does not count toward points</span>}
+                    </span>
+                  ) : (
+                    // Toggle: show options with point values
+                    cat.options.map((opt, idx) => (
+                      <span key={opt} style={{ whiteSpace: "nowrap" }}>
+                        {idx > 0 && <span style={{ color: "#ccc" }}> {"\u00B7"} </span>}
+                        <span style={{ color: toggleButtonColor(idx), fontWeight: 700 }}>{opt}</span>
+                        <span style={{ color: "#888" }}>
+                          {noPts ? " (tracked)" : ` = ${pv[idx] ?? 0} pts`}
+                        </span>
+                      </span>
+                    ))
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>}
 
         {/* Action Buttons */}
