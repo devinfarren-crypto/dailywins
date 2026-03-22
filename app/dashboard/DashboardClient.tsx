@@ -72,7 +72,7 @@ const DEFAULT_CATEGORIES: Category[] = [
   { id: "compliance", name: "Compliance", type: "scale", options: ["0", "1", "2", "3"], pointValues: [0, 1, 2, 3], maxPoints: 3 },
   { id: "social", name: "Social", type: "scale", options: ["0", "1", "2", "3"], pointValues: [0, 1, 2, 3], maxPoints: 3 },
   { id: "onTask", name: "On-Task", type: "scale", options: ["0", "1", "2", "3"], pointValues: [0, 1, 2, 3], maxPoints: 3 },
-  { id: "phoneAway", name: "Phone Away", type: "toggle", options: ["Yes", "No"], pointValues: [3, 0], maxPoints: 3 },
+  { id: "homework", name: "Homework", type: "toggle", options: ["Yes", "No"], pointValues: [1, 0], maxPoints: 1, noPoints: true },
 ];
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
@@ -523,7 +523,8 @@ export default function DashboardClient() {
   const [showCustomize, setShowCustomize] = useState(false);
   const [prefs, setPrefs] = useState<Preferences>({});
   const [streak, setStreak] = useState(0);
-  const [trendPct, setTrendPct] = useState<number | null>(null); // % change vs last week
+  const [trendPct, setTrendPct] = useState<number | null>(null);
+  const [isAbsent, setIsAbsent] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [savingScore, setSavingScore] = useState(false);
   const [thresholds, setThresholds] = useState<[number, number, number]>(() => {
@@ -796,9 +797,24 @@ export default function DashboardClient() {
   // ─── Trigger Score + Note Load ──────────────────────────────────────────────
 
   useEffect(() => {
+    setIsAbsent(false); // Reset absent state on student/date change
     if (selectedStudentId && teacher) {
       loadScores(selectedStudentId, selectedDate);
       loadNotes(selectedStudentId);
+      // Check if student is marked absent (all periods have a special absent marker)
+      supabase
+        .from("behavior_scores")
+        .select("scores")
+        .eq("student_id", selectedStudentId)
+        .eq("teacher_id", teacher.teacher_id)
+        .eq("score_date", selectedDate)
+        .eq("period", 1)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.scores && (data.scores as Record<string, unknown>).__absent === true) {
+            setIsAbsent(true);
+          }
+        });
     } else {
       const initial: AllScores = {};
       for (const p of trackablePeriods) {
@@ -1012,6 +1028,44 @@ export default function DashboardClient() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teacher, selectedStudentId, selectedDate, trackablePeriods.length, categories, scheduleSheetSync]);
+
+  // ─── Absent Toggle ─────────────────────────────────────────────────────────
+
+  const toggleAbsent = async () => {
+    if (!teacher || !selectedStudentId) return;
+    const newAbsent = !isAbsent;
+    setIsAbsent(newAbsent);
+
+    if (newAbsent) {
+      // Mark absent: upsert period 1 with __absent marker
+      await supabase
+        .from("behavior_scores")
+        .upsert({
+          student_id: selectedStudentId,
+          teacher_id: teacher.teacher_id,
+          score_date: selectedDate,
+          period: 1,
+          scores: { __absent: true },
+        }, { onConflict: "student_id,teacher_id,score_date,period" });
+      // Clear all scores for the day
+      const cleared: AllScores = {};
+      for (const p of trackablePeriods) {
+        cleared[p.label] = makeEmptyPeriodScores(categories);
+      }
+      setScores(cleared);
+    } else {
+      // Un-mark absent: remove the marker by setting scores to empty
+      await supabase
+        .from("behavior_scores")
+        .upsert({
+          student_id: selectedStudentId,
+          teacher_id: teacher.teacher_id,
+          score_date: selectedDate,
+          period: 1,
+          scores: {},
+        }, { onConflict: "student_id,teacher_id,score_date,period" });
+    }
+  };
 
   // ─── Event Handlers ─────────────────────────────────────────────────────────
 
@@ -1993,12 +2047,12 @@ export default function DashboardClient() {
           <div style={{ marginLeft: "auto", flex: 1, minWidth: 220, maxWidth: 420 }}>
             {/* Score line above bar */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 800, color: C.dark }}>
-                <span>{starIcon}</span>
-                <span>{earned} / {possible} pts ({pct}%)</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 800, color: isAbsent ? "#999" : C.dark }}>
+                <span>{isAbsent ? "\uD83D\uDEAB" : starIcon}</span>
+                <span>{isAbsent ? "Absent" : `${earned} / ${possible} pts (${pct}%)`}</span>
               </div>
               <span style={{
-                background: zoneColor(pct),
+                background: isAbsent ? "#bbb" : zoneColor(pct),
                 color: "white",
                 borderRadius: 6,
                 padding: "2px 8px",
@@ -2006,7 +2060,7 @@ export default function DashboardClient() {
                 fontWeight: 800,
                 letterSpacing: 0.5,
               }}>
-                {pct >= thresholds[2] ? "Exceptional" : pct >= thresholds[1] ? "On Track" : pct >= thresholds[0] ? "Working On It" : "Needs Support"}
+                {isAbsent ? "Absent" : pct >= thresholds[2] ? "Exceptional" : pct >= thresholds[1] ? "On Track" : pct >= thresholds[0] ? "Working On It" : "Needs Support"}
               </span>
             </div>
             <div
@@ -2183,6 +2237,21 @@ export default function DashboardClient() {
                       >
                         &#10005; Clear
                       </button>
+                      <button
+                        onClick={toggleAbsent}
+                        style={{
+                          background: isAbsent ? "#666" : "#bbb",
+                          color: "white",
+                          border: "none",
+                          borderRadius: 6,
+                          padding: "4px 8px",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {isAbsent ? "\u2713 ABS" : "\uD83D\uDEAB ABS"}
+                      </button>
                     </div>
                   </td>
                   {categories.map((cat) => (
@@ -2207,7 +2276,26 @@ export default function DashboardClient() {
                   <td style={{ padding: "4px 4px", textAlign: "center", fontSize: 10, color: "#999" }}>&mdash;</td>
                 </tr>
               </thead>
-              <tbody>
+              <tbody style={isAbsent ? { opacity: 0.35, pointerEvents: "none", position: "relative" } : undefined}>
+                {isAbsent && (
+                  <tr>
+                    <td
+                      colSpan={categories.length + 2}
+                      style={{
+                        textAlign: "center",
+                        padding: "18px 0",
+                        fontSize: 18,
+                        fontWeight: 800,
+                        color: "#999",
+                        letterSpacing: 3,
+                        background: "#f0f0f0",
+                        borderTop: "1px solid #eee",
+                      }}
+                    >
+                      &#128683; ABSENT
+                    </td>
+                  </tr>
+                )}
                 {trackablePeriods.map((slot, i) => {
                   const ps = scores[slot.label] ?? makeEmptyPeriodScores(categories);
                   const pts = calculatePeriodPoints(ps, categories);
