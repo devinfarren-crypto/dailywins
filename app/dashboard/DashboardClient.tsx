@@ -22,6 +22,26 @@ const COLORS = {
   blue: "#3498db",
 };
 
+const THEMES: Record<string, { name: string; header: string; primary: string; secondary: string; accent: string; swatch: string[] }> = {
+  default: { name: "DailyWins", header: "#2c3e50", primary: "#e07850", secondary: "#3a7c6a", accent: "#f0b647", swatch: ["#2c3e50", "#e07850", "#3a7c6a"] },
+  steelBlue: { name: "Steel Blue", header: "#34495e", primary: "#2980b9", secondary: "#27ae60", accent: "#f39c12", swatch: ["#34495e", "#2980b9", "#27ae60"] },
+  warmSlate: { name: "Warm Slate", header: "#4a4a4a", primary: "#c0392b", secondary: "#16a085", accent: "#e67e22", swatch: ["#4a4a4a", "#c0392b", "#16a085"] },
+  sage: { name: "Sage Green", header: "#2d5a3d", primary: "#8e6b47", secondary: "#5d8a68", accent: "#d4a76a", swatch: ["#2d5a3d", "#5d8a68", "#8e6b47"] },
+  lavender: { name: "Lavender", header: "#4a3b6b", primary: "#8e5ea2", secondary: "#5b8a72", accent: "#d4a05a", swatch: ["#4a3b6b", "#8e5ea2", "#5b8a72"] },
+  midnight: { name: "Midnight", header: "#1a1a2e", primary: "#e94560", secondary: "#0f3460", accent: "#f0a500", swatch: ["#1a1a2e", "#e94560", "#0f3460"] },
+  sunset: { name: "Sunset", header: "#2c2c54", primary: "#ff6348", secondary: "#33d9b2", accent: "#ffb142", swatch: ["#2c2c54", "#ff6348", "#33d9b2"] },
+  rose: { name: "Rose", header: "#3d3d3d", primary: "#e84393", secondary: "#00b894", accent: "#fdcb6e", swatch: ["#3d3d3d", "#e84393", "#00b894"] },
+};
+
+const FONTS = [
+  { id: "system", name: "System Default", value: "'Segoe UI', system-ui, -apple-system, sans-serif" },
+  { id: "nunito", name: "Nunito", value: "'Nunito', sans-serif" },
+  { id: "inter", name: "Inter", value: "'Inter', sans-serif" },
+  { id: "poppins", name: "Poppins", value: "'Poppins', sans-serif" },
+];
+
+const STAR_ICONS = ["⭐", "🏆", "🎯", "💪", "🔥", "✨", "🌟", "💎"];
+
 const PERIODS = [
   "Period 1",
   "Period 2",
@@ -68,6 +88,14 @@ interface DbStudent {
   school_id: string;
 }
 
+interface Preferences {
+  theme?: string;
+  font?: string;
+  starIcon?: string;
+  confetti?: boolean;
+  compact?: boolean;
+}
+
 interface TeacherProfile {
   teacher_id: string;
   school_id: string;
@@ -75,6 +103,7 @@ interface TeacherProfile {
   full_name: string;
   email: string;
   categories: Category[];
+  preferences?: Preferences;
 }
 
 type ScheduleType = "Regular" | "Wednesday" | "Minimum Day" | "Reverse Minimum" | "Finals" | "Rally";
@@ -489,6 +518,8 @@ export default function DashboardClient() {
   const [activeView, setActiveView] = useState<"entry" | "weekly" | "monthly" | "annual">("entry");
   const [showCategories, setShowCategories] = useState(false);
   const [showStaffSync, setShowStaffSync] = useState(false);
+  const [showCustomize, setShowCustomize] = useState(false);
+  const [prefs, setPrefs] = useState<Preferences>({});
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [savingScore, setSavingScore] = useState(false);
   const [thresholds, setThresholds] = useState<[number, number, number]>(() => {
@@ -518,6 +549,19 @@ export default function DashboardClient() {
   const selectedStudent = dbStudents.find((s) => s.id === selectedStudentId)?.display_name ?? "";
   const hasStudents = dbStudents.length > 0;
   const hasDriveAccess = Boolean(googleAccessToken || (typeof window !== "undefined" && localStorage.getItem("dailywins_google_token")));
+
+  const activeTheme = THEMES[prefs.theme ?? "default"] ?? THEMES.default;
+  const C = {
+    ...COLORS,
+    dark: activeTheme.header,
+    primary: activeTheme.primary,
+    secondary: activeTheme.secondary,
+    accent: activeTheme.accent,
+  };
+  const activeFont = FONTS.find((f) => f.id === (prefs.font ?? "system"))?.value ?? FONTS[0].value;
+  const starIcon = prefs.starIcon ?? "⭐";
+  const confettiEnabled = prefs.confetti !== false;
+  const compactMode = prefs.compact === true;
 
   // ─── Auth + Teacher Profile Setup ───────────────────────────────────────────
 
@@ -564,6 +608,11 @@ export default function DashboardClient() {
         // Save defaults to the teacher profile
         profile.categories = DEFAULT_CATEGORIES;
         setCategories(DEFAULT_CATEGORIES);
+      }
+
+      // Load preferences
+      if (profile.preferences && typeof profile.preferences === "object") {
+        setPrefs(profile.preferences as Preferences);
       }
 
       setTeacher(profile);
@@ -851,6 +900,16 @@ export default function DashboardClient() {
   }, [teacher, selectedStudentId, selectedDate, trackablePeriods.length, categories, scheduleSheetSync]);
 
   // ─── Event Handlers ─────────────────────────────────────────────────────────
+
+  const savePreferences = async (newPrefs: Preferences) => {
+    setPrefs(newPrefs);
+    if (teacher) {
+      await supabase
+        .from("teachers")
+        .update({ preferences: newPrefs })
+        .eq("id", teacher.teacher_id);
+    }
+  };
 
   const handleSelectSchool = (school: SchoolName) => {
     setSelectedSchool(school);
@@ -1511,11 +1570,14 @@ export default function DashboardClient() {
   const maxPerPeriod = calculateMaxPoints(categories);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f5f5f0", fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif" }}>
-      <ConfettiCanvas active={showConfetti} />
+    <>
+      {/* Google Fonts for theme options */}
+      <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Inter:wght@400;600;700;800&family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet" />
+    <div style={{ minHeight: "100vh", background: "#f5f5f0", fontFamily: activeFont }}>
+      <ConfettiCanvas active={showConfetti && confettiEnabled} />
 
       {/* Header */}
-      <header style={{ background: COLORS.dark, boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
+      <header style={{ background: C.dark, boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 16px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             {/* EGUSD Logo */}
@@ -1795,37 +1857,30 @@ export default function DashboardClient() {
             </button>
           )}
 
-          {/* Quick Schedule Switcher */}
-          {selectedSchool && (
-            <div>
-              <select
-                value={selectedSchedule}
-                onChange={(e) => setSelectedSchedule(e.target.value as ScheduleType)}
-                style={{
-                  borderRadius: 8,
-                  border: "1px solid #d0d0d0",
-                  padding: "5px 10px",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: COLORS.dark,
-                  background: "white",
-                  height: 32,
-                  minWidth: 170,
-                }}
-              >
-                {SCHEDULE_TYPES.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-            </div>
-          )}
+          {/* Customize Button */}
+          <button
+            onClick={() => setShowCustomize(true)}
+            style={{
+              background: C.accent,
+              color: "white",
+              border: "none",
+              borderRadius: 6,
+              padding: "0 12px",
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: "pointer",
+              height: 32,
+            }}
+          >
+            🎨 Customize
+          </button>
 
           {/* Progress Bar with Draggable Thresholds */}
           <div style={{ marginLeft: "auto", flex: 1, minWidth: 220, maxWidth: 420 }}>
             {/* Score line above bar */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 800, color: COLORS.dark }}>
-                <span>&#11088;</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 800, color: C.dark }}>
+                <span>{starIcon}</span>
                 <span>{earned} / {possible} pts ({pct}%)</span>
               </div>
               <span style={{
@@ -1967,7 +2022,7 @@ export default function DashboardClient() {
           <div style={{ overflowX: "auto", borderRadius: 14, background: "white", boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}>
             <table style={{ width: "100%", fontSize: 14, borderCollapse: "collapse" }}>
               <thead>
-                <tr style={{ background: COLORS.dark }}>
+                <tr style={{ background: C.dark }}>
                   <th style={{ padding: "6px 10px", textAlign: "left", color: "white", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
                     Period
                   </th>
@@ -2052,7 +2107,7 @@ export default function DashboardClient() {
                         borderTop: "1px solid #eee",
                       }}
                     >
-                      <td style={{ padding: "4px 10px", fontWeight: 700, color: COLORS.dark, fontSize: 13 }}>
+                      <td style={{ padding: compactMode ? "2px 8px" : "4px 10px", fontWeight: 700, color: C.dark, fontSize: 13 }}>
                         <div>{slot.label}</div>
                         {slot.start && (
                           <div style={{ fontSize: 10, fontWeight: 500, color: "#999", marginTop: 1 }}>
@@ -2062,14 +2117,14 @@ export default function DashboardClient() {
                       </td>
 
                       {categories.map((cat) => (
-                        <td key={cat.id} style={{ padding: "3px 4px", textAlign: "center" }}>
+                        <td key={cat.id} style={{ padding: compactMode ? "1px 3px" : "3px 4px", textAlign: "center" }}>
                           {renderCategoryCell(cat, slot.label, ps)}
                         </td>
                       ))}
 
                       {/* Period Points */}
                       <td style={{
-                        padding: "3px 6px",
+                        padding: compactMode ? "1px 3px" : "3px 6px",
                         textAlign: "center",
                         fontWeight: 800,
                         fontSize: 14,
@@ -3109,6 +3164,222 @@ export default function DashboardClient() {
         </div>
       )}
 
+      {/* ─── Customize Modal ────────────────────────────────────────────────── */}
+      {showCustomize && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowCustomize(false); }}
+        >
+          <div style={{
+            background: "white",
+            borderRadius: 16,
+            padding: 28,
+            width: "90%",
+            maxWidth: 520,
+            maxHeight: "85vh",
+            overflowY: "auto",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: C.dark }}>
+                🎨 Customize
+              </h2>
+              <button
+                onClick={() => setShowCustomize(false)}
+                style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#999" }}
+              >
+                &#10005;
+              </button>
+            </div>
+
+            {/* Color Theme */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: C.dark, marginBottom: 8 }}>
+                Color Theme
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                {Object.entries(THEMES).map(([key, theme]) => (
+                  <button
+                    key={key}
+                    onClick={() => savePreferences({ ...prefs, theme: key })}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      background: (prefs.theme ?? "default") === key ? "#f0f8ff" : "#fafafa",
+                      border: (prefs.theme ?? "default") === key ? `2px solid ${theme.swatch[0]}` : "1px solid #e0e0e0",
+                      borderRadius: 8,
+                      padding: "8px 10px",
+                      cursor: "pointer",
+                      textAlign: "left",
+                    }}
+                  >
+                    <div style={{ display: "flex", gap: 3 }}>
+                      {theme.swatch.map((color, i) => (
+                        <div key={i} style={{ width: 14, height: 14, borderRadius: "50%", background: color }} />
+                      ))}
+                    </div>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#333" }}>{theme.name}</span>
+                    {(prefs.theme ?? "default") === key && <span style={{ marginLeft: "auto", fontSize: 14 }}>&#10003;</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Font */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: C.dark, marginBottom: 8 }}>
+                Font
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {FONTS.map((font) => (
+                  <button
+                    key={font.id}
+                    onClick={() => savePreferences({ ...prefs, font: font.id })}
+                    style={{
+                      background: (prefs.font ?? "system") === font.id ? C.dark : "#f0f0f0",
+                      color: (prefs.font ?? "system") === font.id ? "white" : "#333",
+                      border: "none",
+                      borderRadius: 8,
+                      padding: "8px 16px",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      fontFamily: font.value,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {font.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Progress Icon */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: C.dark, marginBottom: 8 }}>
+                Progress Icon
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {STAR_ICONS.map((icon) => (
+                  <button
+                    key={icon}
+                    onClick={() => savePreferences({ ...prefs, starIcon: icon })}
+                    style={{
+                      background: (prefs.starIcon ?? "⭐") === icon ? C.dark : "#f0f0f0",
+                      border: "none",
+                      borderRadius: 8,
+                      padding: "8px 12px",
+                      fontSize: 20,
+                      cursor: "pointer",
+                      outline: (prefs.starIcon ?? "⭐") === icon ? `2px solid ${C.primary}` : "none",
+                    }}
+                  >
+                    {icon}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Confetti Toggle */}
+            <div style={{ marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: C.dark }}>
+                  Confetti
+                </div>
+                <div style={{ fontSize: 11, color: "#888" }}>Celebrate when students hit top zone</div>
+              </div>
+              <div
+                onClick={() => savePreferences({ ...prefs, confetti: prefs.confetti === false ? true : false })}
+                style={{
+                  width: 44,
+                  height: 24,
+                  borderRadius: 12,
+                  background: prefs.confetti !== false ? C.secondary : "#ccc",
+                  position: "relative",
+                  transition: "background 0.2s",
+                  cursor: "pointer",
+                  flexShrink: 0,
+                }}
+              >
+                <div style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: "50%",
+                  background: "white",
+                  position: "absolute",
+                  top: 2,
+                  left: prefs.confetti !== false ? 22 : 2,
+                  transition: "left 0.2s",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                }} />
+              </div>
+            </div>
+
+            {/* Compact Mode Toggle */}
+            <div style={{ marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: C.dark }}>
+                  Compact Mode
+                </div>
+                <div style={{ fontSize: 11, color: "#888" }}>Reduce row height in the scoring grid</div>
+              </div>
+              <div
+                onClick={() => savePreferences({ ...prefs, compact: !prefs.compact })}
+                style={{
+                  width: 44,
+                  height: 24,
+                  borderRadius: 12,
+                  background: prefs.compact ? C.secondary : "#ccc",
+                  position: "relative",
+                  transition: "background 0.2s",
+                  cursor: "pointer",
+                  flexShrink: 0,
+                }}
+              >
+                <div style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: "50%",
+                  background: "white",
+                  position: "absolute",
+                  top: 2,
+                  left: prefs.compact ? 22 : 2,
+                  transition: "left 0.2s",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                }} />
+              </div>
+            </div>
+
+            {/* Done Button */}
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setShowCustomize(false)}
+                style={{
+                  background: C.secondary,
+                  color: "white",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "10px 28px",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ─── School Team Modal ──────────────────────────────────────────────────── */}
       {showStaffSync && (
         <div
@@ -3170,5 +3441,6 @@ export default function DashboardClient() {
         </div>
       )}
     </div>
+    </>
   );
 }
