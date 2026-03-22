@@ -2518,7 +2518,7 @@ export default function DashboardClient() {
                           transition: "background 0.2s",
                         }}
                       >
-                        {note.shared ? "\uD83D\uDC41 Shared with Parent" : "\uD83D\uDD12 Private"}
+                        {note.shared ? "\uD83E\uDD1D Shared with Parent" : "\uD83D\uDD12 Private"}
                       </button>
                     </div>
                   </div>
