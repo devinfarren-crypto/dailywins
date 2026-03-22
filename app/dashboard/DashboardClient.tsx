@@ -503,6 +503,7 @@ export default function DashboardClient() {
   const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "done" | "error">("idle");
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draggingRef = useRef<number | null>(null);
+  const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const prevPctRef = useRef(0);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -629,7 +630,7 @@ export default function DashboardClient() {
   useEffect(() => {
     const onMove = (e: MouseEvent) => handleThresholdDrag(e.clientX);
     const onTouchMove = (e: TouchEvent) => handleThresholdDrag(e.touches[0].clientX);
-    const onUp = () => { draggingRef.current = null; };
+    const onUp = () => { draggingRef.current = null; setDraggingIdx(null); };
     if (draggingRef.current !== null) {
       window.addEventListener("mousemove", onMove);
       window.addEventListener("mouseup", onUp);
@@ -1847,8 +1848,8 @@ export default function DashboardClient() {
               {thresholds.map((t, idx) => (
                 <div
                   key={idx}
-                  onMouseDown={(e) => { e.preventDefault(); draggingRef.current = idx; handleThresholdDrag(e.clientX); }}
-                  onTouchStart={(e) => { draggingRef.current = idx; handleThresholdDrag(e.touches[0].clientX); }}
+                  onMouseDown={(e) => { e.preventDefault(); draggingRef.current = idx; setDraggingIdx(idx); handleThresholdDrag(e.clientX); }}
+                  onTouchStart={(e) => { draggingRef.current = idx; setDraggingIdx(idx); handleThresholdDrag(e.touches[0].clientX); }}
                   style={{
                     position: "absolute",
                     left: `${t}%`,
@@ -1863,13 +1864,35 @@ export default function DashboardClient() {
                     justifyContent: "center",
                   }}
                 >
+                  {/* Tooltip — visible while dragging */}
+                  {draggingIdx === idx && (
+                    <div style={{
+                      position: "absolute",
+                      bottom: "100%",
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      marginBottom: 4,
+                      background: COLORS.dark,
+                      color: "white",
+                      borderRadius: 4,
+                      padding: "2px 6px",
+                      fontSize: 11,
+                      fontWeight: 800,
+                      whiteSpace: "nowrap",
+                      pointerEvents: "none",
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
+                    }}>
+                      {t}%
+                    </div>
+                  )}
                   <div style={{
                     width: 6,
                     height: 20,
                     borderRadius: 3,
                     background: "white",
-                    border: "2px solid #999",
+                    border: `2px solid ${draggingIdx === idx ? COLORS.dark : "#999"}`,
                     boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
+                    transition: "border-color 0.15s",
                   }} />
                 </div>
               ))}
