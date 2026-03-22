@@ -1996,32 +1996,23 @@ export default function DashboardClient() {
           {/* Student Sync Button */}
           {hasStudents && (
             <button
-              onClick={() => {
-                if (!hasDriveAccess) {
-                  alert("Google Drive access not available.\n\nYour school account may block Drive permissions. Sign in with a personal Google account to enable Student Sync and Drive exports.");
-                  return;
-                }
-                handleSyncNow();
-              }}
-              disabled={syncStatus === "syncing"}
-              title={hasDriveAccess ? "Sync current student data to Google Sheets" : "Google Drive not available — sign in with a personal account to enable"}
+              disabled
               style={{
-                background: !hasDriveAccess ? "#bbb" : syncStatus === "done" ? COLORS.secondary : syncStatus === "error" ? COLORS.primary : syncStatus === "syncing" ? "#999" : "#4285F4",
-                color: "white",
+                background: "#ccc",
+                color: "#888",
                 border: "none",
                 borderRadius: 6,
                 padding: "0 10px",
                 fontSize: 11,
                 fontWeight: 700,
-                cursor: syncStatus === "syncing" ? "not-allowed" : "pointer",
+                cursor: "not-allowed",
                 height: 32,
                 display: "flex",
                 alignItems: "center",
                 gap: 4,
-                transition: "background 0.3s",
               }}
             >
-              {!hasDriveAccess ? "\u21BB Student Sync" : syncStatus === "syncing" ? "Syncing..." : syncStatus === "done" ? "\u2713 Synced" : syncStatus === "error" ? "Sync failed" : "\u21BB Student Sync"}
+              {"\u21BB Student Sync"}
             </button>
           )}
 
@@ -2250,7 +2241,7 @@ export default function DashboardClient() {
                           cursor: "pointer",
                         }}
                       >
-                        {isAbsent ? "\u2713 ABS" : "\uD83D\uDEAB ABS"}
+                        {isAbsent ? "\u2713 Absent" : "\uD83D\uDEAB Absent"}
                       </button>
                     </div>
                   </td>
@@ -2471,30 +2462,23 @@ export default function DashboardClient() {
             &#127968; Parent View
           </button>
           <button
-            onClick={() => {
-              if (!hasDriveAccess) {
-                alert("Google Drive access not available.\n\nYour school account may block Drive permissions. Sign in with a personal Google account to enable Student Sync and Drive exports.");
-                return;
-              }
-              exportToDrive();
-            }}
-            disabled={exportingDrive}
+            disabled
             style={{
-              background: !hasDriveAccess ? "#bbb" : exportingDrive ? "#999" : "#4285F4",
-              color: "white",
+              background: "#ccc",
+              color: "#888",
               border: "none",
               borderRadius: 10,
               padding: "8px 16px",
               fontSize: 13,
               fontWeight: 700,
-              cursor: exportingDrive ? "not-allowed" : "pointer",
+              cursor: "not-allowed",
               display: "flex",
               alignItems: "center",
               gap: 6,
-              opacity: !hasDriveAccess ? 0.8 : exportingDrive ? 0.7 : 1,
+              opacity: 0.6,
             }}
           >
-            <svg width="16" height="16" viewBox="0 0 87.3 78" style={{ flexShrink: 0 }}>
+            <svg width="16" height="16" viewBox="0 0 87.3 78" style={{ flexShrink: 0, opacity: 0.4 }}>
               <path d="M6.6 66.85L29.3 78l57.4-33.15L64 33.7z" fill="#0066DA" />
               <path d="M29.3 0L6.6 11.15 29.3 78l22.7-11.15z" fill="#00AC47" />
               <path d="M86.7 44.85L64 33.7 29.3 78l22.7-11.15z" fill="#EA4335" />
@@ -2502,8 +2486,18 @@ export default function DashboardClient() {
               <path d="M29.3 0L6.6 11.15l57.4 22.55L86.7 44.85z" fill="#2684FC" />
               <path d="M6.6 11.15v55.7L29.3 78V0z" fill="#FFBA00" />
             </svg>
-            {exportingDrive ? "Exporting..." : "Export to Drive"}
+            Export to Drive
           </button>
+        </div>
+        <div style={{ textAlign: "center", paddingTop: 12, paddingBottom: 8 }}>
+          <a
+            href="https://docs.google.com/document/d/1Xpl7-53_w-qX7IpZXQKmu6ZJ6W8O8atYv7c1JmLbs0M/edit?usp=sharing"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ fontSize: 12, color: "#999", textDecoration: "none" }}
+          >
+            💬 Feedback to Devin
+          </a>
         </div>
       </main>
 
