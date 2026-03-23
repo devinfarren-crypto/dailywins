@@ -108,7 +108,6 @@ interface TeacherProfile {
   preferences?: Preferences;
 }
 
-type ScheduleType = "Regular" | "Wednesday" | "Minimum Day" | "Reverse Minimum" | "Finals" | "Rally";
 type SchoolName = "Cosumnes Oaks High School" | "Pleasant Grove High School";
 
 interface PeriodSlot {
@@ -123,7 +122,7 @@ interface BellSchedule {
 
 // ─── Bell Schedules ───────────────────────────────────────────────────────────
 
-const BELL_SCHEDULES: Record<SchoolName, Record<ScheduleType, BellSchedule>> = {
+const BELL_SCHEDULES: Record<SchoolName, Record<string, BellSchedule>> = {
   "Cosumnes Oaks High School": {
     Regular: {
       periods: [
@@ -197,81 +196,62 @@ const BELL_SCHEDULES: Record<SchoolName, Record<ScheduleType, BellSchedule>> = {
     },
   },
   "Pleasant Grove High School": {
-    Regular: {
+    "Regular (Tue-Fri)": {
       periods: [
-        { label: "Period 1", start: "8:00", end: "8:52" },
-        { label: "Period 2", start: "8:57", end: "9:49" },
-        { label: "Period 3", start: "9:54", end: "10:46" },
-        { label: "Advocacy", start: "10:46", end: "11:16" },
-        { label: "Period 4", start: "11:21", end: "12:13" },
-        { label: "Lunch", start: "12:13", end: "12:48" },
-        { label: "Period 5", start: "12:53", end: "1:45" },
-        { label: "Period 6", start: "1:50", end: "2:42" },
-        { label: "Period 7", start: "2:47", end: "3:30" },
+        { label: "Period 1", start: "8:30", end: "9:29" },
+        { label: "Period 2", start: "9:36", end: "10:36" },
+        { label: "Period 3", start: "10:46", end: "11:46" },
+        { label: "Period 4", start: "11:53", end: "12:53" },
+        { label: "Period 5", start: "12:23", end: "1:23" },
+        { label: "Period 6", start: "1:30", end: "2:30" },
+        { label: "Period 7", start: "2:40", end: "3:40" },
       ],
     },
-    Wednesday: {
+    "Monday Early Out": {
       periods: [
-        { label: "Period 1", start: "9:00", end: "9:42" },
-        { label: "Period 2", start: "9:47", end: "10:29" },
-        { label: "Period 3", start: "10:34", end: "11:16" },
-        { label: "Advocacy", start: "11:16", end: "11:46" },
-        { label: "Period 4", start: "11:51", end: "12:33" },
-        { label: "Lunch", start: "12:33", end: "1:08" },
-        { label: "Period 5", start: "1:13", end: "1:55" },
-        { label: "Period 6", start: "2:00", end: "2:42" },
-        { label: "Period 7", start: "2:47", end: "3:20" },
+        { label: "Period 1", start: "8:30", end: "9:14" },
+        { label: "Period 2", start: "9:21", end: "10:05" },
+        { label: "Advocacy", start: "10:12", end: "10:42" },
+        { label: "Period 3", start: "10:52", end: "11:36" },
+        { label: "Period 5", start: "12:13", end: "12:57" },
+        { label: "Period 6", start: "1:04", end: "1:48" },
+        { label: "Period 7", start: "1:55", end: "2:40" },
       ],
     },
     "Minimum Day": {
       periods: [
-        { label: "Period 1", start: "8:00", end: "8:30" },
-        { label: "Period 2", start: "8:35", end: "9:05" },
-        { label: "Period 3", start: "9:10", end: "9:40" },
-        { label: "Period 4", start: "9:45", end: "10:15" },
-        { label: "Period 5", start: "10:20", end: "10:50" },
-        { label: "Period 6", start: "10:55", end: "11:25" },
-        { label: "Period 7", start: "11:30", end: "12:00" },
+        { label: "Period 1", start: "8:30", end: "9:04" },
+        { label: "Period 2", start: "9:11", end: "9:45" },
+        { label: "Period 3", start: "9:55", end: "10:29" },
+        { label: "Period 4/5", start: "10:36", end: "11:10" },
+        { label: "Period 6", start: "11:17", end: "11:51" },
+        { label: "Period 7", start: "11:58", end: "12:33" },
+        { label: "Lunch", start: "12:33", end: "1:00" },
       ],
     },
-    "Reverse Minimum": {
+    "Rally Day": {
       periods: [
-        { label: "Period 7", start: "8:00", end: "8:30" },
-        { label: "Period 6", start: "8:35", end: "9:05" },
-        { label: "Period 5", start: "9:10", end: "9:40" },
-        { label: "Period 4", start: "9:45", end: "10:15" },
-        { label: "Period 3", start: "10:20", end: "10:50" },
-        { label: "Period 2", start: "10:55", end: "11:25" },
-        { label: "Period 1", start: "11:30", end: "12:00" },
+        { label: "Period 1", start: "8:30", end: "9:23" },
+        { label: "Period 2", start: "9:30", end: "10:23" },
+        { label: "Period 3", start: "10:33", end: "11:26" },
+        { label: "Period 4", start: "11:33", end: "12:26" },
+        { label: "Period 5", start: "12:03", end: "12:56" },
+        { label: "Period 6", start: "1:06", end: "1:56" },
+        { label: "Period 7", start: "2:06", end: "2:59" },
+        { label: "Rally", start: "3:03", end: "3:40" },
       ],
     },
     Finals: {
       periods: [
-        { label: "Final 1", start: "8:00", end: "9:30" },
-        { label: "Final 2", start: "9:45", end: "11:15" },
-        { label: "Lunch", start: "11:15", end: "11:50" },
-        { label: "Final 3", start: "11:55", end: "1:25" },
-      ],
-    },
-    Rally: {
-      periods: [
-        { label: "Period 1", start: "8:00", end: "8:42" },
-        { label: "Period 2", start: "8:47", end: "9:29" },
-        { label: "Period 3", start: "9:34", end: "10:16" },
-        { label: "Rally", start: "10:21", end: "11:05" },
-        { label: "Advocacy", start: "11:05", end: "11:30" },
-        { label: "Period 4", start: "11:35", end: "12:17" },
-        { label: "Lunch", start: "12:17", end: "12:52" },
-        { label: "Period 5", start: "12:57", end: "1:39" },
-        { label: "Period 6", start: "1:44", end: "2:26" },
-        { label: "Period 7", start: "2:31", end: "3:10" },
+        { label: "Testing Block 1", start: "8:30", end: "10:30" },
+        { label: "Testing Block 2", start: "10:40", end: "12:40" },
+        { label: "Lunch", start: "12:40", end: "1:10" },
       ],
     },
   },
 };
 
 const SCHOOLS: SchoolName[] = ["Cosumnes Oaks High School", "Pleasant Grove High School"];
-const SCHEDULE_TYPES: ScheduleType[] = ["Regular", "Wednesday", "Minimum Day", "Reverse Minimum", "Finals", "Rally"];
 
 // ─── Score Helpers ────────────────────────────────────────────────────────────
 
@@ -507,7 +487,7 @@ export default function DashboardClient() {
   const [selectedSchool, setSelectedSchool] = useState<SchoolName | "">(
     () => (typeof window !== "undefined" ? localStorage.getItem("dailywins_school") as SchoolName | "" : "")
   );
-  const [selectedSchedule, setSelectedSchedule] = useState<ScheduleType>("Regular");
+  const [selectedSchedule, setSelectedSchedule] = useState<string>("Regular");
   const [showSchedule, setShowSchedule] = useState(false);
   const [showAddStudents, setShowAddStudents] = useState(false);
   const [addStudentsText, setAddStudentsText] = useState("");
@@ -1082,7 +1062,8 @@ export default function DashboardClient() {
   const handleSelectSchool = (school: SchoolName) => {
     setSelectedSchool(school);
     localStorage.setItem("dailywins_school", school);
-    setSelectedSchedule("Regular");
+    const firstSchedule = Object.keys(BELL_SCHEDULES[school])[0];
+    setSelectedSchedule(firstSchedule);
   };
 
   const handleSignOut = async () => {
@@ -2984,7 +2965,7 @@ export default function DashboardClient() {
                   Schedule Type
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {SCHEDULE_TYPES.map((type) => (
+                  {Object.keys(BELL_SCHEDULES[selectedSchool]).map((type) => (
                     <button
                       key={type}
                       onClick={() => setSelectedSchedule(type)}
@@ -3023,7 +3004,7 @@ export default function DashboardClient() {
                     </tr>
                   </thead>
                   <tbody>
-                    {BELL_SCHEDULES[selectedSchool][selectedSchedule].periods.map((slot, i) => {
+                    {(BELL_SCHEDULES[selectedSchool][selectedSchedule] ?? BELL_SCHEDULES[selectedSchool][Object.keys(BELL_SCHEDULES[selectedSchool])[0]]).periods.map((slot, i) => {
                       const isTracked = slot.label !== "Lunch" && slot.label !== "Rally";
                       return (
                         <tr key={slot.label + i} style={{ background: i % 2 === 0 ? "#fafaf7" : "white", borderTop: "1px solid #eee" }}>
