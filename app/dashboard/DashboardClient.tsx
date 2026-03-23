@@ -487,7 +487,16 @@ export default function DashboardClient() {
   const [selectedSchool, setSelectedSchool] = useState<SchoolName | "">(
     () => (typeof window !== "undefined" ? localStorage.getItem("dailywins_school") as SchoolName | "" : "")
   );
-  const [selectedSchedule, setSelectedSchedule] = useState<string>("Regular");
+  const [selectedSchedule, setSelectedSchedule] = useState<string>(() => {
+    if (typeof window === "undefined") return "Regular";
+    const school = localStorage.getItem("dailywins_school") as SchoolName | "";
+    if (school && BELL_SCHEDULES[school as SchoolName]) {
+      const schedules = BELL_SCHEDULES[school as SchoolName];
+      if (schedules["Regular"]) return "Regular";
+      return Object.keys(schedules)[0];
+    }
+    return "Regular";
+  });
   const [showSchedule, setShowSchedule] = useState(false);
   const [showAddStudents, setShowAddStudents] = useState(false);
   const [addStudentsText, setAddStudentsText] = useState("");
@@ -681,8 +690,8 @@ export default function DashboardClient() {
 
   // ─── Active Periods ─────────────────────────────────────────────────────────
 
-  const activePeriods: PeriodSlot[] = selectedSchool
-    ? BELL_SCHEDULES[selectedSchool][selectedSchedule].periods
+  const activePeriods: PeriodSlot[] = selectedSchool && BELL_SCHEDULES[selectedSchool as SchoolName]
+    ? (BELL_SCHEDULES[selectedSchool as SchoolName][selectedSchedule] ?? BELL_SCHEDULES[selectedSchool as SchoolName][Object.keys(BELL_SCHEDULES[selectedSchool as SchoolName])[0]]).periods
     : PERIODS.map((p) => ({ label: p, start: "", end: "" }));
 
   const trackablePeriods = activePeriods.filter(
