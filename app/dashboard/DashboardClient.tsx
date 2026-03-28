@@ -1738,25 +1738,6 @@ export default function DashboardClient() {
       <header style={{ background: C.dark, boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 16px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            {/* EGUSD Logo */}
-            <svg width="164" height="28" viewBox="0 0 164 28" style={{ flexShrink: 0 }}>
-              {([
-                { letter: "E", color: "#ed1c24", cx: 14 },
-                { letter: "G", color: "#3bb54a", cx: 48 },
-                { letter: "U", color: "#00aeef", cx: 82 },
-                { letter: "S", color: "#f7941d", cx: 116 },
-                { letter: "D", color: "#92278f", cx: 150 },
-              ] as const).map(({ letter, color, cx }) => (
-                <g key={letter}>
-                  <circle cx={cx} cy={14} r={14} fill={color} />
-                  <text x={cx} y={14} textAnchor="middle" dominantBaseline="central" fill="white" fontSize="14" fontWeight="800" fontFamily="system-ui, sans-serif">
-                    {letter}
-                  </text>
-                </g>
-              ))}
-            </svg>
-            {/* Divider */}
-            <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.25)", flexShrink: 0 }} />
             <div style={{
               background: COLORS.primary,
               width: 38,
