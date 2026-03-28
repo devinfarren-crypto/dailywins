@@ -82,6 +82,7 @@ interface StudentNote {
   text: string;
   shared: boolean;
   timestamp: string;
+  period: string | null; // null = legacy flat note (shows as "General")
 }
 
 interface DbStudent {
@@ -515,6 +516,9 @@ export default function DashboardClient() {
   const [notes, setNotes] = useState<StudentNote[]>([]);
   const [noteText, setNoteText] = useState("");
   const [noteShared, setNoteShared] = useState(false);
+  const [inlineNotePeriod, setInlineNotePeriod] = useState<string | null>(null);
+  const [inlineNoteText, setInlineNoteText] = useState("");
+  const [inlineNoteShared, setInlineNoteShared] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [showParentView, setShowParentView] = useState(false);
   const [activeView, setActiveView] = useState<"entry" | "weekly" | "monthly" | "annual">("entry");
@@ -793,13 +797,14 @@ export default function DashboardClient() {
 
   // ─── Notes Loading ──────────────────────────────────────────────────────────
 
-  const loadNotes = useCallback(async (studentId: string) => {
+  const loadNotes = useCallback(async (studentId: string, date: string) => {
     if (!teacher) return;
     const { data, error } = await supabase
       .from("notes")
       .select("*")
       .eq("student_id", studentId)
-      .order("created_at", { ascending: false });
+      .eq("note_date", date)
+      .order("created_at", { ascending: true });
 
     if (!error && data) {
       setNotes(data.map((n) => ({
@@ -807,6 +812,7 @@ export default function DashboardClient() {
         text: n.content as string,
         shared: !(n.is_private as boolean),
         timestamp: new Date(n.created_at as string).toLocaleString(),
+        period: (n.period as string | null) ?? null,
       })));
     }
   }, [teacher, supabase]);
@@ -817,7 +823,7 @@ export default function DashboardClient() {
     setPeriodAbsent({}); // Reset absent state on student/date change
     if (selectedStudentId && teacher) {
       loadScores(selectedStudentId, selectedDate);
-      loadNotes(selectedStudentId);
+      loadNotes(selectedStudentId, selectedDate);
     } else {
       const initial: AllScores = {};
       for (const p of trackablePeriods) {
@@ -949,7 +955,7 @@ export default function DashboardClient() {
     if (!hasToken) return; // No token at all — skip silently
 
     setSyncStatus("syncing");
-    const sharedNotes = notes.filter((n) => n.shared).map((n) => n.text);
+    const sharedNotes = notes.filter((n) => n.shared).map((n) => n.period ? `[${n.period}] ${n.text}` : n.text);
 
     const result = await syncToGoogleSheets({
       // Token is optional — syncToGoogleSheets will auto-refresh via /api/refresh-google-token
@@ -1191,8 +1197,8 @@ export default function DashboardClient() {
 
   // ─── Notes ──────────────────────────────────────────────────────────────────
 
-  const handleAddNote = async () => {
-    if (!noteText.trim() || !teacher || !selectedStudentId) return;
+  const handleAddNote = async (text: string, shared: boolean, period: string | null) => {
+    if (!text.trim() || !teacher || !selectedStudentId) return;
 
     const { data, error } = await supabase
       .from("notes")
@@ -1200,8 +1206,9 @@ export default function DashboardClient() {
         student_id: selectedStudentId,
         teacher_id: teacher.teacher_id,
         note_date: selectedDate,
-        content: noteText.trim(),
-        is_private: !noteShared,
+        content: text.trim(),
+        is_private: !shared,
+        period: period,
       })
       .select()
       .single();
@@ -1216,9 +1223,9 @@ export default function DashboardClient() {
       text: data.content as string,
       shared: !(data.is_private as boolean),
       timestamp: new Date(data.created_at as string).toLocaleString(),
+      period: (data.period as string | null) ?? null,
     };
-    setNotes((prev) => [note, ...prev]);
-    setNoteText("");
+    setNotes((prev) => [...prev, note]);
   };
 
   const handleDeleteNote = async (id: string) => {
@@ -1389,6 +1396,42 @@ export default function DashboardClient() {
       bodyStyles: { fontSize: 9 },
       columnStyles: { 0: { fontStyle: "bold" } },
     });
+
+    // Add shared notes organized by period
+    const sharedNotes = notes.filter((n) => n.shared);
+    if (sharedNotes.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const finalY = (doc as any).lastAutoTable?.finalY ?? 120;
+      doc.setFontSize(14);
+      doc.setTextColor(44, 62, 80);
+      doc.text("Teacher Notes", 14, finalY + 12);
+      let noteY = finalY + 20;
+      for (const slot of trackablePeriods) {
+        const periodNotes = sharedNotes.filter((n) => n.period === slot.label);
+        if (periodNotes.length === 0) continue;
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text(slot.label, 14, noteY);
+        noteY += 5;
+        doc.setFontSize(9);
+        doc.setTextColor(44, 62, 80);
+        for (const note of periodNotes) {
+          const lines = doc.splitTextToSize(`\u2022 ${note.text}`, 170);
+          doc.text(lines, 18, noteY);
+          noteY += lines.length * 4.5;
+        }
+        noteY += 2;
+      }
+      // Legacy notes without period
+      const legacyNotes = sharedNotes.filter((n) => n.period === null);
+      for (const note of legacyNotes) {
+        doc.setFontSize(9);
+        doc.setTextColor(44, 62, 80);
+        const lines = doc.splitTextToSize(`\u2022 ${note.text}`, 170);
+        doc.text(lines, 18, noteY);
+        noteY += lines.length * 4.5;
+      }
+    }
 
     doc.save(`DailyWins_${selectedStudent || "report"}_${selectedDate}.pdf`);
   };
@@ -2175,6 +2218,9 @@ export default function DashboardClient() {
                   <th style={{ padding: "6px 6px", textAlign: "center", color: "white", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>
                     Pts
                   </th>
+                  <th style={{ padding: "6px 4px", textAlign: "center", color: "white", fontSize: 10, fontWeight: 700, width: 28 }}>
+                    &#128221;
+                  </th>
                 </tr>
                 {/* Quick Fill Row */}
                 <tr style={{ background: "#f8f4ef" }}>
@@ -2232,6 +2278,7 @@ export default function DashboardClient() {
                     </td>
                   ))}
                   <td style={{ padding: "4px 4px", textAlign: "center", fontSize: 10, color: "#999" }}>&mdash;</td>
+                  <td style={{ padding: "4px 4px" }}></td>
                 </tr>
               </thead>
               <tbody>
@@ -2305,6 +2352,109 @@ export default function DashboardClient() {
                         color: isExcused ? "#bbb" : isUnexcused ? COLORS.red : pts >= ptsHighThreshold ? COLORS.secondary : pts >= ptsMidThreshold ? COLORS.accent : COLORS.primary,
                       }}>
                         {isExcused ? "\u2014" : pts}
+                      </td>
+
+                      {/* Note Icon */}
+                      <td style={{ padding: "2px 2px", textAlign: "center", position: "relative" }}>
+                        {(() => {
+                          const periodNoteCount = notes.filter((n) => n.period === slot.label).length;
+                          return (
+                            <>
+                              <button
+                                onClick={() => { setInlineNotePeriod(inlineNotePeriod === slot.label ? null : slot.label); setInlineNoteText(""); }}
+                                style={{
+                                  background: "none",
+                                  border: "none",
+                                  cursor: "pointer",
+                                  fontSize: 14,
+                                  padding: 2,
+                                  position: "relative",
+                                  opacity: periodNoteCount > 0 ? 1 : 0.3,
+                                }}
+                                title={periodNoteCount > 0 ? `${periodNoteCount} note(s)` : "Add note"}
+                              >
+                                {periodNoteCount > 0 ? "\uD83D\uDCDD" : "\uD83D\uDCAC"}
+                                {periodNoteCount > 0 && (
+                                  <span style={{
+                                    position: "absolute",
+                                    top: -2,
+                                    right: -4,
+                                    background: COLORS.primary,
+                                    color: "white",
+                                    borderRadius: "50%",
+                                    width: 14,
+                                    height: 14,
+                                    fontSize: 9,
+                                    fontWeight: 800,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                  }}>
+                                    {periodNoteCount}
+                                  </span>
+                                )}
+                              </button>
+                              {inlineNotePeriod === slot.label && (
+                                <div style={{
+                                  position: "absolute",
+                                  right: 0,
+                                  top: "100%",
+                                  width: 260,
+                                  background: "white",
+                                  borderRadius: 10,
+                                  boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
+                                  padding: 10,
+                                  zIndex: 100,
+                                  textAlign: "left",
+                                }}>
+                                  <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.dark, marginBottom: 6 }}>{slot.label} Notes</div>
+                                  {notes.filter((n) => n.period === slot.label).map((note) => (
+                                    <div key={note.id} style={{ fontSize: 11, color: COLORS.dark, padding: "3px 0", borderBottom: "1px solid #f0f0f0", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                                      <span style={{ lineHeight: 1.3 }}>{note.text}</span>
+                                      <button onClick={() => handleDeleteNote(note.id)} style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", fontSize: 12, flexShrink: 0, marginLeft: 4 }}>&#10005;</button>
+                                    </div>
+                                  ))}
+                                  <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
+                                    <input
+                                      value={inlineNoteText}
+                                      onChange={(e) => setInlineNoteText(e.target.value)}
+                                      placeholder="Quick note..."
+                                      autoFocus
+                                      style={{ flex: 1, borderRadius: 6, border: "1px solid #d0d0d0", padding: "5px 8px", fontSize: 11, fontFamily: "inherit" }}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter" && inlineNoteText.trim()) {
+                                          handleAddNote(inlineNoteText, inlineNoteShared, slot.label);
+                                          setInlineNoteText("");
+                                        }
+                                        if (e.key === "Escape") setInlineNotePeriod(null);
+                                      }}
+                                    />
+                                    <button
+                                      onClick={() => {
+                                        if (inlineNoteText.trim()) {
+                                          handleAddNote(inlineNoteText, inlineNoteShared, slot.label);
+                                          setInlineNoteText("");
+                                        }
+                                      }}
+                                      style={{ background: COLORS.secondary, color: "white", border: "none", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, cursor: "pointer" }}
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
+                                    <div
+                                      onClick={() => setInlineNoteShared(!inlineNoteShared)}
+                                      style={{ width: 28, height: 16, borderRadius: 8, background: inlineNoteShared ? COLORS.secondary : "#ccc", position: "relative", cursor: "pointer" }}
+                                    >
+                                      <div style={{ width: 12, height: 12, borderRadius: "50%", background: "white", position: "absolute", top: 2, left: inlineNoteShared ? 14 : 2, transition: "left 0.2s" }} />
+                                    </div>
+                                    <span style={{ fontSize: 10, color: "#999" }}>{inlineNoteShared ? "Shared" : "Private"}</span>
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
                       </td>
                     </tr>
                   );
@@ -2643,12 +2793,12 @@ export default function DashboardClient() {
             borderRadius: 16,
             padding: 28,
             width: "90%",
-            maxWidth: 500,
+            maxWidth: 560,
             maxHeight: "80vh",
             overflowY: "auto",
             boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
           }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
               <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: COLORS.dark }}>
                 &#128221; Notes {selectedStudent ? `\u2014 ${selectedStudent}` : ""}
               </h2>
@@ -2659,125 +2809,186 @@ export default function DashboardClient() {
                 &#10005;
               </button>
             </div>
+            <div style={{ fontSize: 12, color: "#999", marginBottom: 16 }}>{selectedDate}</div>
 
-            {/* New Note */}
-            <div style={{ marginBottom: 20 }}>
-              <textarea
-                value={noteText}
-                onChange={(e) => setNoteText(e.target.value)}
-                placeholder="Add a note..."
-                rows={3}
-                style={{
-                  width: "100%",
-                  borderRadius: 10,
-                  border: "1px solid #d0d0d0",
-                  padding: 12,
-                  fontSize: 14,
-                  fontFamily: "inherit",
-                  resize: "vertical",
-                  boxSizing: "border-box",
-                  color: "#2d3a47",
-                }}
-              />
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
-                <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: COLORS.dark, cursor: "pointer" }}>
-                  <div
-                    onClick={() => setNoteShared(!noteShared)}
-                    style={{
-                      width: 40,
-                      height: 22,
-                      borderRadius: 11,
-                      background: noteShared ? COLORS.secondary : "#ccc",
-                      position: "relative",
-                      transition: "background 0.2s",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <div style={{
-                      width: 18,
-                      height: 18,
-                      borderRadius: "50%",
-                      background: "white",
-                      position: "absolute",
-                      top: 2,
-                      left: noteShared ? 20 : 2,
-                      transition: "left 0.2s",
-                      boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-                    }} />
-                  </div>
-                  {noteShared ? "Shared (visible to parents)" : "Private (teacher only)"}
-                </label>
-                <button
-                  onClick={handleAddNote}
-                  style={{
-                    background: COLORS.secondary,
-                    color: "white",
-                    border: "none",
-                    borderRadius: 8,
-                    padding: "8px 18px",
-                    fontSize: 13,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                  }}
-                >
-                  Add Note
-                </button>
-              </div>
-            </div>
-
-            {/* Note List */}
-            {notes.length === 0 ? (
-              <p style={{ textAlign: "center", color: "#999", fontSize: 14, margin: "20px 0" }}>
-                No notes yet for this student.
-              </p>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {notes.map((note) => (
-                  <div
-                    key={note.id}
-                    style={{
-                      background: "#f8f8f5",
-                      borderRadius: 10,
-                      padding: "12px 14px",
-                      borderLeft: `4px solid ${note.shared ? COLORS.secondary : COLORS.accent}`,
-                    }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                      <p style={{ margin: 0, fontSize: 14, color: COLORS.dark, lineHeight: 1.5 }}>{note.text}</p>
-                      <button
-                        onClick={() => handleDeleteNote(note.id)}
-                        style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", fontSize: 16, marginLeft: 8, flexShrink: 0 }}
-                      >
-                        &#10005;
-                      </button>
+            {/* Notes organized by period */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {trackablePeriods.map((slot) => {
+                const periodNotes = notes.filter((n) => n.period === slot.label);
+                return (
+                  <div key={slot.label} style={{ background: "#fafaf7", borderRadius: 10, padding: "10px 14px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: periodNotes.length > 0 ? 8 : 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.dark }}>{slot.label}</div>
+                      {periodNotes.length === 0 && (
+                        <span style={{ fontSize: 11, color: "#ccc" }}>no notes</span>
+                      )}
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, fontSize: 11, color: "#999" }}>
-                      <span>{note.timestamp}</span>
-                      <button
-                        onClick={() => handleToggleNoteVisibility(note.id, note.shared)}
-                        title={note.shared ? "Click to make private" : "Click to share with parent"}
+                    {periodNotes.map((note) => (
+                      <div
+                        key={note.id}
                         style={{
-                          background: note.shared ? COLORS.secondary : "#999",
-                          color: "white",
-                          border: "none",
-                          borderRadius: 4,
-                          padding: "2px 8px",
-                          fontWeight: 700,
-                          fontSize: 11,
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                          transition: "background 0.2s",
+                          background: "white",
+                          borderRadius: 8,
+                          padding: "8px 10px",
+                          marginBottom: 6,
+                          borderLeft: `3px solid ${note.shared ? COLORS.secondary : COLORS.accent}`,
                         }}
                       >
-                        {note.shared ? "\uD83E\uDD1D Shared with Parent" : "\uD83D\uDD12 Private"}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                          <p style={{ margin: 0, fontSize: 13, color: COLORS.dark, lineHeight: 1.4 }}>{note.text}</p>
+                          <button
+                            onClick={() => handleDeleteNote(note.id)}
+                            style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", fontSize: 14, marginLeft: 6, flexShrink: 0 }}
+                          >
+                            &#10005;
+                          </button>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, fontSize: 10, color: "#999" }}>
+                          <span>{note.timestamp}</span>
+                          <button
+                            onClick={() => handleToggleNoteVisibility(note.id, note.shared)}
+                            style={{
+                              background: note.shared ? COLORS.secondary : "#999",
+                              color: "white",
+                              border: "none",
+                              borderRadius: 4,
+                              padding: "1px 6px",
+                              fontWeight: 700,
+                              fontSize: 10,
+                              cursor: "pointer",
+                            }}
+                          >
+                            {note.shared ? "\uD83E\uDD1D Shared" : "\uD83D\uDD12 Private"}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {/* Inline add for this period */}
+                    <div style={{ display: "flex", gap: 6, marginTop: periodNotes.length > 0 ? 4 : 0 }}>
+                      <input
+                        placeholder={`Add note for ${slot.label}...`}
+                        id={`modal-note-${slot.label}`}
+                        style={{
+                          flex: 1,
+                          borderRadius: 6,
+                          border: "1px solid #d0d0d0",
+                          padding: "6px 8px",
+                          fontSize: 12,
+                          fontFamily: "inherit",
+                          color: "#2d3a47",
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && (e.target as HTMLInputElement).value.trim()) {
+                            handleAddNote((e.target as HTMLInputElement).value, noteShared, slot.label);
+                            (e.target as HTMLInputElement).value = "";
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          const input = document.getElementById(`modal-note-${slot.label}`) as HTMLInputElement;
+                          if (input?.value.trim()) {
+                            handleAddNote(input.value, noteShared, slot.label);
+                            input.value = "";
+                          }
+                        }}
+                        style={{
+                          background: COLORS.secondary,
+                          color: "white",
+                          border: "none",
+                          borderRadius: 6,
+                          padding: "4px 10px",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                        }}
+                      >
+                        +
                       </button>
                     </div>
                   </div>
-                ))}
+                );
+              })}
+
+              {/* Legacy notes (no period) */}
+              {notes.filter((n) => n.period === null).length > 0 && (
+                <div style={{ background: "#fafaf7", borderRadius: 10, padding: "10px 14px" }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.dark, marginBottom: 8 }}>General</div>
+                  {notes.filter((n) => n.period === null).map((note) => (
+                    <div
+                      key={note.id}
+                      style={{
+                        background: "white",
+                        borderRadius: 8,
+                        padding: "8px 10px",
+                        marginBottom: 6,
+                        borderLeft: `3px solid ${note.shared ? COLORS.secondary : COLORS.accent}`,
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <p style={{ margin: 0, fontSize: 13, color: COLORS.dark, lineHeight: 1.4 }}>{note.text}</p>
+                        <button
+                          onClick={() => handleDeleteNote(note.id)}
+                          style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", fontSize: 14, marginLeft: 6, flexShrink: 0 }}
+                        >
+                          &#10005;
+                        </button>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, fontSize: 10, color: "#999" }}>
+                        <span>{note.timestamp}</span>
+                        <button
+                          onClick={() => handleToggleNoteVisibility(note.id, note.shared)}
+                          style={{
+                            background: note.shared ? COLORS.secondary : "#999",
+                            color: "white",
+                            border: "none",
+                            borderRadius: 4,
+                            padding: "1px 6px",
+                            fontWeight: 700,
+                            fontSize: 10,
+                            cursor: "pointer",
+                          }}
+                        >
+                          {note.shared ? "\uD83E\uDD1D Shared" : "\uD83D\uDD12 Private"}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Global shared/private toggle for new notes */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 16, padding: "8px 0", borderTop: "1px solid #eee" }}>
+              <div
+                onClick={() => setNoteShared(!noteShared)}
+                style={{
+                  width: 36,
+                  height: 20,
+                  borderRadius: 10,
+                  background: noteShared ? COLORS.secondary : "#ccc",
+                  position: "relative",
+                  transition: "background 0.2s",
+                  cursor: "pointer",
+                  flexShrink: 0,
+                }}
+              >
+                <div style={{
+                  width: 16,
+                  height: 16,
+                  borderRadius: "50%",
+                  background: "white",
+                  position: "absolute",
+                  top: 2,
+                  left: noteShared ? 18 : 2,
+                  transition: "left 0.2s",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                }} />
               </div>
-            )}
+              <span style={{ fontSize: 12, color: COLORS.dark }}>
+                {noteShared ? "New notes: Shared (visible to parents)" : "New notes: Private (teacher only)"}
+              </span>
+            </div>
           </div>
         </div>
       )}
@@ -2872,16 +3083,32 @@ export default function DashboardClient() {
               </tbody>
             </table>
 
-            {/* Shared notes */}
+            {/* Shared notes organized by period */}
             {notes.filter((n) => n.shared).length > 0 && (
               <div style={{ marginTop: 16 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: COLORS.dark, marginBottom: 8 }}>
                   Teacher Notes
                 </div>
-                {notes.filter((n) => n.shared).map((note) => (
-                  <div key={note.id} style={{ background: "#f8f8f5", borderRadius: 8, padding: "10px 12px", marginBottom: 6, borderLeft: `3px solid ${COLORS.secondary}` }}>
+                {trackablePeriods.map((slot) => {
+                  const periodShared = notes.filter((n) => n.shared && n.period === slot.label);
+                  if (periodShared.length === 0) return null;
+                  return (
+                    <div key={slot.label} style={{ marginBottom: 8 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "#999", marginBottom: 3 }}>{slot.label}</div>
+                      {periodShared.map((note) => (
+                        <div key={note.id} style={{ background: "#f8f8f5", borderRadius: 8, padding: "8px 12px", marginBottom: 4, borderLeft: `3px solid ${COLORS.secondary}` }}>
+                          <p style={{ margin: 0, fontSize: 13, color: COLORS.dark }}>{note.text}</p>
+                          <span style={{ fontSize: 10, color: "#999" }}>{note.timestamp}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+                {/* Legacy notes without period */}
+                {notes.filter((n) => n.shared && n.period === null).map((note) => (
+                  <div key={note.id} style={{ background: "#f8f8f5", borderRadius: 8, padding: "8px 12px", marginBottom: 4, borderLeft: `3px solid ${COLORS.secondary}` }}>
                     <p style={{ margin: 0, fontSize: 13, color: COLORS.dark }}>{note.text}</p>
-                    <span style={{ fontSize: 11, color: "#999" }}>{note.timestamp}</span>
+                    <span style={{ fontSize: 10, color: "#999" }}>{note.timestamp}</span>
                   </div>
                 ))}
               </div>
