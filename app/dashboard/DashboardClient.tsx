@@ -258,6 +258,8 @@ const SCHOOLS: SchoolName[] = ["Cosumnes Oaks High School", "Pleasant Grove High
 // Scores: Record<period label, Record<category id, point value | null>>
 type PeriodScores = Record<string, number | null>;
 type AllScores = Record<string, PeriodScores>;
+type AbsentStatus = "present" | "unexcused" | "excused";
+type PeriodAbsentMap = Record<string, AbsentStatus>;
 
 /** Ensure a category has pointValues — derives them from type/options if missing */
 function ensurePointValues(cat: Category): Category {
@@ -300,15 +302,20 @@ function calculateMaxPoints(categories: Category[]): number {
   return categories.reduce((sum, cat) => cat.noPoints ? sum : sum + cat.maxPoints, 0);
 }
 
-function calculateProgress(scores: AllScores, categories: Category[]): { earned: number; possible: number; pct: number } {
-  const periods = Object.values(scores);
-  if (periods.length === 0) return { earned: 0, possible: 0, pct: 0 };
+function calculateProgress(scores: AllScores, categories: Category[], periodAbsent?: PeriodAbsentMap): { earned: number; possible: number; pct: number } {
+  const entries = Object.entries(scores);
+  if (entries.length === 0) return { earned: 0, possible: 0, pct: 0 };
   const maxPerPeriod = calculateMaxPoints(categories);
-  const possible = periods.length * maxPerPeriod;
   let earned = 0;
-  for (const p of periods) {
-    earned += calculatePeriodPoints(p, categories);
+  let countedPeriods = 0;
+  for (const [label, ps] of entries) {
+    const status = periodAbsent?.[label] ?? "present";
+    if (status === "excused") continue; // excused: remove from denominator entirely
+    countedPeriods++;
+    if (status === "unexcused") continue; // unexcused: 0 earned, but still counts in denominator
+    earned += calculatePeriodPoints(ps, categories);
   }
+  const possible = countedPeriods * maxPerPeriod;
   return { earned, possible, pct: possible === 0 ? 0 : Math.round((earned / possible) * 100) };
 }
 
@@ -517,7 +524,7 @@ export default function DashboardClient() {
   const [prefs, setPrefs] = useState<Preferences>({});
   const [streak, setStreak] = useState(0);
   const [trendPct, setTrendPct] = useState<number | null>(null);
-  const [isAbsent, setIsAbsent] = useState(false);
+  const [periodAbsent, setPeriodAbsent] = useState<PeriodAbsentMap>({});
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [savingScore, setSavingScore] = useState(false);
   const [thresholds, setThresholds] = useState<[number, number, number]>(() => {
@@ -643,7 +650,7 @@ export default function DashboardClient() {
 
   // ─── Confetti Trigger ───────────────────────────────────────────────────────
 
-  const { pct } = calculateProgress(scores, categories);
+  const { pct } = calculateProgress(scores, categories, periodAbsent);
   useEffect(() => {
     if (pct >= thresholds[2] && prevPctRef.current < thresholds[2]) {
       setShowConfetti(true);
@@ -738,6 +745,7 @@ export default function DashboardClient() {
       .eq("score_date", date);
 
     const newScores: AllScores = {};
+    const newAbsent: PeriodAbsentMap = {};
     for (const p of trackablePeriods) {
       newScores[p.label] = makeEmptyPeriodScores(categories);
     }
@@ -747,11 +755,17 @@ export default function DashboardClient() {
         const label = periodNumberToLabel(row.period as number);
         if (label in newScores) {
           // Read the scores JSONB column
-          const dbScores = row.scores as Record<string, number | null> | null;
+          const dbScores = row.scores as Record<string, unknown> | null;
           if (dbScores) {
+            // Read _absent status (backward compat: true → "unexcused")
+            if (dbScores._absent === true || dbScores._absent === "unexcused") {
+              newAbsent[label] = "unexcused";
+            } else if (dbScores._absent === "excused") {
+              newAbsent[label] = "excused";
+            }
             for (const cat of categories) {
               if (cat.id in dbScores) {
-                newScores[label][cat.id] = dbScores[cat.id];
+                newScores[label][cat.id] = dbScores[cat.id] as number | null;
               }
             }
           } else {
@@ -773,6 +787,7 @@ export default function DashboardClient() {
     }
 
     setScores(newScores);
+    setPeriodAbsent(newAbsent);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teacher, trackablePeriods.length, categories]);
 
@@ -799,24 +814,10 @@ export default function DashboardClient() {
   // ─── Trigger Score + Note Load ──────────────────────────────────────────────
 
   useEffect(() => {
-    setIsAbsent(false); // Reset absent state on student/date change
+    setPeriodAbsent({}); // Reset absent state on student/date change
     if (selectedStudentId && teacher) {
       loadScores(selectedStudentId, selectedDate);
       loadNotes(selectedStudentId);
-      // Check if student is marked absent (all periods have a special absent marker)
-      supabase
-        .from("behavior_scores")
-        .select("scores")
-        .eq("student_id", selectedStudentId)
-        .eq("teacher_id", teacher.teacher_id)
-        .eq("score_date", selectedDate)
-        .eq("period", 1)
-        .maybeSingle()
-        .then(({ data }) => {
-          if (data?.scores && (data.scores as Record<string, unknown>).__absent === true) {
-            setIsAbsent(true);
-          }
-        });
     } else {
       const initial: AllScores = {};
       for (const p of trackablePeriods) {
@@ -994,17 +995,23 @@ export default function DashboardClient() {
 
   // ─── Save Scores to DB ──────────────────────────────────────────────────────
 
-  const saveScoresToDb = useCallback(async (allScores: AllScores) => {
+  const saveScoresToDb = useCallback(async (allScores: AllScores, absentMap?: PeriodAbsentMap) => {
     if (!teacher || !selectedStudentId) return;
+    const absMap = absentMap ?? periodAbsent;
 
     const upserts = trackablePeriods
       .map((slot) => {
         const ps = allScores[slot.label];
         if (!ps) return null;
         // Build the scores JSONB object
-        const scoresJson: Record<string, number | null> = {};
+        const scoresJson: Record<string, unknown> = {};
         for (const cat of categories) {
           scoresJson[cat.id] = ps[cat.id] ?? null;
+        }
+        // Include absent status if not present
+        const status = absMap[slot.label];
+        if (status && status !== "present") {
+          scoresJson._absent = status;
         }
         return {
           student_id: selectedStudentId,
@@ -1029,44 +1036,30 @@ export default function DashboardClient() {
       scheduleSheetSync(allScores);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teacher, selectedStudentId, selectedDate, trackablePeriods.length, categories, scheduleSheetSync]);
+  }, [teacher, selectedStudentId, selectedDate, trackablePeriods.length, categories, scheduleSheetSync, periodAbsent]);
 
-  // ─── Absent Toggle ─────────────────────────────────────────────────────────
+  // ─── Per-Period Absent Cycling ──────────────────────────────────────────────
 
-  const toggleAbsent = async () => {
-    if (!teacher || !selectedStudentId) return;
-    const newAbsent = !isAbsent;
-    setIsAbsent(newAbsent);
-
-    if (newAbsent) {
-      // Mark absent: upsert period 1 with __absent marker
-      await supabase
-        .from("behavior_scores")
-        .upsert({
-          student_id: selectedStudentId,
-          teacher_id: teacher.teacher_id,
-          score_date: selectedDate,
-          period: 1,
-          scores: { __absent: true },
-        }, { onConflict: "student_id,teacher_id,score_date,period" });
-      // Clear all scores for the day
-      const cleared: AllScores = {};
-      for (const p of trackablePeriods) {
-        cleared[p.label] = makeEmptyPeriodScores(categories);
+  const cycleAbsent = (periodLabel: string) => {
+    setPeriodAbsent((prev) => {
+      const current = prev[periodLabel] ?? "present";
+      const next: AbsentStatus = current === "present" ? "unexcused" : current === "unexcused" ? "excused" : "present";
+      const updated = { ...prev, [periodLabel]: next };
+      // Clear scores for unexcused periods (they earn 0)
+      if (next === "unexcused") {
+        setScores((prevScores) => {
+          const cleared = { ...prevScores, [periodLabel]: makeEmptyPeriodScores(categories) };
+          if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+          saveTimerRef.current = setTimeout(() => saveScoresToDb(cleared, updated), 500);
+          return cleared;
+        });
+      } else {
+        // Save to persist the absent status change
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = setTimeout(() => saveScoresToDb(scores, updated), 500);
       }
-      setScores(cleared);
-    } else {
-      // Un-mark absent: remove the marker by setting scores to empty
-      await supabase
-        .from("behavior_scores")
-        .upsert({
-          student_id: selectedStudentId,
-          teacher_id: teacher.teacher_id,
-          score_date: selectedDate,
-          period: 1,
-          scores: {},
-        }, { onConflict: "student_id,teacher_id,score_date,period" });
-    }
+      return updated;
+    });
   };
 
   // ─── Event Handlers ─────────────────────────────────────────────────────────
@@ -1361,7 +1354,7 @@ export default function DashboardClient() {
     const { default: jsPDF } = await import("jspdf");
     const { default: autoTable } = await import("jspdf-autotable");
     const doc = new jsPDF();
-    const { earned: e, possible: p, pct: pc } = calculateProgress(scores, categories);
+    const { earned: e, possible: p, pct: pc } = calculateProgress(scores, categories, periodAbsent);
 
     doc.setFontSize(18);
     doc.setTextColor(44, 62, 80);
@@ -1440,7 +1433,7 @@ export default function DashboardClient() {
       return row;
     });
 
-    const { earned: e, possible: p, pct: pc } = calculateProgress(scores, categories);
+    const { earned: e, possible: p, pct: pc } = calculateProgress(scores, categories, periodAbsent);
     const totalRow = ["TOTAL"];
     for (let d = 0; d < 5; d++) {
       if (days[d] === selectedDate) {
@@ -1524,7 +1517,7 @@ export default function DashboardClient() {
       });
 
       // Total row
-      const { earned: e, possible: p, pct: pc } = calculateProgress(scores, categories);
+      const { earned: e, possible: p, pct: pc } = calculateProgress(scores, categories, periodAbsent);
       const totalRow = ["TOTAL"];
       for (let d = 0; d < 5; d++) {
         totalRow.push(days[d] === selectedDate ? `${e}/${p} (${pc}%)` : "");
@@ -1611,7 +1604,7 @@ export default function DashboardClient() {
 
   // ─── Derived Progress Values ────────────────────────────────────────────────
 
-  const { earned, possible } = calculateProgress(scores, categories);
+  const { earned, possible } = calculateProgress(scores, categories, periodAbsent);
 
   // ─── Loading State ──────────────────────────────────────────────────────────
 
@@ -2027,12 +2020,12 @@ export default function DashboardClient() {
           <div style={{ marginLeft: "auto", flex: 1, minWidth: 220, maxWidth: 420 }}>
             {/* Score line above bar */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 800, color: isAbsent ? "#999" : C.dark }}>
-                <span>{isAbsent ? "\uD83D\uDEAB" : starIcon}</span>
-                <span>{isAbsent ? "Absent" : `${earned} / ${possible} pts (${pct}%)`}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 800, color: C.dark }}>
+                <span>{starIcon}</span>
+                <span>{`${earned} / ${possible} pts (${pct}%)`}</span>
               </div>
               <span style={{
-                background: isAbsent ? "#bbb" : zoneColor(pct),
+                background: zoneColor(pct),
                 color: "white",
                 borderRadius: 6,
                 padding: "2px 8px",
@@ -2040,7 +2033,7 @@ export default function DashboardClient() {
                 fontWeight: 800,
                 letterSpacing: 0.5,
               }}>
-                {isAbsent ? "Absent" : pct >= thresholds[2] ? "Exceptional" : pct >= thresholds[1] ? "On Track" : pct >= thresholds[0] ? "Working On It" : "Needs Support"}
+                {pct >= thresholds[2] ? "Exceptional" : pct >= thresholds[1] ? "On Track" : pct >= thresholds[0] ? "Working On It" : "Needs Support"}
               </span>
             </div>
             <div
@@ -2217,21 +2210,6 @@ export default function DashboardClient() {
                       >
                         &#10005; Clear
                       </button>
-                      <button
-                        onClick={toggleAbsent}
-                        style={{
-                          background: isAbsent ? "#666" : "#bbb",
-                          color: "white",
-                          border: "none",
-                          borderRadius: 6,
-                          padding: "4px 8px",
-                          fontSize: 11,
-                          fontWeight: 700,
-                          cursor: "pointer",
-                        }}
-                      >
-                        {isAbsent ? "\u2713 Absent" : "\uD83D\uDEAB Absent"}
-                      </button>
                     </div>
                   </td>
                   {categories.map((cat) => (
@@ -2256,51 +2234,65 @@ export default function DashboardClient() {
                   <td style={{ padding: "4px 4px", textAlign: "center", fontSize: 10, color: "#999" }}>&mdash;</td>
                 </tr>
               </thead>
-              <tbody style={isAbsent ? { opacity: 0.35, pointerEvents: "none", position: "relative" } : undefined}>
-                {isAbsent && (
-                  <tr>
-                    <td
-                      colSpan={categories.length + 2}
-                      style={{
-                        textAlign: "center",
-                        padding: "18px 0",
-                        fontSize: 18,
-                        fontWeight: 800,
-                        color: "#999",
-                        letterSpacing: 3,
-                        background: "#f0f0f0",
-                        borderTop: "1px solid #eee",
-                      }}
-                    >
-                      &#128683; ABSENT
-                    </td>
-                  </tr>
-                )}
+              <tbody>
                 {trackablePeriods.map((slot, i) => {
                   const ps = scores[slot.label] ?? makeEmptyPeriodScores(categories);
-                  const pts = calculatePeriodPoints(ps, categories);
+                  const absentStatus = periodAbsent[slot.label] ?? "present";
+                  const isExcused = absentStatus === "excused";
+                  const isUnexcused = absentStatus === "unexcused";
+                  const isAbsentPeriod = isExcused || isUnexcused;
+                  const pts = isAbsentPeriod ? 0 : calculatePeriodPoints(ps, categories);
                   const ptsHighThreshold = Math.round(maxPerPeriod * 0.8);
                   const ptsMidThreshold = Math.round(maxPerPeriod * 0.53);
                   return (
                     <tr
                       key={slot.label + i}
                       style={{
-                        background: i % 2 === 0 ? "#fafaf7" : "white",
+                        background: isExcused ? "#f0f0f0" : isUnexcused ? "#fef0ea" : i % 2 === 0 ? "#fafaf7" : "white",
                         borderTop: "1px solid #eee",
+                        opacity: isExcused ? 0.5 : 1,
                       }}
                     >
                       <td style={{ padding: compactMode ? "2px 8px" : "4px 10px", fontWeight: 700, color: C.dark, fontSize: 13 }}>
-                        <div>{slot.label}</div>
-                        {slot.start && (
-                          <div style={{ fontSize: 10, fontWeight: 500, color: "#999", marginTop: 1 }}>
-                            {slot.start} &ndash; {slot.end}
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <button
+                            onClick={() => cycleAbsent(slot.label)}
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: 7,
+                              border: "none",
+                              fontSize: 10,
+                              fontWeight: 800,
+                              cursor: "pointer",
+                              flexShrink: 0,
+                              ...(isUnexcused
+                                ? { background: COLORS.red, color: "white" }
+                                : isExcused
+                                ? { background: "#7f8c8d", color: "white" }
+                                : { background: "#e8e8e8", color: "#bbb" }),
+                            }}
+                          >
+                            {isUnexcused ? "UA" : isExcused ? "EA" : "\u2713"}
+                          </button>
+                          <div>
+                            <div style={{ textDecoration: isExcused ? "line-through" : "none" }}>{slot.label}</div>
+                            {slot.start && (
+                              <div style={{ fontSize: 10, fontWeight: 500, color: "#999", marginTop: 1 }}>
+                                {slot.start} &ndash; {slot.end}
+                              </div>
+                            )}
                           </div>
-                        )}
+                        </div>
                       </td>
 
                       {categories.map((cat) => (
-                        <td key={cat.id} style={{ padding: compactMode ? "1px 3px" : "3px 4px", textAlign: "center" }}>
-                          {renderCategoryCell(cat, slot.label, ps)}
+                        <td key={cat.id} style={{ padding: compactMode ? "1px 3px" : "3px 4px", textAlign: "center", pointerEvents: isAbsentPeriod ? "none" : "auto" }}>
+                          {isAbsentPeriod ? (
+                            <span style={{ fontSize: 11, color: isUnexcused ? COLORS.red : "#bbb", fontWeight: 700 }}>
+                              {isUnexcused ? "0" : "\u2014"}
+                            </span>
+                          ) : renderCategoryCell(cat, slot.label, ps)}
                         </td>
                       ))}
 
@@ -2310,9 +2302,9 @@ export default function DashboardClient() {
                         textAlign: "center",
                         fontWeight: 800,
                         fontSize: 14,
-                        color: pts >= ptsHighThreshold ? COLORS.secondary : pts >= ptsMidThreshold ? COLORS.accent : COLORS.primary,
+                        color: isExcused ? "#bbb" : isUnexcused ? COLORS.red : pts >= ptsHighThreshold ? COLORS.secondary : pts >= ptsMidThreshold ? COLORS.accent : COLORS.primary,
                       }}>
-                        {pts}
+                        {isExcused ? "\u2014" : pts}
                       </td>
                     </tr>
                   );
