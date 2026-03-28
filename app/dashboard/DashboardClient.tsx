@@ -497,6 +497,10 @@ export default function DashboardClient() {
     }
     return "Regular";
   });
+  const [lunchPref, setLunchPref] = useState<"1st" | "2nd">(() => {
+    if (typeof window === "undefined") return "1st";
+    return (localStorage.getItem("dailywins_lunch") as "1st" | "2nd") || "1st";
+  });
   const [showSchedule, setShowSchedule] = useState(false);
   const [showAddStudents, setShowAddStudents] = useState(false);
   const [addStudentsText, setAddStudentsText] = useState("");
@@ -694,9 +698,18 @@ export default function DashboardClient() {
     ? (BELL_SCHEDULES[selectedSchool as SchoolName][selectedSchedule] ?? BELL_SCHEDULES[selectedSchool as SchoolName][Object.keys(BELL_SCHEDULES[selectedSchool as SchoolName])[0]]).periods
     : PERIODS.map((p) => ({ label: p, start: "", end: "" }));
 
-  const trackablePeriods = activePeriods.filter(
-    (p) => p.label !== "Lunch" && p.label !== "Rally"
-  );
+  // A schedule has split lunch if it contains both "Period 4" and "Period 5"
+  const hasSplitLunch = activePeriods.some(p => p.label === "Period 4") && activePeriods.some(p => p.label === "Period 5");
+
+  // Filter out Lunch, Rally, and the period the teacher has lunch during
+  const trackablePeriods = activePeriods.filter((p) => {
+    if (p.label === "Lunch" || p.label === "Rally") return false;
+    if (hasSplitLunch) {
+      if (lunchPref === "1st" && p.label === "Period 4") return false;
+      if (lunchPref === "2nd" && p.label === "Period 5") return false;
+    }
+    return true;
+  });
 
   // ─── Period Label / Number Mapping ──────────────────────────────────────────
 
@@ -813,7 +826,7 @@ export default function DashboardClient() {
       setNotes([]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedStudentId, selectedDate, selectedSchool, selectedSchedule, teacher]);
+  }, [selectedStudentId, selectedDate, selectedSchool, selectedSchedule, lunchPref, teacher]);
 
   // ─── Streak & Trend Calculation ───────────────────────────────────────────────
 
@@ -1066,6 +1079,11 @@ export default function DashboardClient() {
         .update({ preferences: newPrefs })
         .eq("id", teacher.teacher_id);
     }
+  };
+
+  const handleLunchPref = (pref: "1st" | "2nd") => {
+    setLunchPref(pref);
+    localStorage.setItem("dailywins_lunch", pref);
   };
 
   const handleSelectSchool = (school: SchoolName) => {
@@ -2978,6 +2996,45 @@ export default function DashboardClient() {
               </div>
             )}
 
+            {/* Lunch Preference */}
+            {selectedSchool && (() => {
+              const sched = BELL_SCHEDULES[selectedSchool as SchoolName]?.[selectedSchedule] ?? BELL_SCHEDULES[selectedSchool as SchoolName]?.[Object.keys(BELL_SCHEDULES[selectedSchool as SchoolName])[0]];
+              const periods = sched?.periods ?? [];
+              const splitLunch = periods.some(p => p.label === "Period 4") && periods.some(p => p.label === "Period 5");
+              if (!splitLunch) return null;
+              return (
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: COLORS.dark, marginBottom: 8 }}>
+                    Lunch Preference
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    {(["1st", "2nd"] as const).map((pref) => (
+                      <button
+                        key={pref}
+                        onClick={() => handleLunchPref(pref)}
+                        style={{
+                          background: lunchPref === pref ? COLORS.secondary : "#f0f0f0",
+                          color: lunchPref === pref ? "white" : COLORS.dark,
+                          border: "none",
+                          borderRadius: 8,
+                          padding: "8px 16px",
+                          fontSize: 13,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        {pref === "1st" ? "🍽 1st Lunch" : "🍽 2nd Lunch"}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#888", marginTop: 6 }}>
+                    {lunchPref === "1st" ? "You have lunch during Period 4 — Period 5 will be tracked." : "You have lunch during Period 5 — Period 4 will be tracked."}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Schedule Preview */}
             {selectedSchool && (
               <div>
@@ -2994,11 +3051,19 @@ export default function DashboardClient() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(BELL_SCHEDULES[selectedSchool][selectedSchedule] ?? BELL_SCHEDULES[selectedSchool][Object.keys(BELL_SCHEDULES[selectedSchool])[0]]).periods.map((slot, i) => {
-                      const isTracked = slot.label !== "Lunch" && slot.label !== "Rally";
+                    {(() => {
+                      const sched = BELL_SCHEDULES[selectedSchool][selectedSchedule] ?? BELL_SCHEDULES[selectedSchool][Object.keys(BELL_SCHEDULES[selectedSchool])[0]];
+                      const periods = sched.periods;
+                      const splitLunch = periods.some(p => p.label === "Period 4") && periods.some(p => p.label === "Period 5");
+                      return periods.map((slot, i) => {
+                      const isLunchPeriod = splitLunch && (
+                        (lunchPref === "1st" && slot.label === "Period 4") ||
+                        (lunchPref === "2nd" && slot.label === "Period 5")
+                      );
+                      const isTracked = slot.label !== "Lunch" && slot.label !== "Rally" && !isLunchPeriod;
                       return (
-                        <tr key={slot.label + i} style={{ background: i % 2 === 0 ? "#fafaf7" : "white", borderTop: "1px solid #eee" }}>
-                          <td style={{ padding: "8px 12px", fontWeight: 600, color: COLORS.dark }}>{slot.label}</td>
+                        <tr key={slot.label + i} style={{ background: i % 2 === 0 ? "#fafaf7" : "white", borderTop: "1px solid #eee", opacity: isLunchPeriod ? 0.4 : 1 }}>
+                          <td style={{ padding: "8px 12px", fontWeight: 600, color: COLORS.dark }}>{slot.label}{isLunchPeriod ? " (your lunch)" : ""}</td>
                           <td style={{ padding: "8px 12px", textAlign: "center", color: "#666" }}>{slot.start}</td>
                           <td style={{ padding: "8px 12px", textAlign: "center", color: "#666" }}>{slot.end}</td>
                           <td style={{ padding: "8px 12px", textAlign: "center" }}>
@@ -3010,7 +3075,8 @@ export default function DashboardClient() {
                           </td>
                         </tr>
                       );
-                    })}
+                    });
+                    })()}
                   </tbody>
                 </table>
               </div>
