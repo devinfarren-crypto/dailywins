@@ -2601,6 +2601,27 @@ export default function DashboardClient() {
               </div>
             </div>
           ))}
+
+          {/* Absence legend */}
+          <div style={{ background: "white", borderRadius: 8, padding: "6px 10px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", flex: 1, minWidth: 200 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: COLORS.dark, marginBottom: 5 }}>
+              Attendance
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 24, height: 24, borderRadius: 6, background: "#e8e8e8", color: "#bbb", fontSize: 10, fontWeight: 800 }}>{"\u2713"}</span>
+                <span style={{ fontSize: 12, color: "#555" }}><span style={{ fontWeight: 700 }}>Present</span> &mdash; normal scoring</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 24, height: 24, borderRadius: 6, background: COLORS.red, color: "white", fontSize: 10, fontWeight: 800 }}>UA</span>
+                <span style={{ fontSize: 12, color: "#555" }}><span style={{ fontWeight: 700 }}>Unexcused</span> &mdash; 0 pts, counts against %</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 24, height: 24, borderRadius: 6, background: "#7f8c8d", color: "white", fontSize: 10, fontWeight: 800 }}>EA</span>
+                <span style={{ fontSize: 12, color: "#555" }}><span style={{ fontWeight: 700 }}>Excused</span> &mdash; removed from total, no impact on %</span>
+              </div>
+            </div>
+          </div>
         </div>}
 
         {/* Action Buttons */}
