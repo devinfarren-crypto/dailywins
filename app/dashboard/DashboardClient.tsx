@@ -83,6 +83,7 @@ interface StudentNote {
   shared: boolean;
   timestamp: string;
   period: string | null; // null = legacy flat note (shows as "General")
+  date?: string; // note_date, used in history view
 }
 
 interface DbStudent {
@@ -519,6 +520,10 @@ export default function DashboardClient() {
   const [inlineNotePeriod, setInlineNotePeriod] = useState<string | null>(null);
   const [inlineNoteText, setInlineNoteText] = useState("");
   const [inlineNoteShared, setInlineNoteShared] = useState(false);
+  const [notesTab, setNotesTab] = useState<"today" | "history">("today");
+  const [noteHistory, setNoteHistory] = useState<StudentNote[]>([]);
+  const [noteHistoryLoading, setNoteHistoryLoading] = useState(false);
+  const [noteHistorySearch, setNoteHistorySearch] = useState("");
   const [showConfetti, setShowConfetti] = useState(false);
   const [showParentView, setShowParentView] = useState(false);
   const [activeView, setActiveView] = useState<"entry" | "weekly" | "monthly" | "annual">("entry");
@@ -1253,6 +1258,29 @@ export default function DashboardClient() {
     }
   };
 
+  const loadNoteHistory = async () => {
+    if (!teacher || !selectedStudentId) return;
+    setNoteHistoryLoading(true);
+    const { data, error } = await supabase
+      .from("notes")
+      .select("*")
+      .eq("student_id", selectedStudentId)
+      .order("note_date", { ascending: false })
+      .order("created_at", { ascending: true });
+
+    if (!error && data) {
+      setNoteHistory(data.map((n: Record<string, unknown>) => ({
+        id: n.id as string,
+        text: n.content as string,
+        shared: !(n.is_private as boolean),
+        timestamp: new Date(n.created_at as string).toLocaleString(),
+        period: (n.period as string | null) ?? null,
+        date: n.note_date as string,
+      })));
+    }
+    setNoteHistoryLoading(false);
+  };
+
   // ─── Categories Editor ──────────────────────────────────────────────────────
 
   const openCategoriesEditor = () => {
@@ -1497,9 +1525,48 @@ export default function DashboardClient() {
       columnStyles: { 0: { fontStyle: "bold" } },
     });
 
-    doc.setFontSize(9);
-    doc.setTextColor(150, 150, 150);
-    doc.text("Note: Only today's data is shown. Other days will populate as data is saved.", 14, (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ? (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 12 : 200);
+    // Fetch shared notes for the week
+    const { data: weekNotes } = await supabase
+      .from("notes")
+      .select("note_date,content,period,is_private,created_at")
+      .eq("student_id", selectedStudentId)
+      .eq("is_private", false)
+      .gte("note_date", days[0])
+      .lte("note_date", days[4])
+      .order("created_at", { ascending: true });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let noteY = ((doc as any).lastAutoTable?.finalY ?? 160) + 12;
+
+    if (weekNotes && weekNotes.length > 0) {
+      doc.setFontSize(14);
+      doc.setTextColor(44, 62, 80);
+      doc.text("Notes", 14, noteY);
+      noteY += 8;
+
+      // Group notes by day
+      for (let d = 0; d < 5; d++) {
+        const dayNotes = weekNotes.filter((n: { note_date: string }) => n.note_date === days[d]);
+        if (dayNotes.length === 0) continue;
+        doc.setFontSize(10);
+        doc.setTextColor(58, 124, 106);
+        doc.text(`${dayLabels[d]} ${days[d]}:`, 14, noteY);
+        noteY += 5;
+        doc.setFontSize(9);
+        doc.setTextColor(44, 62, 80);
+        for (const n of dayNotes) {
+          const prefix = (n as { period: string | null }).period || "General";
+          const lines = doc.splitTextToSize(`${prefix}: \u201C${(n as { content: string }).content}\u201D`, 250);
+          doc.text(lines, 20, noteY);
+          noteY += lines.length * 4.5;
+        }
+        noteY += 2;
+      }
+    } else {
+      doc.setFontSize(9);
+      doc.setTextColor(150, 150, 150);
+      doc.text("Note: Only today's data is shown. Other days will populate as data is saved.", 14, noteY);
+    }
 
     doc.save(`DailyWins_Weekly_${selectedStudent || "report"}_${days[0]}.pdf`);
   };
@@ -1928,7 +1995,7 @@ export default function DashboardClient() {
 
           {/* Notes Button */}
           <button
-            onClick={() => setShowNotes(true)}
+            onClick={() => { setNotesTab("today"); setShowNotes(true); }}
             style={{
               background: COLORS.dark,
               color: "white",
@@ -2809,8 +2876,32 @@ export default function DashboardClient() {
                 &#10005;
               </button>
             </div>
-            <div style={{ fontSize: 12, color: "#999", marginBottom: 16 }}>{selectedDate}</div>
 
+            {/* Tabs */}
+            <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
+              {(["today", "history"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => { setNotesTab(tab); if (tab === "history" && noteHistory.length === 0) loadNoteHistory(); }}
+                  style={{
+                    flex: 1,
+                    padding: "8px 0",
+                    borderRadius: 8,
+                    border: "none",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    background: notesTab === tab ? COLORS.dark : "#f0f0f0",
+                    color: notesTab === tab ? "white" : COLORS.dark,
+                    transition: "all 0.15s",
+                  }}
+                >
+                  {tab === "today" ? `Today (${selectedDate})` : "Note History"}
+                </button>
+              ))}
+            </div>
+
+            {notesTab === "today" && (<>
             {/* Notes organized by period */}
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {trackablePeriods.map((slot) => {
@@ -2989,6 +3080,86 @@ export default function DashboardClient() {
                 {noteShared ? "New notes: Shared (visible to parents)" : "New notes: Private (teacher only)"}
               </span>
             </div>
+            </>)}
+
+            {/* History Tab */}
+            {notesTab === "history" && (
+              <div>
+                <input
+                  value={noteHistorySearch}
+                  onChange={(e) => setNoteHistorySearch(e.target.value)}
+                  placeholder="Search notes..."
+                  style={{ width: "100%", borderRadius: 8, border: "1px solid #d0d0d0", padding: "8px 12px", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box", marginBottom: 12 }}
+                />
+                {noteHistoryLoading ? (
+                  <div style={{ textAlign: "center", padding: 20, color: "#999" }}>Loading history...</div>
+                ) : (() => {
+                  const filtered = noteHistorySearch.trim()
+                    ? noteHistory.filter((n) => n.text.toLowerCase().includes(noteHistorySearch.toLowerCase()) || (n.period ?? "").toLowerCase().includes(noteHistorySearch.toLowerCase()))
+                    : noteHistory;
+                  // Group by date
+                  const byDate = new Map<string, StudentNote[]>();
+                  for (const n of filtered) {
+                    const d = n.date ?? "Unknown";
+                    if (!byDate.has(d)) byDate.set(d, []);
+                    byDate.get(d)!.push(n);
+                  }
+                  if (byDate.size === 0) {
+                    return <div style={{ textAlign: "center", padding: 20, color: "#999", fontSize: 13 }}>No notes found.</div>;
+                  }
+                  return (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      {Array.from(byDate.entries()).map(([date, dateNotes]) => (
+                        <div key={date}>
+                          <div style={{ fontSize: 12, fontWeight: 800, color: COLORS.dark, marginBottom: 6, padding: "4px 0", borderBottom: "1px solid #eee" }}>
+                            {new Date(date + "T12:00:00").toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric", year: "numeric" })}
+                          </div>
+                          {dateNotes.map((note) => (
+                            <div
+                              key={note.id}
+                              style={{
+                                padding: "6px 10px",
+                                marginBottom: 4,
+                                borderLeft: `3px solid ${note.shared ? COLORS.secondary : COLORS.accent}`,
+                                background: "#fafaf7",
+                                borderRadius: 6,
+                              }}
+                            >
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                                <div style={{ fontSize: 12, color: COLORS.dark, lineHeight: 1.4 }}>
+                                  <span style={{ fontWeight: 700, color: COLORS.secondary }}>{note.period ?? "General"}</span>
+                                  {" \u2014 "}
+                                  {note.text}
+                                </div>
+                                <button
+                                  onClick={async () => { await handleDeleteNote(note.id); setNoteHistory((prev) => prev.filter((n) => n.id !== note.id)); }}
+                                  style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", fontSize: 12, flexShrink: 0, marginLeft: 4 }}
+                                >
+                                  &#10005;
+                                </button>
+                              </div>
+                              <div style={{ fontSize: 10, color: "#999", marginTop: 2, display: "flex", gap: 6, alignItems: "center" }}>
+                                <span>{note.timestamp}</span>
+                                <span style={{
+                                  fontSize: 9,
+                                  fontWeight: 700,
+                                  color: "white",
+                                  background: note.shared ? COLORS.secondary : "#999",
+                                  borderRadius: 3,
+                                  padding: "0 5px",
+                                }}>
+                                  {note.shared ? "Shared" : "Private"}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
           </div>
         </div>
       )}

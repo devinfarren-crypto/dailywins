@@ -26,20 +26,15 @@ interface Category {
   maxPoints: number;
 }
 
-interface SupabaseClient {
-  from: (table: string) => {
-    select: (cols: string) => {
-      eq: (col: string, val: string) => {
-        eq: (col2: string, val2: string) => {
-          gte: (col3: string, val3: string) => {
-            lte: (col4: string, val4: string) => {
-              order: (col5: string, opts?: { ascending?: boolean }) => Promise<{ data: DbScoreRow[] | null; error: unknown }>;
-            };
-          };
-        };
-      };
-    };
-  };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseClient = any;
+
+interface DbNoteRow {
+  note_date: string;
+  content: string;
+  period: string | null;
+  is_private: boolean;
+  created_at: string;
 }
 
 interface DbScoreRow {
@@ -144,6 +139,7 @@ export default function ChartViews({
 }: ChartViewsProps) {
   const [loading, setLoading] = useState(true);
   const [rawData, setRawData] = useState<DbScoreRow[]>([]);
+  const [noteData, setNoteData] = useState<DbNoteRow[]>([]);
 
   // Compute date range based on view
   const { startDate, endDate, rangeLabel } = useMemo(() => {
@@ -182,19 +178,28 @@ export default function ChartViews({
     if (!studentId || !teacherId) return;
     setLoading(true);
 
-    supabase
-      .from("behavior_scores")
-      .select("score_date,period,scores,arrival,compliance,social,on_task,phone_away")
-      .eq("student_id", studentId)
-      .eq("teacher_id", teacherId)
-      .gte("score_date", startDate)
-      .lte("score_date", endDate)
-      .order("score_date", { ascending: true })
-      .then(({ data, error }: { data: DbScoreRow[] | null; error: unknown }) => {
-        if (error) console.error("Chart data fetch error:", error);
-        setRawData(data ?? []);
-        setLoading(false);
-      });
+    Promise.all([
+      supabase
+        .from("behavior_scores")
+        .select("score_date,period,scores,arrival,compliance,social,on_task,phone_away")
+        .eq("student_id", studentId)
+        .eq("teacher_id", teacherId)
+        .gte("score_date", startDate)
+        .lte("score_date", endDate)
+        .order("score_date", { ascending: true }),
+      supabase
+        .from("notes")
+        .select("note_date,content,period,is_private,created_at")
+        .eq("student_id", studentId)
+        .gte("note_date", startDate)
+        .lte("note_date", endDate)
+        .order("created_at", { ascending: true }),
+    ]).then(([scoresResult, notesResult]: [{ data: DbScoreRow[] | null; error: unknown }, { data: DbNoteRow[] | null; error: unknown }]) => {
+      if (scoresResult.error) console.error("Chart data fetch error:", scoresResult.error);
+      setRawData(scoresResult.data ?? []);
+      setNoteData(notesResult.data ?? []);
+      setLoading(false);
+    });
   }, [supabase, studentId, teacherId, startDate, endDate]);
 
   const maxPerPeriod = categories.reduce((s, c) => s + c.maxPoints, 0);
@@ -217,15 +222,16 @@ export default function ChartViews({
     );
   }
 
-  if (view === "weekly") return <WeeklyChart data={rawData} categories={categories} studentName={studentName} rangeLabel={rangeLabel} maxPerPeriod={maxPerPeriod} />;
-  if (view === "monthly") return <MonthlyChart data={rawData} categories={categories} studentName={studentName} rangeLabel={rangeLabel} maxPerPeriod={maxPerPeriod} />;
+  if (view === "weekly") return <WeeklyChart data={rawData} notes={noteData} categories={categories} studentName={studentName} rangeLabel={rangeLabel} maxPerPeriod={maxPerPeriod} />;
+  if (view === "monthly") return <MonthlyChart data={rawData} notes={noteData} categories={categories} studentName={studentName} rangeLabel={rangeLabel} maxPerPeriod={maxPerPeriod} />;
   return <AnnualChart data={rawData} categories={categories} studentName={studentName} rangeLabel={rangeLabel} maxPerPeriod={maxPerPeriod} />;
 }
 
 // ─── Weekly Chart ────────────────────────────────────────────────────────────
 
-function WeeklyChart({ data, categories, studentName, rangeLabel, maxPerPeriod }: {
+function WeeklyChart({ data, notes, categories, studentName, rangeLabel, maxPerPeriod }: {
   data: DbScoreRow[];
+  notes: DbNoteRow[];
   categories: Category[];
   studentName: string;
   rangeLabel: string;
@@ -300,19 +306,44 @@ function WeeklyChart({ data, categories, studentName, rangeLabel, maxPerPeriod }
           );
         })}
       </div>
+      {/* Notes summary per day */}
+      {notes.length > 0 && (
+        <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+          {chartData.map((d) => {
+            const dayNotes = notes.filter((n) => n.note_date === d.date && !n.is_private);
+            if (dayNotes.length === 0) return null;
+            return (
+              <div key={d.date} style={{ background: "#fafaf7", borderRadius: 8, padding: "8px 12px" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.dark, marginBottom: 4 }}>{d.day} &mdash; {d.date}</div>
+                {dayNotes.map((n, i) => (
+                  <div key={i} style={{ fontSize: 11, color: "#555", lineHeight: 1.4, marginBottom: 2 }}>
+                    <span style={{ fontWeight: 700, color: COLORS.secondary }}>{n.period ? n.period : "General"}:</span>{" "}
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "inline-block", maxWidth: "80%", verticalAlign: "bottom" }}>
+                      &ldquo;{n.content}&rdquo;
+                    </span>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
 
 // ─── Monthly Chart ───────────────────────────────────────────────────────────
 
-function MonthlyChart({ data, categories, studentName, rangeLabel, maxPerPeriod }: {
+function MonthlyChart({ data, notes, categories, studentName, rangeLabel, maxPerPeriod }: {
   data: DbScoreRow[];
+  notes: DbNoteRow[];
   categories: Category[];
   studentName: string;
   rangeLabel: string;
   maxPerPeriod: number;
 }) {
+  // Collect dates that have notes
+  const datesWithNotes = new Set(notes.map((n) => n.note_date));
   // Aggregate per day: total points and per-category
   const byDay = new Map<string, { total: number; count: number; cats: Record<string, number> }>();
   for (const row of data) {
@@ -375,6 +406,18 @@ function MonthlyChart({ data, categories, studentName, rangeLabel, maxPerPeriod 
           <Bar dataKey="total" name="Daily Total" fill={COLORS.secondary} radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
+
+      {/* Note indicators per day */}
+      {datesWithNotes.size > 0 && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 12 }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: "#999", lineHeight: "20px" }}>&#128221; Notes:</span>
+          {chartData.filter((d) => datesWithNotes.has(d.date)).map((d) => (
+            <span key={d.date} style={{ fontSize: 10, fontWeight: 700, color: COLORS.secondary, background: "#e8f5f0", borderRadius: 6, padding: "2px 8px" }}>
+              {d.day}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Category averages table */}
       <div style={{ marginTop: 20 }}>
