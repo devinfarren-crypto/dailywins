@@ -1,0 +1,14 @@
+{
+  "name": "DailyWins — Behavior Tracker",
+  "short_name": "DailyWins",
+  "description": "Track student behavior in under 30 seconds per period.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#faf6f1",
+  "theme_color": "#3a3028",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
