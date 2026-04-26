@@ -474,6 +474,19 @@ function ConfettiCanvas({ active }: { active: boolean }) {
   );
 }
 
+// ─── Mobile Detection ─────────────────────────────────────────────────────────
+
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < breakpoint);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, [breakpoint]);
+  return isMobile;
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function DashboardClient() {
@@ -527,6 +540,8 @@ export default function DashboardClient() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [showParentView, setShowParentView] = useState(false);
   const [activeView, setActiveView] = useState<"entry" | "weekly" | "monthly" | "annual">("entry");
+  const [mobilePeriodIdx, setMobilePeriodIdx] = useState(0);
+  const isMobile = useIsMobile(768);
   const [showCategories, setShowCategories] = useState(false);
   const [showStaffSync, setShowStaffSync] = useState(false);
   const [showCustomize, setShowCustomize] = useState(false);
@@ -1844,6 +1859,116 @@ export default function DashboardClient() {
     );
   };
 
+  // ─── Mobile-Sized Category Buttons ──────────────────────────────────────────
+
+  const renderMobileCategoryButtons = (cat: Category, period: string, periodScores: PeriodScores) => {
+    const currentValue = periodScores[cat.id];
+
+    if (cat.type === "arrival") {
+      return (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {cat.options.map((optLabel, optIdx) => {
+            const optPoints = getPointValue(cat, optIdx);
+            const isSelected = currentValue !== null && optIdx === getOptionIndexForPoints(cat, currentValue);
+            return (
+              <button
+                key={optLabel}
+                onClick={() => updateScore(period, cat.id, isSelected ? null : optPoints)}
+                style={{
+                  background: isSelected ? arrivalButtonColor(cat, optIdx) : "white",
+                  color: isSelected ? "white" : "#444",
+                  border: isSelected ? "1px solid transparent" : "1px solid rgba(0,0,0,0.12)",
+                  borderRadius: 10,
+                  padding: "12px 20px",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  minHeight: 44,
+                  minWidth: 56,
+                  flex: optLabel.length > 3 ? "1 1 auto" : "0 0 auto",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                {optLabel}
+              </button>
+            );
+          })}
+        </div>
+      );
+    }
+
+    if (cat.type === "scale") {
+      return (
+        <div style={{ display: "flex", gap: 8 }}>
+          {cat.options.map((optLabel, optIdx) => {
+            const optPoints = getPointValue(cat, optIdx);
+            const isSelected = currentValue !== null && currentValue === optPoints;
+            return (
+              <button
+                key={optLabel}
+                onClick={() => updateScore(period, cat.id, isSelected ? null : optPoints)}
+                style={{
+                  background: isSelected ? scaleColor(optPoints) : "white",
+                  color: isSelected ? "white" : "#444",
+                  border: isSelected ? "1px solid transparent" : "1px solid rgba(0,0,0,0.12)",
+                  borderRadius: 10,
+                  flex: 1,
+                  minHeight: 44,
+                  fontSize: 13,
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                {optLabel}
+              </button>
+            );
+          })}
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ display: "flex", gap: 8 }}>
+        {cat.options.map((optLabel, optIdx) => {
+          const optPoints = getPointValue(cat, optIdx);
+          const isSelected = currentValue !== null && currentValue === optPoints &&
+            optIdx === getOptionIndexForPoints(cat, currentValue);
+          return (
+            <button
+              key={optLabel}
+              onClick={() => updateScore(period, cat.id, isSelected ? null : optPoints)}
+              style={{
+                background: isSelected ? toggleButtonColor(optIdx) : "white",
+                color: isSelected ? "white" : "#444",
+                border: isSelected ? "1px solid transparent" : "1px solid rgba(0,0,0,0.12)",
+                borderRadius: 10,
+                flex: 1,
+                minHeight: 44,
+                padding: "12px 20px",
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+              }}
+            >
+              {optLabel}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const categoryTypeLabel = (cat: Category): string => {
+    if (cat.type === "arrival") return "Attendance";
+    if (cat.type === "scale") {
+      const max = cat.maxPoints ?? 3;
+      return `0-${max} scale`;
+    }
+    return cat.options.join(" / ");
+  };
+
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   const maxPerPeriod = calculateMaxPoints(categories);
@@ -2268,8 +2393,8 @@ export default function DashboardClient() {
           />
         )}
 
-        {/* Scoring Grid */}
-        {hasStudents && activeView === "entry" && (
+        {/* Scoring Grid (Desktop) */}
+        {hasStudents && activeView === "entry" && !isMobile && (
           <div style={{ overflowX: "auto", borderRadius: 14, background: "white", boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}>
             <table style={{ width: "100%", fontSize: 14, borderCollapse: "collapse" }}>
               <thead>
@@ -2530,6 +2655,338 @@ export default function DashboardClient() {
             </table>
           </div>
         )}
+
+        {/* Scoring Area (Mobile — Period Focus) */}
+        {hasStudents && activeView === "entry" && isMobile && (() => {
+          const activeIdx = Math.min(mobilePeriodIdx, Math.max(0, trackablePeriods.length - 1));
+          const activeSlot = trackablePeriods[activeIdx];
+          if (!activeSlot) return null;
+          const ps = scores[activeSlot.label] ?? makeEmptyPeriodScores(categories);
+          const status = periodAbsent[activeSlot.label] ?? "present";
+          const isExcused = status === "excused";
+          const isUnexcused = status === "unexcused";
+          const isAbsentPeriod = isExcused || isUnexcused;
+          const activePts = isAbsentPeriod ? 0 : calculatePeriodPoints(ps, categories);
+          const periodNotes = notes.filter((n) => n.period === activeSlot.label);
+
+          return (
+            <div style={{ background: "#faf7f2", borderRadius: 12, padding: 8, marginTop: 4 }}>
+              {/* Fill defaults + period selector */}
+              <div style={{ marginBottom: 10 }}>
+                <button
+                  onClick={quickFillAll}
+                  style={{
+                    background: COLORS.secondary,
+                    color: "white",
+                    border: "none",
+                    borderRadius: 10,
+                    padding: "10px 16px",
+                    fontSize: 13,
+                    fontWeight: 800,
+                    cursor: "pointer",
+                    minHeight: 44,
+                    width: "100%",
+                    marginBottom: 8,
+                  }}
+                >
+                  &darr; Fill all defaults
+                </button>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    overflowX: "auto",
+                    paddingBottom: 6,
+                    scrollSnapType: "x mandatory",
+                    WebkitOverflowScrolling: "touch",
+                  }}
+                >
+                  {trackablePeriods.map((slot, i) => {
+                    const sps = scores[slot.label] ?? makeEmptyPeriodScores(categories);
+                    const sStatus = periodAbsent[slot.label] ?? "present";
+                    const sAbsent = sStatus !== "present";
+                    const pPts = sAbsent ? 0 : calculatePeriodPoints(sps, categories);
+                    const pPct = maxPerPeriod > 0 ? Math.round((pPts / maxPerPeriod) * 100) : 0;
+                    const isActive = i === activeIdx;
+                    return (
+                      <button
+                        key={slot.label + i}
+                        onClick={() => setMobilePeriodIdx(i)}
+                        style={{
+                          flex: "0 0 auto",
+                          minWidth: 100,
+                          scrollSnapAlign: "start",
+                          background: isActive ? "#1a1a1a" : "white",
+                          color: isActive ? "white" : "#1a1a1a",
+                          border: isActive ? "1px solid transparent" : "1px solid rgba(0,0,0,0.06)",
+                          borderRadius: 12,
+                          padding: "10px 12px",
+                          cursor: "pointer",
+                          textAlign: "left",
+                          minHeight: 64,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 4,
+                        }}
+                      >
+                        <div style={{ fontSize: 12, fontWeight: 800 }}>{slot.label}</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.85 }}>
+                          {sAbsent ? (sStatus === "unexcused" ? "UA" : "EA") : `${pPts}/${maxPerPeriod}`}
+                        </div>
+                        <div
+                          style={{
+                            height: 4,
+                            borderRadius: 2,
+                            background: isActive ? "rgba(255,255,255,0.2)" : "#eee",
+                            overflow: "hidden",
+                          }}
+                        >
+                          <div
+                            style={{
+                              height: "100%",
+                              width: `${pPct}%`,
+                              background: isActive ? "white" : zoneColor(pPct),
+                            }}
+                          />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Active period card */}
+              <div
+                style={{
+                  background: "white",
+                  borderRadius: 12,
+                  border: "1px solid rgba(0,0,0,0.06)",
+                  padding: 16,
+                }}
+              >
+                {/* Header row */}
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14, gap: 12 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 28, fontWeight: 800, color: "#1a1a1a", lineHeight: 1.1 }}>
+                      {activeSlot.label}
+                    </div>
+                    {activeSlot.start && (
+                      <div style={{ fontSize: 12, color: "#888", marginTop: 4 }}>
+                        {activeSlot.start} &ndash; {activeSlot.end}
+                      </div>
+                    )}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 22,
+                      fontWeight: 800,
+                      color: isExcused
+                        ? "#bbb"
+                        : isUnexcused
+                        ? COLORS.red
+                        : activePts >= Math.round(maxPerPeriod * 0.8)
+                        ? COLORS.secondary
+                        : activePts >= Math.round(maxPerPeriod * 0.53)
+                        ? COLORS.accent
+                        : COLORS.primary,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {isExcused ? "—" : `${activePts}/${maxPerPeriod}`}
+                  </div>
+                </div>
+
+                {/* Attendance toggle */}
+                <button
+                  onClick={() => cycleAbsent(activeSlot.label)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    background: isUnexcused ? COLORS.red : isExcused ? "#7f8c8d" : "#f0f0f0",
+                    color: isAbsentPeriod ? "white" : "#666",
+                    border: "none",
+                    borderRadius: 8,
+                    padding: "8px 14px",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    cursor: "pointer",
+                    minHeight: 36,
+                    marginBottom: 14,
+                  }}
+                >
+                  {isUnexcused ? "Unexcused Absent" : isExcused ? "Excused Absent" : "✓ Present"}
+                </button>
+
+                {/* Category cards */}
+                {!isAbsentPeriod && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {categories.map((cat) => (
+                      <div
+                        key={cat.id}
+                        style={{
+                          background: "#faf7f2",
+                          borderRadius: 12,
+                          border: "1px solid rgba(0,0,0,0.06)",
+                          padding: 12,
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8, gap: 8 }}>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a" }}>{cat.name}</div>
+                          <div style={{ fontSize: 11, color: "#999", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                            {categoryTypeLabel(cat)}
+                          </div>
+                        </div>
+                        {renderMobileCategoryButtons(cat, activeSlot.label, ps)}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Notes */}
+                <div style={{ marginTop: 14 }}>
+                  {periodNotes.length > 0 && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
+                      {periodNotes.map((note) => (
+                        <div
+                          key={note.id}
+                          style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            justifyContent: "space-between",
+                            background: "#faf7f2",
+                            borderRadius: 8,
+                            padding: "8px 10px",
+                            fontSize: 12,
+                            color: "#444",
+                            lineHeight: 1.4,
+                          }}
+                        >
+                          <span style={{ flex: 1 }}>{note.text}</span>
+                          <button
+                            onClick={() => handleDeleteNote(note.id)}
+                            style={{ background: "none", border: "none", color: "#bbb", cursor: "pointer", fontSize: 14, marginLeft: 8 }}
+                          >
+                            &#10005;
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <textarea
+                    value={inlineNotePeriod === activeSlot.label ? inlineNoteText : ""}
+                    onChange={(e) => {
+                      setInlineNotePeriod(activeSlot.label);
+                      setInlineNoteText(e.target.value);
+                    }}
+                    onFocus={() => setInlineNotePeriod(activeSlot.label)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey && inlineNoteText.trim()) {
+                        e.preventDefault();
+                        handleAddNote(inlineNoteText, inlineNoteShared, activeSlot.label);
+                        setInlineNoteText("");
+                      }
+                    }}
+                    placeholder="Anything to remember about this period…"
+                    rows={2}
+                    style={{
+                      width: "100%",
+                      borderRadius: 10,
+                      border: "1px solid rgba(0,0,0,0.12)",
+                      padding: "10px 12px",
+                      fontSize: 13,
+                      fontFamily: "inherit",
+                      resize: "vertical",
+                      background: "white",
+                      boxSizing: "border-box",
+                    }}
+                  />
+                  {inlineNotePeriod === activeSlot.label && inlineNoteText.trim() && (
+                    <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                      <button
+                        onClick={() => {
+                          if (inlineNoteText.trim()) {
+                            handleAddNote(inlineNoteText, inlineNoteShared, activeSlot.label);
+                            setInlineNoteText("");
+                          }
+                        }}
+                        style={{
+                          background: COLORS.secondary,
+                          color: "white",
+                          border: "none",
+                          borderRadius: 8,
+                          padding: "8px 14px",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          minHeight: 36,
+                        }}
+                      >
+                        Add note
+                      </button>
+                      <button
+                        onClick={() => setInlineNoteShared(!inlineNoteShared)}
+                        style={{
+                          background: inlineNoteShared ? COLORS.secondary : "#eee",
+                          color: inlineNoteShared ? "white" : "#666",
+                          border: "none",
+                          borderRadius: 8,
+                          padding: "8px 12px",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          minHeight: 36,
+                        }}
+                      >
+                        {inlineNoteShared ? "Shared" : "Private"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Prev / Next */}
+              <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                <button
+                  onClick={() => setMobilePeriodIdx(Math.max(0, activeIdx - 1))}
+                  disabled={activeIdx === 0}
+                  style={{
+                    flex: 1,
+                    background: "white",
+                    color: activeIdx === 0 ? "#bbb" : "#1a1a1a",
+                    border: "1px solid rgba(0,0,0,0.06)",
+                    borderRadius: 10,
+                    padding: "12px 16px",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: activeIdx === 0 ? "not-allowed" : "pointer",
+                    minHeight: 44,
+                  }}
+                >
+                  &larr; Previous period
+                </button>
+                <button
+                  onClick={() => setMobilePeriodIdx(Math.min(trackablePeriods.length - 1, activeIdx + 1))}
+                  disabled={activeIdx >= trackablePeriods.length - 1}
+                  style={{
+                    flex: 1,
+                    background: "#1a1a1a",
+                    color: activeIdx >= trackablePeriods.length - 1 ? "#666" : "white",
+                    border: "none",
+                    borderRadius: 10,
+                    padding: "12px 16px",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: activeIdx >= trackablePeriods.length - 1 ? "not-allowed" : "pointer",
+                    minHeight: 44,
+                  }}
+                >
+                  Next period &rarr;
+                </button>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Legend Keys (entry view only) — Arrival cards + one Score Scale card + Toggle cards */}
         {activeView === "entry" && <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
