@@ -546,6 +546,9 @@ export default function DashboardClient() {
   const [showStaffSync, setShowStaffSync] = useState(false);
   const [showCustomize, setShowCustomize] = useState(false);
   const [prefs, setPrefs] = useState<Preferences>({});
+  const [demoBusy, setDemoBusy] = useState<"seed" | "wipe" | null>(null);
+  const [demoMessage, setDemoMessage] = useState<{ success: boolean; text: string } | null>(null);
+  const [showWipeConfirm, setShowWipeConfirm] = useState(false);
   const [streak, setStreak] = useState(0);
   const [trendPct, setTrendPct] = useState<number | null>(null);
   const [periodAbsent, setPeriodAbsent] = useState<PeriodAbsentMap>({});
@@ -670,6 +673,48 @@ export default function DashboardClient() {
     if (list.length > 0 && !selectedStudentId) {
       setSelectedStudentId(list[0].id);
     }
+  };
+
+  // ─── Demo Mode ─────────────────────────────────────────────────────────────
+
+  const demoStudentCount = dbStudents.filter((s) => s.display_name.startsWith("[DEMO] ")).length;
+
+  const runDemoAction = async (
+    kind: "seed" | "wipe",
+    formatSuccess: (body: Record<string, number>) => string,
+    formatError: (msg: string) => string
+  ) => {
+    setDemoBusy(kind);
+    setDemoMessage(null);
+    try {
+      const res = await fetch(`/api/demo/${kind}`, { method: "POST" });
+      const body = await res.json();
+      if (!res.ok || !body.ok) {
+        throw new Error(body.error ?? `Request failed (${res.status})`);
+      }
+      setDemoMessage({ success: true, text: formatSuccess(body) });
+      setTimeout(() => window.location.reload(), 1200);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      setDemoMessage({ success: false, text: formatError(msg) });
+      setDemoBusy(null);
+    }
+  };
+
+  const handleLoadDemo = () =>
+    runDemoAction(
+      "seed",
+      (b) => `Demo data loaded — ${b.studentsCreated} students, ${b.scoresCreated} scores. Reloading…`,
+      (msg) => `Failed to load demo data: ${msg}`
+    );
+
+  const handleWipeDemo = () => {
+    setShowWipeConfirm(false);
+    return runDemoAction(
+      "wipe",
+      (b) => `Wiped ${b.studentsDeleted} demo student${b.studentsDeleted === 1 ? "" : "s"}. Reloading…`,
+      (msg) => `Failed to wipe demo data: ${msg}`
+    );
   };
 
   // ─── Confetti Trigger ───────────────────────────────────────────────────────
@@ -4472,6 +4517,81 @@ export default function DashboardClient() {
               </div>
             </div>
 
+            {/* Demo Mode */}
+            <div style={{
+              marginBottom: 20,
+              padding: 14,
+              borderRadius: 10,
+              background: "#fafafa",
+              border: "1px solid #e8e8e8",
+            }}>
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: C.dark, marginBottom: 6 }}>
+                Demo Mode
+              </div>
+              <div style={{ fontSize: 12, color: "#666", lineHeight: 1.5, marginBottom: 10 }}>
+                Load 8 weeks of fake student data to demo the app. All demo data is tagged with <strong>[DEMO]</strong> and can be wiped with one click. Does not affect your real students.
+              </div>
+              <div style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: demoStudentCount > 0 ? C.secondary : "#888",
+                marginBottom: 12,
+              }}>
+                Demo data: {demoStudentCount > 0 ? `${demoStudentCount} students, 8 weeks loaded` : "not loaded"}
+              </div>
+
+              {demoMessage && (
+                <div style={{
+                  fontSize: 12,
+                  padding: "8px 10px",
+                  borderRadius: 6,
+                  marginBottom: 10,
+                  background: demoMessage.success ? "#e8f5ee" : "#fdecea",
+                  color: demoMessage.success ? "#1d6a4a" : "#a02622",
+                  border: `1px solid ${demoMessage.success ? "#bfe2cf" : "#f5c6c2"}`,
+                }}>
+                  {demoMessage.text}
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button
+                  onClick={handleLoadDemo}
+                  disabled={demoBusy !== null}
+                  style={{
+                    background: C.primary,
+                    color: "white",
+                    border: "none",
+                    borderRadius: 8,
+                    padding: "8px 16px",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: demoBusy ? "wait" : "pointer",
+                    opacity: demoBusy ? 0.7 : 1,
+                  }}
+                >
+                  {demoBusy === "seed" ? "Loading…" : "Load Demo Data"}
+                </button>
+                <button
+                  onClick={() => setShowWipeConfirm(true)}
+                  disabled={demoBusy !== null || demoStudentCount === 0}
+                  style={{
+                    background: demoStudentCount === 0 ? "#ccc" : "#c0392b",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 8,
+                    padding: "8px 16px",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: demoBusy || demoStudentCount === 0 ? "not-allowed" : "pointer",
+                    opacity: demoBusy ? 0.7 : 1,
+                  }}
+                >
+                  {demoBusy === "wipe" ? "Wiping…" : "Wipe Demo Data"}
+                </button>
+              </div>
+            </div>
+
             {/* Done Button */}
             <div style={{ display: "flex", justifyContent: "flex-end" }}>
               <button
@@ -4488,6 +4608,70 @@ export default function DashboardClient() {
                 }}
               >
                 Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Wipe Demo Confirm Modal ──────────────────────────────────────────── */}
+      {showWipeConfirm && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1100,
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowWipeConfirm(false); }}
+        >
+          <div style={{
+            background: "white",
+            borderRadius: 16,
+            padding: 28,
+            width: "90%",
+            maxWidth: 420,
+            boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
+          }}>
+            <h2 style={{ margin: "0 0 12px", fontSize: 18, fontWeight: 700, color: C.dark }}>
+              Wipe demo data?
+            </h2>
+            <p style={{ color: "#555", fontSize: 14, lineHeight: 1.5, margin: "0 0 20px" }}>
+              Delete all demo students and their data? This cannot be undone. Your real students are not affected.
+            </p>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setShowWipeConfirm(false)}
+                style={{
+                  background: "#f0f0f0",
+                  color: "#333",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "9px 18px",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleWipeDemo}
+                style={{
+                  background: "#c0392b",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "9px 18px",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Yes, wipe demo data
               </button>
             </div>
           </div>
