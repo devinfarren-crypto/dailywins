@@ -265,7 +265,7 @@ export async function seedDemoData(
     // Half general (period null), half tied to a specific period.
     const period = i % 2 === 0
       ? null
-      : String(PERIODS[Math.floor(noteRng() * PERIODS.length)]);
+      : `Period ${PERIODS[Math.floor(noteRng() * PERIODS.length)]}`;
     return {
       student_id: studentId,
       teacher_id: teacherId,

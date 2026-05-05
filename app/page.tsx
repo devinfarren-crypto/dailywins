@@ -30,21 +30,40 @@ export default function LoginPage() {
           return;
         }
         console.log("Code exchange succeeded, session:", !!data.session);
-        // If Google returned a Drive token (personal accounts only — EGUSD blocks drive.file scope)
-        if (data.session?.provider_token) {
-          localStorage.setItem("dailywins_google_token", data.session.provider_token);
-          localStorage.setItem("dailywins_google_token_expiry", String(Date.now() + 3500 * 1000));
+
+        // Closed-pilot allowlist: bounce non-allowed emails to /access-denied.
+        const email = data.session?.user.email?.toLowerCase();
+        if (!email) {
+          supabase.auth.signOut().finally(() => router.replace("/access-denied"));
+          return;
         }
-        if (data.session?.provider_refresh_token) {
-          const supabaseForSave = createClient();
-          supabaseForSave.from("teachers")
-            .update({ google_refresh_token: data.session.provider_refresh_token })
-            .eq("auth_id", data.session.user.id)
-            .then(({ error: saveErr }) => {
-              if (saveErr) console.error("Failed to save refresh token:", saveErr);
-            });
-        }
-        router.replace("/dashboard");
+        fetch(`/api/auth/check-allowed?email=${encodeURIComponent(email)}`)
+          .then((r) => r.json())
+          .then(({ allowed }) => {
+            if (!allowed) {
+              supabase.auth.signOut().finally(() => router.replace("/access-denied"));
+              return;
+            }
+            // If Google returned a Drive token (personal accounts only — EGUSD blocks drive.file scope)
+            if (data.session?.provider_token) {
+              localStorage.setItem("dailywins_google_token", data.session.provider_token);
+              localStorage.setItem("dailywins_google_token_expiry", String(Date.now() + 3500 * 1000));
+            }
+            if (data.session?.provider_refresh_token) {
+              const supabaseForSave = createClient();
+              supabaseForSave.from("teachers")
+                .update({ google_refresh_token: data.session.provider_refresh_token })
+                .eq("auth_id", data.session.user.id)
+                .then(({ error: saveErr }) => {
+                  if (saveErr) console.error("Failed to save refresh token:", saveErr);
+                });
+            }
+            router.replace("/dashboard");
+          })
+          .catch((e) => {
+            console.error("Allowlist check failed:", e);
+            supabase.auth.signOut().finally(() => router.replace("/access-denied"));
+          });
       });
       return;
     }
