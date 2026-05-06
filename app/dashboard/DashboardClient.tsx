@@ -126,30 +126,42 @@ interface BellSchedule {
 
 const BELL_SCHEDULES: Record<SchoolName, Record<string, BellSchedule>> = {
   "Cosumnes Oaks High School": {
-    Regular: {
+    "Regular (1st Lunch)": {
       periods: [
-        { label: "Period 1", start: "8:00", end: "8:50" },
-        { label: "Period 2", start: "8:55", end: "9:45" },
-        { label: "Period 3", start: "9:50", end: "10:40" },
-        { label: "Advocacy", start: "10:40", end: "11:10" },
-        { label: "Period 4", start: "11:15", end: "12:05" },
-        { label: "Lunch", start: "12:05", end: "12:40" },
-        { label: "Period 5", start: "12:45", end: "1:35" },
-        { label: "Period 6", start: "1:40", end: "2:30" },
-        { label: "Period 7", start: "2:35", end: "3:25" },
+        { label: "Period 1", start: "8:30", end: "10:05" },
+        { label: "Period 2", start: "10:15", end: "11:45" },
+        { label: "Lunch", start: "11:45", end: "12:15" },
+        { label: "Period 4", start: "12:25", end: "1:55" },
+        { label: "Period 5", start: "2:05", end: "3:35" },
       ],
     },
-    Wednesday: {
+    "Regular (2nd Lunch)": {
       periods: [
-        { label: "Period 1", start: "9:00", end: "9:40" },
-        { label: "Period 2", start: "9:45", end: "10:25" },
-        { label: "Period 3", start: "10:30", end: "11:10" },
-        { label: "Advocacy", start: "11:10", end: "11:40" },
-        { label: "Period 4", start: "11:45", end: "12:25" },
-        { label: "Lunch", start: "12:25", end: "1:00" },
-        { label: "Period 5", start: "1:05", end: "1:45" },
-        { label: "Period 6", start: "1:50", end: "2:30" },
-        { label: "Period 7", start: "2:35", end: "3:15" },
+        { label: "Period 1", start: "8:30", end: "10:05" },
+        { label: "Period 2", start: "10:15", end: "11:45" },
+        { label: "Period 3", start: "11:55", end: "1:25" },
+        { label: "Lunch", start: "1:25", end: "1:55" },
+        { label: "Period 5", start: "2:05", end: "3:35" },
+      ],
+    },
+    "Wednesday (1st Lunch)": {
+      periods: [
+        { label: "Period 1", start: "9:30", end: "10:30" },
+        { label: "Period 2", start: "10:40", end: "11:35" },
+        { label: "Lunch", start: "11:35", end: "12:05" },
+        { label: "Period 4", start: "12:15", end: "1:10" },
+        { label: "Advocacy", start: "1:20", end: "2:30" },
+        { label: "Period 5", start: "2:40", end: "3:35" },
+      ],
+    },
+    "Wednesday (2nd Lunch)": {
+      periods: [
+        { label: "Period 1", start: "9:30", end: "10:30" },
+        { label: "Period 2", start: "10:40", end: "11:35" },
+        { label: "Period 3", start: "11:45", end: "12:40" },
+        { label: "Lunch", start: "12:40", end: "1:10" },
+        { label: "Advocacy", start: "1:20", end: "2:30" },
+        { label: "Period 5", start: "2:40", end: "3:35" },
       ],
     },
     "Minimum Day": {
