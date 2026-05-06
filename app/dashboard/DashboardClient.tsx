@@ -3914,7 +3914,7 @@ export default function DashboardClient() {
             )}
 
             {/* Lunch Preference */}
-            {selectedSchool && (() => {
+            {selectedSchool && selectedSchool !== "Cosumnes Oaks High School" && (() => {
               const sched = BELL_SCHEDULES[selectedSchool as SchoolName]?.[selectedSchedule] ?? BELL_SCHEDULES[selectedSchool as SchoolName]?.[Object.keys(BELL_SCHEDULES[selectedSchool as SchoolName])[0]];
               const periods = sched?.periods ?? [];
               const splitLunch = periods.some(p => p.label === "Period 4") && periods.some(p => p.label === "Period 5");
