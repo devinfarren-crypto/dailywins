@@ -90,63 +90,143 @@ export default function LoginPage() {
 
   if (checking) {
     return (
-      <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center", background: "#f0f2f5" }}>
-        <div style={{ background: "white", borderRadius: 16, padding: 32, textAlign: "center", boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}>
+      <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center", background: "#faf7f0" }}>
+        <div style={{ background: "white", borderRadius: 14, padding: 32, textAlign: "center", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
           <div style={{
-            background: "#6366f1",
-            width: 48, height: 48, borderRadius: 12,
+            background: "#3a7c6a",
+            width: 44, height: 44, borderRadius: 11,
             display: "flex", alignItems: "center", justifyContent: "center",
-            color: "white", fontWeight: 800, fontSize: 18,
-            margin: "0 auto 16px",
+            color: "white", fontWeight: 700, fontSize: 16,
+            margin: "0 auto 14px",
           }}>DW</div>
-          <div style={{ color: "#333", fontSize: 14, fontWeight: 600 }}>Signing in...</div>
+          <div style={{ color: "#2a4d42", fontSize: 14, fontWeight: 500 }}>Signing in...</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="w-full max-w-md px-8">
-        <div className="rounded-2xl bg-white p-10 shadow-xl">
-          <div className="mb-8 text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-600 text-2xl font-bold text-white shadow-lg">
-              DW
+    <div style={{ minHeight: "100vh", background: "#faf7f0", display: "flex", flexDirection: "column" }}>
+      <main style={{ flex: 1, width: "100%", maxWidth: 1200, margin: "0 auto", padding: "40px 24px" }}>
+        <div className="flex flex-col gap-10 md:flex-row md:gap-14 md:items-center">
+          {/* LEFT COLUMN — 60% on desktop */}
+          <div className="w-full md:w-3/5">
+            {/* Logo + wordmark */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 28 }}>
+              <div style={{
+                width: 28, height: 28, borderRadius: 7, background: "#3a7c6a",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: "white", fontWeight: 700, fontSize: 12, letterSpacing: "0.02em",
+              }}>DW</div>
+              <span style={{ color: "#2a4d42", fontWeight: 600, fontSize: 17 }}>DailyWins</span>
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-              DailyWins
+
+            {/* Headline */}
+            <h1
+              className="text-[24px] md:text-[28px] text-balance"
+              style={{ fontWeight: 500, color: "#2a4d42", lineHeight: 1.25, letterSpacing: "-0.01em", margin: "0 0 16px", maxWidth: 560 }}
+            >
+              Behavior tracking that takes seconds, not class periods.
             </h1>
-            <p className="mt-2 text-sm text-gray-500">
-              Classroom behavior tracking for your school
+
+            {/* Subheadline */}
+            <p style={{ fontSize: 15, lineHeight: 1.6, color: "#5a6e66", margin: "0 0 28px", maxWidth: 540 }}>
+              Built by a teacher, for teachers. Track student behavior across all your periods, share progress with parents, and never lose another data point to a paper roster again.
             </p>
+
+            {/* Demo video */}
+            <div style={{ position: "relative", aspectRatio: "16/9", borderRadius: 8, overflow: "hidden", boxShadow: "0 4px 16px rgba(0,0,0,0.08)", marginBottom: 20 }}>
+              <iframe
+                src="https://www.youtube.com/embed/Apg6t8i7rl4"
+                title="DailyWins demo"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
+              />
+            </div>
+
+            {/* Trust badges */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 20, fontSize: 13, color: "#5a6e66" }}>
+              {["FERPA-aligned", "AB 1584-compliant", "Pilot teachers love it"].map((label) => (
+                <div key={label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#3a7c6a", display: "inline-block" }} />
+                  {label}
+                </div>
+              ))}
+            </div>
           </div>
 
-          <div className="mb-8 border-t border-gray-200" />
+          {/* RIGHT COLUMN — 40% on desktop */}
+          <div className="w-full md:w-2/5">
+            <div style={{
+              background: "white",
+              borderRadius: 14,
+              border: "0.5px solid rgba(0,0,0,0.08)",
+              padding: "28px 24px",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 20px rgba(0,0,0,0.04)",
+            }}>
+              <h2 style={{ fontSize: 18, fontWeight: 500, color: "#2a4d42", margin: "0 0 6px" }}>
+                Sign in to DailyWins
+              </h2>
+              <p style={{ fontSize: 13, color: "#6b7d75", margin: "0 0 20px" }}>
+                Pilot teachers and approved accounts only.
+              </p>
 
-          {error && (
-            <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "10px 14px", marginBottom: 16, color: "#dc2626", fontSize: 13, fontWeight: 600 }}>
-              {error}
+              {error && (
+                <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "10px 14px", marginBottom: 16, color: "#dc2626", fontSize: 13, fontWeight: 600 }}>
+                  {error}
+                </div>
+              )}
+
+              <button
+                onClick={handleGoogleSignIn}
+                className="flex w-full items-center justify-center gap-3 rounded-lg border bg-white px-4 py-3 text-sm font-medium transition-colors hover:bg-[#faf7f0] focus:outline-none focus:ring-2 focus:ring-offset-2"
+                style={{ borderColor: "#e5e2d8", color: "#2a4d42" }}
+              >
+                <svg className="h-[18px] w-[18px]" viewBox="0 0 24 24">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                </svg>
+                Sign in with Google
+              </button>
+
+              <p style={{ marginTop: 14, textAlign: "center", fontSize: 12, color: "#8a9690" }}>
+                By signing in you agree to our <a href="/privacy" style={{ color: "#3a7c6a", textDecoration: "none" }}>privacy policy</a>.
+              </p>
+
+              <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px solid #ebe5d8" }}>
+                <p style={{ fontSize: 12, color: "#8a9690", margin: "0 0 6px" }}>
+                  Want to bring DailyWins to your school?
+                </p>
+                <a
+                  href="mailto:devin@surestepeducation.com?subject=DailyWins%20pilot%20interest"
+                  style={{ fontSize: 13, fontWeight: 500, color: "#3a7c6a", textDecoration: "none" }}
+                >
+                  Request a pilot →
+                </a>
+              </div>
             </div>
-          )}
-
-          <button
-            onClick={handleGoogleSignIn}
-            className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-          >
-            <svg className="h-5 w-5" viewBox="0 0 24 24">
-              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
-              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-            </svg>
-            Sign in with Google
-          </button>
-
-          <p className="mt-8 text-center text-xs text-gray-400">
-            Sign in with your school Google account
-          </p>
+          </div>
         </div>
-      </div>
+      </main>
+
+      {/* Page footer */}
+      <footer style={{ borderTop: "1px solid #ebe5d8", padding: "16px 24px", marginTop: 32 }}>
+        <div style={{
+          maxWidth: 1200, margin: "0 auto",
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          flexWrap: "wrap", gap: 8,
+          fontSize: 12, color: "#8a9690",
+        }}>
+          <span>
+            A product of <span style={{ color: "#3a7c6a", fontWeight: 500 }}>Sure Step Education</span>
+          </span>
+          <span>dailywins.school</span>
+        </div>
+      </footer>
     </div>
   );
 }
