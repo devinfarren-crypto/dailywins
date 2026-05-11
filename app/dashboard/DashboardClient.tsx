@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/src/lib/supabase";
+import { useSchedules } from "@/src/lib/use-schedules";
 import type { User } from "@supabase/supabase-js";
 import dynamic from "next/dynamic";
 import { syncToGoogleSheets, getValidGoogleToken } from "./sheetsSync";
@@ -535,6 +536,12 @@ export default function DashboardClient() {
     if (typeof window === "undefined") return "1st";
     return (localStorage.getItem("dailywins_lunch") as "1st" | "2nd") || "1st";
   });
+
+  const schedulesForSchool = useSchedules(
+    supabase,
+    selectedSchool || null,
+    selectedSchool ? BELL_SCHEDULES[selectedSchool as SchoolName] : {},
+  );
   const [showSchedule, setShowSchedule] = useState(false);
   const [showAddStudents, setShowAddStudents] = useState(false);
   const [addStudentsText, setAddStudentsText] = useState("");
@@ -782,8 +789,8 @@ export default function DashboardClient() {
 
   // ─── Active Periods ─────────────────────────────────────────────────────────
 
-  const activePeriods: PeriodSlot[] = selectedSchool && BELL_SCHEDULES[selectedSchool as SchoolName]
-    ? (BELL_SCHEDULES[selectedSchool as SchoolName][selectedSchedule] ?? BELL_SCHEDULES[selectedSchool as SchoolName][Object.keys(BELL_SCHEDULES[selectedSchool as SchoolName])[0]]).periods
+  const activePeriods: PeriodSlot[] = selectedSchool && schedulesForSchool && Object.keys(schedulesForSchool).length > 0
+    ? (schedulesForSchool[selectedSchedule] ?? schedulesForSchool[Object.keys(schedulesForSchool)[0]]).periods
     : PERIODS.map((p) => ({ label: p, start: "", end: "" }));
 
   // A schedule has split lunch if it contains both "Period 4" and "Period 5"
@@ -3890,7 +3897,7 @@ export default function DashboardClient() {
                   Schedule Type
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {Object.keys(BELL_SCHEDULES[selectedSchool]).map((type) => (
+                  {Object.keys(schedulesForSchool).map((type) => (
                     <button
                       key={type}
                       onClick={() => setSelectedSchedule(type)}
@@ -3915,7 +3922,7 @@ export default function DashboardClient() {
 
             {/* Lunch Preference */}
             {selectedSchool && selectedSchool !== "Cosumnes Oaks High School" && (() => {
-              const sched = BELL_SCHEDULES[selectedSchool as SchoolName]?.[selectedSchedule] ?? BELL_SCHEDULES[selectedSchool as SchoolName]?.[Object.keys(BELL_SCHEDULES[selectedSchool as SchoolName])[0]];
+              const sched = schedulesForSchool?.[selectedSchedule] ?? schedulesForSchool?.[Object.keys(schedulesForSchool)[0]];
               const periods = sched?.periods ?? [];
               const splitLunch = periods.some(p => p.label === "Period 4") && periods.some(p => p.label === "Period 5");
               if (!splitLunch) return null;
@@ -3969,7 +3976,7 @@ export default function DashboardClient() {
                   </thead>
                   <tbody>
                     {(() => {
-                      const sched = BELL_SCHEDULES[selectedSchool][selectedSchedule] ?? BELL_SCHEDULES[selectedSchool][Object.keys(BELL_SCHEDULES[selectedSchool])[0]];
+                      const sched = schedulesForSchool[selectedSchedule] ?? schedulesForSchool[Object.keys(schedulesForSchool)[0]];
                       const periods = sched.periods;
                       const splitLunch = periods.some(p => p.label === "Period 4") && periods.some(p => p.label === "Period 5");
                       return periods.map((slot, i) => {
