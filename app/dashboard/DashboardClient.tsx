@@ -1032,6 +1032,9 @@ export default function DashboardClient() {
   // ─── Google Sheets Auto-Sync ────────────────────────────────────────────────
 
   const triggerSheetSync = useCallback(async (allScores: AllScores) => {
+    // Sheets sync disabled May 2026 — EGUSD blocks Drive/Sheets access from teacher devices. PDF exports cover reporting needs instead.
+    const SHEETS_SYNC_DISABLED = true;
+    if (SHEETS_SYNC_DISABLED) return;
     if (!teacher || !selectedStudentId || !selectedStudent) return;
 
     // Check if we have any Google token (will auto-refresh if expired)
