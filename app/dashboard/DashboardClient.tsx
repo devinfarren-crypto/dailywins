@@ -522,16 +522,7 @@ export default function DashboardClient() {
   const [selectedSchool, setSelectedSchool] = useState<SchoolName | "">(
     () => (typeof window !== "undefined" ? localStorage.getItem("dailywins_school") as SchoolName | "" : "")
   );
-  const [selectedSchedule, setSelectedSchedule] = useState<string>(() => {
-    if (typeof window === "undefined") return "Regular";
-    const school = localStorage.getItem("dailywins_school") as SchoolName | "";
-    if (school && BELL_SCHEDULES[school as SchoolName]) {
-      const schedules = BELL_SCHEDULES[school as SchoolName];
-      if (schedules["Regular"]) return "Regular";
-      return Object.keys(schedules)[0];
-    }
-    return "Regular";
-  });
+  const [selectedSchedule, setSelectedSchedule] = useState<string>("");
   const [lunchPref, setLunchPref] = useState<"1st" | "2nd">(() => {
     if (typeof window === "undefined") return "1st";
     return (localStorage.getItem("dailywins_lunch") as "1st" | "2nd") || "1st";
@@ -613,6 +604,12 @@ export default function DashboardClient() {
   const starIcon = prefs.starIcon ?? "⭐";
   const confettiEnabled = prefs.confetti !== false;
   const compactMode = prefs.compact === true;
+
+  useEffect(() => {
+    const keys = Object.keys(schedulesForSchool);
+    if (keys.includes(selectedSchedule)) return;
+    setSelectedSchedule(keys[0] ?? "");
+  }, [schedulesForSchool, selectedSchedule]);
 
   // ─── Auth + Teacher Profile Setup ───────────────────────────────────────────
 
@@ -1175,8 +1172,6 @@ export default function DashboardClient() {
   const handleSelectSchool = (school: SchoolName) => {
     setSelectedSchool(school);
     localStorage.setItem("dailywins_school", school);
-    const firstSchedule = Object.keys(BELL_SCHEDULES[school])[0];
-    setSelectedSchedule(firstSchedule);
   };
 
   const handleSignOut = async () => {
@@ -3980,7 +3975,7 @@ export default function DashboardClient() {
                   <tbody>
                     {(() => {
                       const sched = schedulesForSchool[selectedSchedule] ?? schedulesForSchool[Object.keys(schedulesForSchool)[0]];
-                      const periods = sched.periods;
+                      const periods = sched?.periods ?? [];
                       const splitLunch = periods.some(p => p.label === "Period 4") && periods.some(p => p.label === "Period 5");
                       return periods.map((slot, i) => {
                       const isLunchPeriod = splitLunch && (

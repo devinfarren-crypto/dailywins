@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { SchedulesSchema, type Schedules } from "./schedules-schema";
 
@@ -25,16 +25,24 @@ export function useSchedules(
 ): NonNullable<Schedules> {
   const [schedules, setSchedules] = useState<NonNullable<Schedules>>(fallback);
 
+  // Track via refs so unstable references from the caller (e.g. a Supabase
+  // client recreated each render, or an inline `{}` fallback) don't re-fire
+  // the fetch effect — only schoolName changes should trigger a re-fetch.
+  const supabaseRef = useRef(supabase);
+  supabaseRef.current = supabase;
+  const fallbackRef = useRef(fallback);
+  fallbackRef.current = fallback;
+
   useEffect(() => {
     if (!schoolName) {
-      setSchedules(fallback);
+      setSchedules(fallbackRef.current);
       return;
     }
 
     let cancelled = false;
 
     (async () => {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseRef.current
         .from("schools")
         .select("schedules")
         .eq("name", schoolName)
@@ -43,18 +51,18 @@ export function useSchedules(
       if (cancelled) return;
 
       if (error || !data) {
-        setSchedules(fallback);
+        setSchedules(fallbackRef.current);
         return;
       }
 
       if (data.schedules === null || data.schedules === undefined) {
-        setSchedules(fallback);
+        setSchedules(fallbackRef.current);
         return;
       }
 
       const parsed = SchedulesSchema.safeParse(data.schedules);
       if (!parsed.success || parsed.data === null) {
-        setSchedules(fallback);
+        setSchedules(fallbackRef.current);
         return;
       }
 
@@ -64,7 +72,7 @@ export function useSchedules(
     return () => {
       cancelled = true;
     };
-  }, [supabase, schoolName, fallback]);
+  }, [schoolName]);
 
   return schedules;
 }
