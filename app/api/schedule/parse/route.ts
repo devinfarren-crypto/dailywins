@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { createClient } from '@/src/lib/supabase-server';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -118,10 +119,6 @@ export interface ExtractionError {
 
 // --- Helpers ---
 
-/**
- * Strip markdown code fences if Claude added them despite instructions.
- * Handles ```json ... ``` and ``` ... ``` variants.
- */
 function stripCodeFences(text: string): string {
   let trimmed = text.trim();
   trimmed = trimmed.replace(/^```(?:json)?\s*\n?/i, '');
@@ -173,6 +170,18 @@ function validateSchedule(data: unknown): data is ExtractedSchedule {
 
 export async function POST(req: NextRequest) {
   try {
+    // Auth check — only logged-in users can call this endpoint.
+    // Protects the Anthropic API key from random visitors burning credits.
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json<ExtractionError>(
+        { error: 'not_authenticated', detail: 'You must be signed in to upload a schedule.' },
+        { status: 401 }
+      );
+    }
+
     const formData = await req.formData();
     const file = formData.get('pdf') as File | null;
 
@@ -193,7 +202,7 @@ export async function POST(req: NextRequest) {
     const base64 = buffer.toString('base64');
 
     console.log('\n=== [schedule/parse] sending PDF to Claude ===');
-    console.log(`  file: ${file.name}, size: ${file.size} bytes`);
+    console.log(`  file: ${file.name}, size: ${file.size} bytes, user: ${user.email ?? user.id}`);
 
     const response = await anthropic.messages.create({
       model: MODEL,
