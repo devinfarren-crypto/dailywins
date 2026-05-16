@@ -34,6 +34,8 @@ type UploadState =
   | { kind: 'uploading'; filename: string }
   | { kind: 'extracting'; filename: string }
   | { kind: 'review'; schedule: ExtractedSchedule }
+  | { kind: 'saving' }
+  | { kind: 'saved'; variants_saved: number; variants_total: number }
   | { kind: 'error'; message: string };
 
 // --- Design tokens (from dailywins design system) ---
@@ -58,15 +60,23 @@ const DAY_LABELS: Record<string, string> = {
   MON: 'Mon', TUE: 'Tue', WED: 'Wed', THU: 'Thu', FRI: 'Fri', SAT: 'Sat', SUN: 'Sun',
 };
 
+export interface SchoolOption {
+  id: string;
+  name: string;
+}
+
 export default function ScheduleUploader({
-  onSave,
+  schools,
 }: {
-  onSave?: (schedule: ExtractedSchedule) => Promise<void> | void;
+  schools: SchoolOption[];
 }) {
   const [state, setState] = useState<UploadState>({ kind: 'idle' });
   const [editedSchedule, setEditedSchedule] = useState<ExtractedSchedule | null>(null);
   const [expandedVariant, setExpandedVariant] = useState<number | null>(0);
   const [showOnlyFlagged, setShowOnlyFlagged] = useState(false);
+  const [selectedSchoolId, setSelectedSchoolId] = useState<string>(
+    schools[0]?.id ?? ''
+  );
 
   const handleUpload = useCallback(async (file: File) => {
     if (file.type !== 'application/pdf') {
@@ -152,8 +162,55 @@ export default function ScheduleUploader({
   };
 
   const handleSave = async () => {
-    if (!editedSchedule || !onSave) return;
-    await onSave(editedSchedule);
+    if (!editedSchedule) return;
+    if (!selectedSchoolId) {
+      setState({ kind: 'error', message: 'Please select a school to save to.' });
+      return;
+    }
+
+    setState({ kind: 'saving' });
+    try {
+      const res = await fetch('/api/schedule/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          school_id: selectedSchoolId,
+          schedule: editedSchedule,
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (data.error === 'forbidden') {
+          setState({
+            kind: 'error',
+            message: 'You are not an admin of this school.',
+          });
+        } else if (data.error === 'not_authenticated') {
+          setState({
+            kind: 'error',
+            message: 'Your session expired. Please sign in again.',
+          });
+        } else {
+          setState({
+            kind: 'error',
+            message: data.detail || 'Save failed. Try again.',
+          });
+        }
+        return;
+      }
+
+      setState({
+        kind: 'saved',
+        variants_saved: data.variants_saved,
+        variants_total: data.variants_total,
+      });
+    } catch (err) {
+      setState({
+        kind: 'error',
+        message: err instanceof Error ? err.message : 'Save failed. Try again.',
+      });
+    }
   };
 
   // === RENDER ===
@@ -229,6 +286,55 @@ export default function ScheduleUploader({
             ? state.filename
             : 'This usually takes about 10 seconds. Hang tight.'}
         </div>
+      </div>
+    );
+  }
+
+  if (state.kind === 'saving') {
+    return (
+      <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif', textAlign: 'center', padding: 48 }}>
+        <div style={{ fontSize: 28, marginBottom: 16 }}>💾</div>
+        <div style={{ color: C.heading, fontSize: 18, fontWeight: 500, marginBottom: 6 }}>
+          Saving
+        </div>
+        <div style={{ color: C.hint, fontSize: 14 }}>
+          Just a moment.
+        </div>
+      </div>
+    );
+  }
+
+  if (state.kind === 'saved') {
+    return (
+      <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif', textAlign: 'center', padding: 48 }}>
+        <div style={{ fontSize: 32, marginBottom: 16 }}>✅</div>
+        <div style={{ color: C.heading, fontSize: 20, fontWeight: 500, marginBottom: 8 }}>
+          Schedule saved
+        </div>
+        <div style={{ color: C.hint, fontSize: 14, marginBottom: 24 }}>
+          {state.variants_saved} variant{state.variants_saved === 1 ? '' : 's'} saved
+          {' · '}
+          {state.variants_total} total on file
+        </div>
+        <button
+          onClick={() => {
+            setState({ kind: 'idle' });
+            setEditedSchedule(null);
+            setExpandedVariant(0);
+          }}
+          style={{
+            padding: '10px 20px',
+            background: C.primary,
+            color: '#fff',
+            border: 'none',
+            borderRadius: 6,
+            fontSize: 14,
+            fontWeight: 500,
+            cursor: 'pointer',
+          }}
+        >
+          Upload another
+        </button>
       </div>
     );
   }
@@ -541,43 +647,70 @@ export default function ScheduleUploader({
         style={{
           display: 'flex',
           gap: 12,
-          justifyContent: 'flex-end',
+          alignItems: 'center',
+          justifyContent: 'space-between',
           paddingTop: 16,
           borderTop: `1px solid ${C.border}`,
         }}
       >
-        <button
-          onClick={() => {
-            setState({ kind: 'idle' });
-            setEditedSchedule(null);
-          }}
-          style={{
-            padding: '10px 16px',
-            background: 'transparent',
-            color: C.body,
-            border: `1px solid ${C.border}`,
-            borderRadius: 6,
-            fontSize: 14,
-            cursor: 'pointer',
-          }}
-        >
-          Start over
-        </button>
-        <button
-          onClick={handleSave}
-          style={{
-            padding: '10px 20px',
-            background: C.primary,
-            color: '#fff',
-            border: 'none',
-            borderRadius: 6,
-            fontSize: 14,
-            fontWeight: 500,
-            cursor: 'pointer',
-          }}
-        >
-          Save schedule
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <label htmlFor="school-picker" style={{ fontSize: 13, color: C.hint }}>
+            Save to:
+          </label>
+          <select
+            id="school-picker"
+            value={selectedSchoolId}
+            onChange={(e) => setSelectedSchoolId(e.target.value)}
+            style={{
+              ...inputStyle,
+              width: 'auto',
+              padding: '8px 10px',
+              fontSize: 14,
+            }}
+          >
+            {schools.length === 0 && (
+              <option value="">No schools available</option>
+            )}
+            {schools.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <button
+            onClick={() => {
+              setState({ kind: 'idle' });
+              setEditedSchedule(null);
+            }}
+            style={{
+              padding: '10px 16px',
+              background: 'transparent',
+              color: C.body,
+              border: `1px solid ${C.border}`,
+              borderRadius: 6,
+              fontSize: 14,
+              cursor: 'pointer',
+            }}
+          >
+            Start over
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!selectedSchoolId}
+            style={{
+              padding: '10px 20px',
+              background: selectedSchoolId ? C.primary : C.border,
+              color: '#fff',
+              border: 'none',
+              borderRadius: 6,
+              fontSize: 14,
+              fontWeight: 500,
+              cursor: selectedSchoolId ? 'pointer' : 'not-allowed',
+            }}
+          >
+            Save schedule
+          </button>
+        </div>
       </div>
     </div>
   );
