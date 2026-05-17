@@ -269,6 +269,11 @@ const BELL_SCHEDULES: Record<SchoolName, Record<string, BellSchedule>> = {
 
 const SCHOOLS: SchoolName[] = ["Cosumnes Oaks High School", "Pleasant Grove High School"];
 
+const SCHOOL_NAME_TO_ID: Record<string, string> = {
+  "Pleasant Grove High School": "a21b868b-aa1a-46a7-a9b8-de1e05c45247",
+  "Cosumnes Oaks High School": "6a5042af-875d-4722-9591-50b8e648b873",
+};
+
 // ─── Score Helpers ────────────────────────────────────────────────────────────
 
 // Scores: Record<period label, Record<category id, point value | null>>
@@ -556,6 +561,27 @@ export default function DashboardClient() {
   const [showCategories, setShowCategories] = useState(false);
   const [showStaffSync, setShowStaffSync] = useState(false);
   const [showCustomize, setShowCustomize] = useState(false);
+  const [isSiteAdmin, setIsSiteAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!selectedSchool) {
+      setIsSiteAdmin(false);
+      return;
+    }
+    const schoolId = SCHOOL_NAME_TO_ID[selectedSchool];
+    if (!schoolId) {
+      setIsSiteAdmin(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase.rpc("is_school_admin", { target_school_id: schoolId });
+      if (cancelled) return;
+      setIsSiteAdmin(!error && data === true);
+    })();
+    return () => { cancelled = true; };
+  }, [selectedSchool]);
   const [prefs, setPrefs] = useState<Preferences>({});
   const [demoBusy, setDemoBusy] = useState<"seed" | "wipe" | null>(null);
   const [demoMessage, setDemoMessage] = useState<{ success: boolean; text: string } | null>(null);
@@ -4611,6 +4637,30 @@ export default function DashboardClient() {
                 </button>
               </div>
             </div>
+
+            {isSiteAdmin && (
+              <div style={{ marginTop: 24, paddingTop: 16, borderTop: "1px solid #d0d0d0" }}>
+                <div style={{ fontSize: 13, color: "#8a9690", marginBottom: 8 }}>
+                  Site Admin tools
+                </div>
+                <a
+                  href="/admin/upload-schedule"
+                  style={{
+                    display: "inline-block",
+                    padding: "8px 14px",
+                    background: "transparent",
+                    color: "#3a7c6a",
+                    border: "1px solid #3a7c6a",
+                    borderRadius: 6,
+                    fontSize: 14,
+                    textDecoration: "none",
+                    fontWeight: 500,
+                  }}
+                >
+                  Upload bell schedule
+                </a>
+              </div>
+            )}
 
             {/* Done Button */}
             <div style={{ display: "flex", justifyContent: "flex-end" }}>
