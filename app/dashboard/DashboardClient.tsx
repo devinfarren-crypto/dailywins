@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/src/lib/supabase";
 import { useSchedules } from "@/src/lib/use-schedules";
+import { getPeriodType } from "@/src/lib/schedules-schema";
 import type { User } from "@supabase/supabase-js";
 import dynamic from "next/dynamic";
 import { syncToGoogleSheets, getValidGoogleToken } from "./sheetsSync";
@@ -793,8 +794,10 @@ export default function DashboardClient() {
   // A schedule has split lunch if it contains both "Period 4" and "Period 5"
   const hasSplitLunch = activePeriods.some(p => p.label === "Period 4") && activePeriods.some(p => p.label === "Period 5");
 
-  // Filter out Lunch, Rally, and the period the teacher has lunch during
   const trackablePeriods = activePeriods.filter((p) => {
+    // Skip break periods (lunch, passing, nutrition) and non_student blocks (staff-only, senior-only).
+    // Falls back to label-matching for legacy data without a type field, so existing rows keep working.
+    if (getPeriodType(p) !== "class") return false;
     if (p.label === "Lunch" || p.label === "Rally") return false;
     if (hasSplitLunch) {
       if (lunchPref === "1st" && p.label === "Period 4") return false;
