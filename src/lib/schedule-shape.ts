@@ -4,13 +4,17 @@
  *
  * Used by the save endpoint to convert what the uploader sends into what the
  * database expects, and to merge new variants into an existing schedule.
+ *
+ * v2 changes vs v1:
+ *  - normalizeTime returns null on invalid input (was: returned trimmed string)
+ *  - translator now throws TranslationError on bad data, caught by the route
+ *  - explicit per-period and per-variant validation, since the Zod schema
+ *    only checks "non-empty string" and would accept e.g. "8:99" as a time
  */
 
 import type { Schedules, Variant, Period } from "./schedules-schema";
 
 // --- Mirror the types from app/api/schedule/parse/route.ts. ---
-// We don't import from the route because importing route files into other
-// route files / lib files is a Next.js anti-pattern.
 
 export type ScheduleType = "class" | "break" | "non_student";
 
@@ -39,70 +43,93 @@ export interface ExtractedSchedule {
 }
 
 /**
- * Normalize a time string to HH:MM (24-hour, zero-padded).
- *
- * The DB currently has inconsistent times like "8:30" and "08:30". The AI
- * uploader emits zero-padded times per its system prompt, but we normalize
- * everything here so saved data is uniform regardless of source.
- *
- * Accepts: "8:30", "08:30", "8:30 AM", "08:30 PM", "14:30"
- * Returns: "08:30", "14:30"
- *
- * If the input is unparseable, returns it unchanged — the schema will fail
- * the save and the user gets a clear error rather than silent corruption.
+ * Thrown by translateToDbShape when input data is malformed in a way the Zod
+ * schema cannot catch (e.g., unparseable time strings, hours out of range,
+ * empty period lists). The save route catches this and returns 400.
  */
-export function normalizeTime(time: string): string {
-  const trimmed = time.trim();
-
-  // Try 12-hour with AM/PM first
-  const ampmMatch = trimmed.match(/^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)$/);
-  if (ampmMatch) {
-    let hour = parseInt(ampmMatch[1], 10);
-    const minute = ampmMatch[2];
-    const isPM = ampmMatch[3].toUpperCase() === "PM";
-    if (hour === 12) hour = isPM ? 12 : 0;
-    else if (isPM) hour += 12;
-    return `${String(hour).padStart(2, "0")}:${minute}`;
+export class TranslationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "TranslationError";
   }
-
-  // 24-hour, possibly missing leading zero on hour
-  const hmMatch = trimmed.match(/^(\d{1,2}):(\d{2})$/);
-  if (hmMatch) {
-    const hour = parseInt(hmMatch[1], 10);
-    const minute = hmMatch[2];
-    if (hour >= 0 && hour <= 23) {
-      return `${String(hour).padStart(2, "0")}:${minute}`;
-    }
-  }
-
-  // Unparseable — return as-is and let schema validation fail.
-  return trimmed;
 }
 
 /**
- * Translate one ExtractedPeriod into the DB Period shape.
+ * Normalize a time string to HH:MM (24-hour, zero-padded).
  *
- * Note the field rename: `name` -> `label`. This is the historical DB shape.
- * Renaming it everywhere is a bigger commit; for now, we translate at the
- * write boundary.
+ * Returns null if the input is invalid (out-of-range hour, out-of-range
+ * minute, or unparseable format). Callers must handle null.
+ *
+ * Accepts: "8:30", "08:30", "8:30 AM", "08:30 PM", "14:30"
+ * Returns: "08:30", "14:30" — or null.
  */
-function translatePeriod(p: ExtractedPeriod): Period {
+export function normalizeTime(time: string): string | null {
+  const trimmed = time.trim();
+
+  const ampmMatch = trimmed.match(/^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)$/);
+  if (ampmMatch) {
+    let hour = parseInt(ampmMatch[1], 10);
+    const minute = parseInt(ampmMatch[2], 10);
+    const isPM = ampmMatch[3].toUpperCase() === "PM";
+    if (hour < 1 || hour > 12) return null;
+    if (minute < 0 || minute > 59) return null;
+    if (hour === 12) hour = isPM ? 12 : 0;
+    else if (isPM) hour += 12;
+    return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+  }
+
+  const hmMatch = trimmed.match(/^(\d{1,2}):(\d{2})$/);
+  if (hmMatch) {
+    const hour = parseInt(hmMatch[1], 10);
+    const minute = parseInt(hmMatch[2], 10);
+    if (hour < 0 || hour > 23) return null;
+    if (minute < 0 || minute > 59) return null;
+    return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+  }
+
+  return null;
+}
+
+function translatePeriod(p: ExtractedPeriod, context: string): Period {
+  if (typeof p.name !== "string" || p.name.length === 0) {
+    throw new TranslationError(`${context}: period missing name`);
+  }
+  if (!["class", "break", "non_student"].includes(p.type)) {
+    throw new TranslationError(
+      `${context}: period "${p.name}" has invalid type "${p.type}"`,
+    );
+  }
+  const start = normalizeTime(p.start);
+  if (start === null) {
+    throw new TranslationError(
+      `${context}: period "${p.name}" has invalid start time "${p.start}"`,
+    );
+  }
+  const end = normalizeTime(p.end);
+  if (end === null) {
+    throw new TranslationError(
+      `${context}: period "${p.name}" has invalid end time "${p.end}"`,
+    );
+  }
   return {
     label: p.name,
-    start: normalizeTime(p.start),
-    end: normalizeTime(p.end),
+    start,
+    end,
     type: p.type,
     parent: p.parent,
     day_notes: p.day_notes,
   };
 }
 
-/**
- * Translate one ExtractedVariant into the DB Variant shape.
- */
 function translateVariant(v: ExtractedVariant): Variant {
+  if (typeof v.name !== "string" || v.name.length === 0) {
+    throw new TranslationError("variant missing name");
+  }
+  if (!Array.isArray(v.periods) || v.periods.length === 0) {
+    throw new TranslationError(`variant "${v.name}" has no periods`);
+  }
   return {
-    periods: v.periods.map(translatePeriod),
+    periods: v.periods.map((p) => translatePeriod(p, `variant "${v.name}"`)),
     days: v.days,
     specific_dates: v.specific_dates,
     notes: v.notes,
@@ -111,12 +138,17 @@ function translateVariant(v: ExtractedVariant): Variant {
 
 /**
  * Translate the full ExtractedSchedule into a DB-shape Schedules object.
- *
- * Variants are keyed by name. If the source has two variants with the same
- * name (shouldn't happen — the AI route deduplicates), the second wins. Any
- * downstream caller wanting to detect that should compare lengths.
+ * Throws TranslationError on malformed input.
  */
-export function translateToDbShape(extracted: ExtractedSchedule): NonNullable<Schedules> {
+export function translateToDbShape(
+  extracted: ExtractedSchedule,
+): NonNullable<Schedules> {
+  if (!extracted || typeof extracted !== "object") {
+    throw new TranslationError("schedule must be an object");
+  }
+  if (!Array.isArray(extracted.variants) || extracted.variants.length === 0) {
+    throw new TranslationError("schedule has no variants");
+  }
   const result: Record<string, Variant> = {};
   for (const variant of extracted.variants) {
     result[variant.name] = translateVariant(variant);
@@ -128,17 +160,7 @@ export function translateToDbShape(extracted: ExtractedSchedule): NonNullable<Sc
  * Merge a new schedule into an existing one.
  *
  * Strategy: union by variant name. New variants are added, existing variants
- * with the same name are replaced. Old variants that don't appear in the new
- * upload are preserved.
- *
- * Example:
- *   existing = { Regular: {...}, Finals: {...old finals data...} }
- *   incoming = { Finals: {...new finals data...}, Rally: {...} }
- *   merged   = { Regular: {...}, Finals: {...new finals data...}, Rally: {...} }
- *
- * Rationale: teachers may have hand-edited an existing variant after a prior
- * upload. Replacing only the variants present in the new upload preserves
- * those edits for any untouched variants.
+ * with the same name are replaced. Variants not in the new upload are preserved.
  */
 export function mergeSchedules(
   existing: NonNullable<Schedules> | null,

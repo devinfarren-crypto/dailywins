@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/src/lib/supabase-server";
+import { createClient as createUserClient } from "@/src/lib/supabase-server";
+import { createClient as createSbClient } from "@supabase/supabase-js";
 import {
   translateToDbShape,
   mergeSchedules,
+  TranslationError,
   type ExtractedSchedule,
 } from "@/src/lib/schedule-shape";
 import { SchedulesSchema, type Schedules } from "@/src/lib/schedules-schema";
@@ -24,28 +26,45 @@ interface SaveSuccessResponse {
   variants_total: number;
 }
 
-/**
- * Lightweight shape check for the request body. We could pull in Zod for this
- * but the parse route already validates the schedule shape downstream — here
- * we just confirm the request envelope.
- */
-function isValidSaveRequest(body: unknown): body is SaveRequestBody {
+function isValidEnvelope(body: unknown): body is SaveRequestBody {
   if (!body || typeof body !== "object") return false;
   const b = body as Record<string, unknown>;
   if (typeof b.school_id !== "string" || b.school_id.length === 0) return false;
   if (!b.schedule || typeof b.schedule !== "object") return false;
-  const s = b.schedule as Record<string, unknown>;
-  if (!Array.isArray(s.variants)) return false;
-  if (!Array.isArray(s.uncertainties)) return false;
   return true;
+}
+
+/**
+ * Build a service-role Supabase client that bypasses RLS.
+ *
+ * Why: the existence check + UPDATE in this route need to act on schools the
+ * user admins, which may not be the school they teach at. RLS scopes teacher
+ * SELECTs to their own school, so a Site Admin who teaches at PGHS but admins
+ * COHS would hit a false 404 when saving to COHS.
+ *
+ * Authorization is verified by is_school_admin() above. Bypassing RLS for the
+ * internal lookups is safe because we've already checked admin scope.
+ */
+function getServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) {
+    throw new Error(
+      "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY",
+    );
+  }
+  return createSbClient(url, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createClient();
+    // --- Auth: who is the caller? ---
+    const userClient = await createUserClient();
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await userClient.auth.getUser();
 
     if (!user) {
       return NextResponse.json<SaveErrorResponse>(
@@ -54,7 +73,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // --- Parse and validate the request body. ---
+    // --- Envelope check. ---
     let body: unknown;
     try {
       body = await req.json();
@@ -65,11 +84,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!isValidSaveRequest(body)) {
+    if (!isValidEnvelope(body)) {
       return NextResponse.json<SaveErrorResponse>(
         {
           error: "invalid_request",
-          detail: "Request must have school_id and schedule.variants.",
+          detail: "Request must have school_id and schedule.",
         },
         { status: 400 },
       );
@@ -78,9 +97,9 @@ export async function POST(req: NextRequest) {
     const { school_id, schedule } = body;
 
     // --- Authorization: must be admin of this school. ---
-    // RLS on schools.UPDATE also enforces this, but we check explicitly so we
-    // can return a clear 403 instead of a confusing "no rows updated" silent fail.
-    const { data: adminCheck, error: adminError } = await supabase.rpc(
+    // Runs as the user (not service role) so auth.uid() inside is_school_admin
+    // resolves to the caller.
+    const { data: adminCheck, error: adminError } = await userClient.rpc(
       "is_school_admin",
       { target_school_id: school_id },
     );
@@ -95,16 +114,16 @@ export async function POST(req: NextRequest) {
 
     if (!adminCheck) {
       return NextResponse.json<SaveErrorResponse>(
-        {
-          error: "forbidden",
-          detail: "You are not an admin of this school.",
-        },
+        { error: "forbidden", detail: "You are not an admin of this school." },
         { status: 403 },
       );
     }
 
+    // --- Past this line: service-role client (RLS bypassed). ---
+    const serviceClient = getServiceClient();
+
     // --- Fetch existing schedule for merge. ---
-    const { data: existingRow, error: fetchError } = await supabase
+    const { data: existingRow, error: fetchError } = await serviceClient
       .from("schools")
       .select("schedules")
       .eq("id", school_id)
@@ -126,13 +145,23 @@ export async function POST(req: NextRequest) {
     }
 
     // --- Translate + merge. ---
-    const incomingDbShape = translateToDbShape(schedule);
+    let incomingDbShape: NonNullable<Schedules>;
+    try {
+      incomingDbShape = translateToDbShape(schedule);
+    } catch (err) {
+      if (err instanceof TranslationError) {
+        return NextResponse.json<SaveErrorResponse>(
+          { error: "invalid_schedule", detail: err.message },
+          { status: 400 },
+        );
+      }
+      throw err;
+    }
+
     const existingSchedules = (existingRow.schedules as Schedules) ?? null;
     const merged = mergeSchedules(existingSchedules, incomingDbShape);
 
-    // --- Validate the merged result against the schema before writing. ---
-    // This is the last line of defense: if the merged shape doesn't match our
-    // Zod schema, the hook would silently fall back to hardcoded data on read.
+    // --- Validate merged shape. ---
     const validation = SchedulesSchema.safeParse(merged);
     if (!validation.success) {
       console.error("[schedule/save] merged shape failed validation:");
@@ -146,8 +175,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // --- Write. RLS enforces school admin on UPDATE. ---
-    const { error: updateError } = await supabase
+    // --- Write. Service role bypasses RLS; we've already verified admin. ---
+    const { error: updateError } = await serviceClient
       .from("schools")
       .update({ schedules: merged })
       .eq("id", school_id);
