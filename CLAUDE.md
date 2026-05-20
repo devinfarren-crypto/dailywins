@@ -3,24 +3,48 @@
 Classroom behavior tracking app for school districts. Migrating from a Google Apps Script prototype.
 
 **Production URL:** dailywins.school
+**Owner:** Sure Step Education
 
 ## Tech Stack
 
-- **Framework:** Next.js 16 (App Router) with TypeScript
-- **Styling:** Tailwind CSS v4
-- **Backend/DB:** Supabase (Postgres, Auth, Realtime)
-- **Auth:** Google SSO via Supabase Auth
+- **Framework:** Next.js 16 (App Router), React 19, TypeScript (strict)
+- **Styling:** Tailwind CSS v4 (mixed with inline `style={}` in legacy dashboard code)
+- **Backend/DB:** Supabase (Postgres, Auth, Realtime) via `@supabase/ssr` + `@supabase/supabase-js`
+- **Auth:** Google SSO via Supabase Auth, gated by an email allowlist
+- **Charts:** Recharts (browser-only — see Gotchas)
+- **PDF export:** jspdf + jspdf-autotable (browser-only — see Gotchas)
+- **Validation:** zod
+- **AI:** `@anthropic-ai/sdk` (used server-side for schedule parsing)
 - **Deployment:** Vercel
+- **PWA:** manifest + service worker installed via [src/components/PWAProvider.jsx](src/components/PWAProvider.jsx)
 - **Package manager:** npm
 
 ## Project Structure
 
 ```
-app/           → Next.js App Router pages and layouts
-public/        → Static assets
+app/
+  api/
+    auth/check-allowed       → email allowlist gate
+    demo/{seed,wipe}         → demo-mode data lifecycle
+    refresh-google-token     → Google OAuth token refresh
+    schedule/{parse,save}    → bell-schedule PDF parsing + persistence
+  auth/callback              → Supabase OAuth callback
+  dashboard/
+    page.tsx                 → wraps DashboardClient in `dynamic(..., { ssr: false })` + error boundary
+    DashboardClient.tsx      → main teacher UI (heavy, client-only)
+    ChartViews.tsx           → Recharts views
+    sheetsSync.ts            → legacy Google Sheets sync helpers
+  access-denied/, privacy/, test-uploader/
+  layout.tsx, page.tsx, globals.css
+src/
+  components/   → PWAProvider, ScheduleUploader
+  lib/          → supabase{,-server,-admin}.ts, schedules-*, demo-seed, use-schedules
+supabase/migrations/  → numbered SQL (001–010); allowlist in 009, school_schedules in 010
+docs/bell-schedules/  → reference PDFs for PGHS and COHS bell schedules
+public/        → icons/, manifest.json, sw.js, static assets
 ```
 
-Uses `@/*` path alias mapping to the project root.
+Path alias: `@/*` → project root (see [tsconfig.json](tsconfig.json)).
 
 ## Commands
 
@@ -45,12 +69,35 @@ Teachers track 5 behavior categories per student per period:
 
 - 8 periods per day
 - Each behavior is a binary win (yes/no) per period
-- Teachers log in via Google SSO (school Google accounts)
+- Teachers log in via Google SSO (school Google accounts) and must be on the allowlist (migration 009)
+
+## Brand
+
+- **Primary / coral:** `#e07850` (CTAs, logo mark, primary accents)
+- **Secondary / teal:** `#3a7c6a` (links, secondary accents; darker `#2a4d42` for headings)
+- **Accent / gold:** `#f0b647` (highlights, chart accent)
+- **Dark / ink:** `#2c3e50`
+- **Background creams:** `#faf7f0` (marketing), `#f5f5f0` (app surfaces)
+- **Font:** Nunito as the default app font, loaded via Google Fonts in [app/dashboard/DashboardClient.tsx](app/dashboard/DashboardClient.tsx) (users can switch among Nunito / Inter / Baloo 2 / Fredoka / Patrick Hand / Quicksand). The Geist setup in [app/layout.tsx](app/layout.tsx) is leftover from `create-next-app`.
+- Chart palette is defined in [app/dashboard/ChartViews.tsx](app/dashboard/ChartViews.tsx) — reuse it instead of introducing new colors.
+- Vocabulary note: in code, `#3a7c6a` is commented as "secondary/green" and a separate `#1abc9c` is labeled "teal" in the ChartViews palette — the brand name for `#3a7c6a` is still "teal", don't confuse the two.
 
 ## Key Conventions
 
-- Use Server Components by default; add `"use client"` only when needed
-- Supabase client: use `createServerClient` in Server Components/Route Handlers, `createBrowserClient` in Client Components
-- All database access goes through Supabase (no direct Postgres connections)
-- Keep components in `app/` following Next.js App Router colocation patterns
-- Use TypeScript strict mode — no `any` types
+- Server Components by default; add `"use client"` only when needed.
+- Supabase client picker:
+  - Client Components → `createClient` from [src/lib/supabase.ts](src/lib/supabase.ts) (browser, anon key)
+  - Server Components / Route Handlers → `createClient` from [src/lib/supabase-server.ts](src/lib/supabase-server.ts) (cookies-aware, anon key)
+  - Privileged server work → `createAdminClient` from [src/lib/supabase-admin.ts](src/lib/supabase-admin.ts) (service role, bypasses RLS — server-side only, never imported into client code)
+- All database access goes through Supabase (no direct Postgres connections).
+- TypeScript strict — no `any`.
+- Schema changes go through a new numbered file in `supabase/migrations/`; do not edit prior migrations in place.
+
+## Critical Gotchas
+
+- **Recharts is browser-only.** Any page that imports it must opt out of SSR via `dynamic(() => import("..."), { ssr: false })`. See [app/dashboard/page.tsx](app/dashboard/page.tsx) — it wraps [DashboardClient](app/dashboard/DashboardClient.tsx) precisely for this reason. Importing Recharts directly into a Server Component (or a client component that gets server-rendered) crashes the module silently at build/runtime.
+- **jspdf and jspdf-autotable are browser-only.** Always lazy-import inside the event handler that needs them, e.g. `const { default: jsPDF } = await import("jspdf")` — never at the top of a module. Examples in [app/dashboard/DashboardClient.tsx:1466](app/dashboard/DashboardClient.tsx#L1466) and [:1545](app/dashboard/DashboardClient.tsx#L1545).
+- **`createAdminClient` uses the service role key and bypasses RLS.** Use it only in Route Handlers / server actions, never in a file that could be bundled into the client.
+- **Email allowlist enforced.** Only emails in the allowlist table (migration 009) can sign in; sign-in works locally but redirects to `/access-denied` for unlisted users.
+- **Bell schedules are still hardcoded in TypeScript** under `src/lib/` and `docs/bell-schedules/` is the source of truth for PDFs. Moving to a `school_schedules` table is roadmapped (see [ROADMAP.md](ROADMAP.md)); don't add a third school's schedule inline without checking the roadmap.
+- **Pilot is allowlist-scoped** to three teachers (Devin/Tommy at PGHS, Nick at COHS) — bear that in mind before assuming multi-tenant features are wired up.
