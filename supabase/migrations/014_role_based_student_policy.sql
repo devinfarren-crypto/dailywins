@@ -1,0 +1,22 @@
+-- Migration 014: role-based RLS read policy for students (P2 — NOT yet cut over)
+--
+-- Proven against a staging fixture 2026-05-21: a Founder+Teacher sees students
+-- ONLY through their teacher assignment, never through founder (founder is
+-- PII-blind). Cross-school isolation verified.
+--
+-- IMPORTANT: This is the policy DESIGN, captured for the record. It is additive
+-- to the existing teacher-table-based policy. Do NOT apply to prod until the
+-- 3 live users have role_assignments AND a full dual-role test passes against
+-- real public.students. The live cutover is its own deliberate, tested step.
+
+-- drop policy if exists students_role_read on public.students;
+-- create policy students_role_read
+--   on public.students
+--   for select
+--   using (
+--     public.has_role('teacher', school_id)
+--     or public.has_role('site_admin', school_id)
+--   );
+
+-- (Left commented intentionally. Uncomment and apply only at the cutover step,
+-- after user migration and a passing dual-role test on real data.)
