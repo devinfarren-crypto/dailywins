@@ -1,0 +1,31 @@
+-- Migration 015: role-based RLS read policy for behavior_scores (P2 — NOT yet cut over)
+--
+-- Proven against a staging fixture 2026-05-21. Two access paths:
+--   - Teacher: sees only rows they authored (teacher_id = auth.uid()).
+--     Teachers do NOT see each other's scores, even on the same student.
+--   - Site admin: sees all scores for students at a school they administer.
+-- Cross-school isolation verified; cross-teacher boundary verified both ways.
+--
+-- ⚠️ CUTOVER CAVEAT: behavior_scores has no school_id, so the site-admin path
+-- must resolve the student's school. In the staging test this used a raw
+-- subquery against students, which required granting SELECT on students. On the
+-- LIVE tables, students is itself RLS-protected, so a raw subquery could narrow
+-- results unexpectedly. At cutover, resolve the student's school via a
+-- SECURITY DEFINER helper (e.g. student_school_id(student_id)) instead of a raw
+-- subquery, mirroring how has_role() bypasses RLS cleanly.
+--
+-- Do NOT apply to prod until: (1) the SECURITY DEFINER school-lookup helper
+-- exists, (2) users are migrated to role_assignments, (3) a full test passes
+-- against real public.behavior_scores on staging.
+
+-- drop policy if exists scores_role_read on public.behavior_scores;
+-- create policy scores_role_read
+--   on public.behavior_scores
+--   for select
+--   using (
+--     teacher_id = auth.uid()
+--     or public.has_role('site_admin', public.student_school_id(student_id))
+--   );
+
+-- (Commented intentionally. The student_school_id() SECURITY DEFINER helper
+-- must be written as part of the cutover step.)
