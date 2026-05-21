@@ -63,3 +63,10 @@ as $function$
     from public.role_assignments ra
     where ra.user_id = auth.uid()
       and ra.role = p_role
+
+-- Base table privileges. RLS filters only AFTER table-level permission exists,
+-- so authenticated users need SELECT granted explicitly (raw-SQL-created tables
+-- don't inherit Supabase's default grants). roles is a public read-only lookup;
+-- role_assignments is RLS-gated to own rows.
+grant select on public.roles to authenticated, anon;
+grant select on public.role_assignments to authenticated;
