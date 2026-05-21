@@ -6,17 +6,14 @@
 --   - Site admin: sees all scores for students at a school they administer.
 -- Cross-school isolation verified; cross-teacher boundary verified both ways.
 --
--- ⚠️ CUTOVER CAVEAT: behavior_scores has no school_id, so the site-admin path
--- must resolve the student's school. In the staging test this used a raw
--- subquery against students, which required granting SELECT on students. On the
--- LIVE tables, students is itself RLS-protected, so a raw subquery could narrow
--- results unexpectedly. At cutover, resolve the student's school via a
--- SECURITY DEFINER helper (e.g. student_school_id(student_id)) instead of a raw
--- subquery, mirroring how has_role() bypasses RLS cleanly.
+-- CUTOVER NOTE: behavior_scores has no school_id, so the site-admin path uses
+-- the student_school_id() SECURITY DEFINER helper (migration 017, proven on
+-- staging 2026-05-21 — site_admin school-wide visibility resolves with NO grant
+-- on students). The policy body below already calls it and is cutover-ready.
 --
--- Do NOT apply to prod until: (1) the SECURITY DEFINER school-lookup helper
--- exists, (2) users are migrated to role_assignments, (3) a full test passes
--- against real public.behavior_scores on staging.
+-- Do NOT apply to prod until: users are migrated to role_assignments AND a full
+-- dual-role test passes against real public.behavior_scores on staging. Then
+-- uncomment.
 
 -- drop policy if exists scores_role_read on public.behavior_scores;
 -- create policy scores_role_read
@@ -27,5 +24,4 @@
 --     or public.has_role('site_admin', public.student_school_id(student_id))
 --   );
 
--- (Commented intentionally. The student_school_id() SECURITY DEFINER helper
--- must be written as part of the cutover step.)
+-- (Commented intentionally. Helper exists (017). Uncomment at cutover.)

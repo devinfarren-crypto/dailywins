@@ -9,12 +9,13 @@
 -- Verified: author sees both; other-teacher sees shared only; site_admin sees
 -- shared only (private hidden).
 --
--- ⚠️ CUTOVER CAVEAT (same as 015): notes has no school_id; the school lookup
--- must use a SECURITY DEFINER helper (student_school_id()), not a raw subquery
--- against the RLS-protected students table.
+-- CUTOVER NOTE: notes has no school_id, so the school lookup uses the
+-- student_school_id() SECURITY DEFINER helper (migration 017, proven on staging
+-- 2026-05-21 — resolves correctly with NO grant on students). The policy body
+-- below already calls it and is cutover-ready.
 --
--- Do NOT apply to prod until the SECURITY DEFINER helper exists, users are
--- migrated, and a full test passes against real public.notes on staging.
+-- Do NOT apply to prod until: users are migrated to role_assignments AND a full
+-- dual-role test passes against real public.notes on staging. Then uncomment.
 
 -- drop policy if exists notes_role_read on public.notes;
 -- create policy notes_role_read
