@@ -12,6 +12,7 @@
 -- constraint, drop the function, create fresh, then re-add the constraint.
 -- Proven on staging 2026-05-20. Apply to staging first, then prod.
 
+alter table public.schools drop constraint if exists schools_schedules_shape_check;
 alter table public.schools drop constraint if exists schools_schedules_valid;
 drop function if exists public.is_valid_schedules(jsonb);
 
