@@ -1,0 +1,28 @@
+-- Migration 016: role-based RLS read policy for notes (P2 — NOT yet cut over)
+--
+-- Proven against a staging fixture 2026-05-21. Three layers:
+--   - Author sees their own notes, private or not (teacher_id = auth.uid()).
+--   - Teacher OR site_admin at the student's school sees NON-PRIVATE notes.
+--   - PRIVATE notes are visible ONLY to their author — NOT to other teachers,
+--     and NOT to site admins. Privacy holds even against administrative
+--     oversight. (Deliberate product decision, 2026-05-21.)
+-- Verified: author sees both; other-teacher sees shared only; site_admin sees
+-- shared only (private hidden).
+--
+-- ⚠️ CUTOVER CAVEAT (same as 015): notes has no school_id; the school lookup
+-- must use a SECURITY DEFINER helper (student_school_id()), not a raw subquery
+-- against the RLS-protected students table.
+--
+-- Do NOT apply to prod until the SECURITY DEFINER helper exists, users are
+-- migrated, and a full test passes against real public.notes on staging.
+
+-- drop policy if exists notes_role_read on public.notes;
+-- create policy notes_role_read
+--   on public.notes
+--   for select
+--   using (
+--     teacher_id = auth.uid()
+--     or (
+--       is_private = false
+--       and (
+--         public.
