@@ -1,10 +1,16 @@
 -- Migration 015: role-based RLS read policy for behavior_scores (P2 — NOT yet cut over)
 --
--- Proven against a staging fixture 2026-05-21. Two access paths:
---   - Teacher: sees only rows they authored (teacher_id = auth.uid()).
+-- Two access paths:
+--   - Teacher: sees only rows they authored (maps teacher_id through teachers.auth_id).
 --     Teachers do NOT see each other's scores, even on the same student.
 --   - Site admin: sees all scores for students at a school they administer.
--- Cross-school isolation verified; cross-teacher boundary verified both ways.
+-- Cross-school isolation verified on the fixture (site_admin school scoping).
+--
+-- PROVEN STATUS (be precise): cross-school isolation and the site_admin path
+-- were verified on a staging fixture 2026-05-21. The teacher IDENTITY mapping
+-- was NOT correctly proven — that fixture set teacher_id = auth.uid() directly,
+-- masking the bug fixed 2026-05-22. This policy has NOT been tested against real
+-- public.behavior_scores. Full re-test required at cutover.
 --
 -- CUTOVER NOTE: behavior_scores has no school_id, so the site-admin path uses
 -- the student_school_id() SECURITY DEFINER helper (migration 017, proven on
@@ -15,12 +21,15 @@
 -- dual-role test passes against real public.behavior_scores on staging. Then
 -- uncomment.
 
+-- BUG FIX 2026-05-22: behavior_scores.teacher_id = teachers.id (not auth.uid()).
+-- Caught during staging dry run — the naive teacher_id = auth.uid() matched nothing.
+-- The teacher path now maps through teachers, matching the existing 001 policy.
 -- drop policy if exists scores_role_read on public.behavior_scores;
 -- create policy scores_role_read
 --   on public.behavior_scores
 --   for select
 --   using (
---     teacher_id = auth.uid()
+--     teacher_id in (select id from public.teachers where auth_id = auth.uid())
 --     or public.has_role('site_admin', public.student_school_id(student_id))
 --   );
 
