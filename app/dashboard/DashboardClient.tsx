@@ -8,6 +8,7 @@ import { getPeriodType } from "@/src/lib/schedules-schema";
 import type { User } from "@supabase/supabase-js";
 import dynamic from "next/dynamic";
 import { syncToGoogleSheets, getValidGoogleToken } from "./sheetsSync";
+import ManageLinksModal from "@/src/components/ManageLinksModal";
 
 const ChartViews = dynamic(() => import("./ChartViews"), { ssr: false });
 
@@ -543,6 +544,7 @@ export default function DashboardClient() {
   const [showAddStudents, setShowAddStudents] = useState(false);
   const [addStudentsText, setAddStudentsText] = useState("");
   const [showNotes, setShowNotes] = useState(false);
+  const [showLinks, setShowLinks] = useState(false);
   const [notes, setNotes] = useState<StudentNote[]>([]);
   const [noteText, setNoteText] = useState("");
   const [noteShared, setNoteShared] = useState(false);
@@ -2174,6 +2176,15 @@ export default function DashboardClient() {
               </select>
           )}
 
+          {hasStudents && (
+            <button
+              onClick={() => setShowLinks(true)}
+              style={{ borderRadius: 6, border: "1px solid #d0d0d0", padding: "5px 10px", fontSize: 13, fontWeight: 600, color: COLORS.dark, background: "white", height: 32, cursor: "pointer" }}
+            >
+              🔗 Links
+            </button>
+          )}
+
           {/* Date Picker */}
             <input
               type="date"
@@ -3401,6 +3412,13 @@ export default function DashboardClient() {
           </div>
         </div>
       )}
+
+      <ManageLinksModal
+        studentId={selectedStudentId}
+        studentName={selectedStudent}
+        open={showLinks}
+        onClose={() => setShowLinks(false)}
+      />
 
       {/* ─── Notes Modal ─────────────────────────────────────────────────────── */}
       {showNotes && (
