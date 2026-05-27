@@ -315,7 +315,10 @@ function calculatePeriodPoints(periodScores: PeriodScores, categories: Category[
   let pts = 0;
   for (const cat of categories) {
     if (cat.noPoints) continue;
-    pts += periodScores[cat.id] ?? 0;
+    const raw = periodScores[cat.id];
+    pts += raw != null
+      ? (cat.type === "arrival" ? getPointValue(cat, raw as number) : raw as number)
+      : 0;
   }
   return pts;
 }
@@ -1864,11 +1867,11 @@ export default function DashboardClient() {
             const isActive = currentValue !== null && currentValue === optPoints &&
               getOptionIndexForPoints(cat, currentValue) === optIdx;
             // For arrival with duplicate point values, check by finding first match
-            const isSelected = currentValue !== null && optIdx === getOptionIndexForPoints(cat, currentValue);
+            const isSelected = currentValue !== null && currentValue === optIdx;
             return (
               <button
                 key={optLabel}
-                onClick={() => updateScore(period, cat.id, isSelected ? null : optPoints)}
+                onClick={() => updateScore(period, cat.id, isSelected ? null : optIdx)}
                 style={{
                   background: isSelected ? arrivalButtonColor(cat, optIdx) : "#e8e8e8",
                   color: isSelected ? "white" : "#888",
