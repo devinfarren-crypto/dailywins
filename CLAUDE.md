@@ -67,7 +67,7 @@ Teachers track 5 behavior categories per student per period:
 | On-Task    | Engaged with classwork             |
 | Phone Away | Phone stored and not in use        |
 
-- 8 periods per day
+- Up to 9 periods per day (0–8) — schools with a zero-period prep block use Period 0; most schools use 1–8
 - Each behavior is a binary win (yes/no) per period
 - Teachers log in via Google SSO (school Google accounts) and must be on the allowlist (migration 009)
 
