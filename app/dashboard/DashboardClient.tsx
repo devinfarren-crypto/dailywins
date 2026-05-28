@@ -574,6 +574,7 @@ export default function DashboardClient() {
   const [showStaffSync, setShowStaffSync] = useState(false);
   const [showCustomize, setShowCustomize] = useState(false);
   const [isSiteAdmin, setIsSiteAdmin] = useState(false);
+  const [isFounder, setIsFounder] = useState(false);
 
   useEffect(() => {
     if (!selectedSchool) {
@@ -594,6 +595,17 @@ export default function DashboardClient() {
     })();
     return () => { cancelled = true; };
   }, [selectedSchool]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase.rpc("has_role", { p_role: "founder" });
+      if (cancelled) return;
+      setIsFounder(!error && data === true);
+    })();
+    return () => { cancelled = true; };
+  }, []);
   const [prefs, setPrefs] = useState<Preferences>({});
   const [demoBusy, setDemoBusy] = useState<"seed" | "wipe" | null>(null);
   const [demoMessage, setDemoMessage] = useState<{ success: boolean; text: string } | null>(null);
@@ -4697,6 +4709,30 @@ export default function DashboardClient() {
                   }}
                 >
                   Upload bell schedule
+                </a>
+              </div>
+            )}
+
+            {isFounder && (
+              <div style={{ marginTop: 24, paddingTop: 16, borderTop: "1px solid #d0d0d0" }}>
+                <div style={{ fontSize: 13, color: "#8a9690", marginBottom: 8 }}>
+                  Founder tools
+                </div>
+                <a
+                  href="/admin/requests"
+                  style={{
+                    display: "inline-block",
+                    padding: "8px 14px",
+                    background: "transparent",
+                    color: "#3a7c6a",
+                    border: "1px solid #3a7c6a",
+                    borderRadius: 6,
+                    fontSize: 14,
+                    textDecoration: "none",
+                    fontWeight: 500,
+                  }}
+                >
+                  Beta access requests
                 </a>
               </div>
             )}
