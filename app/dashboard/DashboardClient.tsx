@@ -394,13 +394,20 @@ function quickFillDefault(cat: Category): number {
     const sorted = [...cat.pointValues].sort((a, b) => b - a);
     return sorted.length > 1 ? sorted[1] : sorted[0];
   }
-  // For toggle and arrival, default to maxPoints (first/best option)
+  if (cat.type === "arrival") {
+    // arrival state holds the option INDEX (see adaeb5f); first option is best.
+    return 0;
+  }
+  // toggle: state holds pointValue; default to maxPoints (first/best option)
   return cat.maxPoints;
 }
 
 /** Quick fill default label for a category */
 function quickFillLabel(cat: Category): string {
   const defaultVal = quickFillDefault(cat);
+  if (cat.type === "arrival") {
+    return cat.options[defaultVal] ?? String(defaultVal);
+  }
   const idx = getOptionIndexForPoints(cat, defaultVal);
   if (idx >= 0) return cat.options[idx];
   return String(defaultVal);
@@ -1964,12 +1971,11 @@ export default function DashboardClient() {
       return (
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {cat.options.map((optLabel, optIdx) => {
-            const optPoints = getPointValue(cat, optIdx);
-            const isSelected = currentValue !== null && optIdx === getOptionIndexForPoints(cat, currentValue);
+            const isSelected = currentValue !== null && currentValue === optIdx;
             return (
               <button
                 key={optLabel}
-                onClick={() => updateScore(period, cat.id, isSelected ? null : optPoints)}
+                onClick={() => updateScore(period, cat.id, isSelected ? null : optIdx)}
                 style={{
                   background: isSelected ? arrivalButtonColor(cat, optIdx) : "white",
                   color: isSelected ? "white" : "#444",
