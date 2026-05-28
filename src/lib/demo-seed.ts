@@ -107,16 +107,26 @@ function pickScale(rate: number, rng: () => number): number {
   return s;
 }
 
+// Default category maxPoints — must match the teachers.categories DB default
+// (see migration 003) so seeded values land at the same scale the dashboard reads.
+const PHONE_AWAY_MAX_POINTS = 3;
+
+// Arrival uses OPTION INDEX (see adaeb5f / 2c70d2f). Default arrival options
+// are ["On Time", "L", "L/E"] → index 0 = On Time, 1 = Late.
+const ARRIVAL_INDEX_ON_TIME = 0;
+const ARRIVAL_INDEX_LATE = 1;
+
 function pickArrival(rate: number, rng: () => number): number {
-  // Binary: 0 (Late) or 2 (On Time). Bias toward 2.
+  // Bias toward On Time. Returns option INDEX, not point value.
   const onTimeProb = 0.75 + rate * 0.22; // ~0.92 for high performers, ~0.85 baseline
-  return rng() < onTimeProb ? 2 : 0;
+  return rng() < onTimeProb ? ARRIVAL_INDEX_ON_TIME : ARRIVAL_INDEX_LATE;
 }
 
 function pickPhoneAway(rate: number, rng: () => number): number {
-  // Binary: 0 or 1. Target ~85% phone-away overall, scaled by rate.
+  // Toggle. Stored as the selected option's POINT VALUE (0 or maxPoints),
+  // matching how the live UI writes toggles. Target ~85% phone-away overall.
   const awayProb = 0.7 + rate * 0.22;
-  return rng() < awayProb ? 1 : 0;
+  return rng() < awayProb ? PHONE_AWAY_MAX_POINTS : 0;
 }
 
 interface ScoreRow {
