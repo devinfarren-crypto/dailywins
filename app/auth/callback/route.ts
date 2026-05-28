@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/src/lib/supabase-server";
 import { createAdminClient } from "@/src/lib/supabase-admin";
+import { notifyNewAccessRequest } from "@/src/lib/notify-new-access-request";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -85,18 +86,29 @@ export async function GET(request: Request) {
     user.email?.split("@")[0] ??
     "Teacher";
 
-  const { error: upsertError } = await admin.from("access_requests").upsert(
-    {
-      user_id: user.id,
-      email,
-      full_name: fullName,
-      status: "pending",
-    },
-    { onConflict: "user_id" }
-  );
+  const { data: newRequest, error: upsertError } = await admin
+    .from("access_requests")
+    .upsert(
+      {
+        user_id: user.id,
+        email,
+        full_name: fullName,
+        status: "pending",
+      },
+      { onConflict: "user_id" }
+    )
+    .select("id")
+    .single();
 
   if (upsertError) {
     console.error("Failed to auto-create access request:", upsertError.message);
+  } else if (newRequest) {
+    await notifyNewAccessRequest({
+      email,
+      fullName,
+      requestId: newRequest.id,
+      origin,
+    });
   }
 
   return NextResponse.redirect(`${origin}/pending`);
