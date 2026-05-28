@@ -679,6 +679,18 @@ export default function DashboardClient() {
       });
 
       if (error) {
+        const isPendingAccessError =
+          error?.message?.toLowerCase().includes("no approved access request") ||
+          error?.message?.toLowerCase().includes("not provisioned") ||
+          error?.code === "insufficient_privilege" ||
+          error?.code === "42501";
+
+        if (isPendingAccessError) {
+          router.replace("/pending");
+          setLoading(false);
+          return;
+        }
+
         console.error("Failed to ensure teacher:", error);
         setLoading(false);
         return;
