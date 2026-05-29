@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/src/lib/supabase-server";
 import { createAdminClient } from "@/src/lib/supabase-admin";
+import { writeAuditLog } from "@/src/lib/audit-log";
 
 const ApproveSchema = z
   .object({
@@ -87,6 +88,19 @@ export async function POST(request: Request) {
     console.error("approve_access_request failed", rpcError);
     return NextResponse.json({ error: rpcError.message }, { status: 400 });
   }
+
+  const admin = createAdminClient();
+  await writeAuditLog(admin, {
+    actor_user_id: user.id,
+    action: "access_request.approve",
+    target_table: "access_requests",
+    target_id: request_id,
+    after: {
+      teacher_id: teacherId,
+      school_id: schoolId,
+      created_new_school: Boolean(new_school),
+    },
+  });
 
   return NextResponse.json({
     ok: true,

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/src/lib/supabase-server";
+import { createAdminClient } from "@/src/lib/supabase-admin";
+import { writeAuditLog } from "@/src/lib/audit-log";
 
 const DenySchema = z.object({
   request_id: z.string().uuid(),
@@ -61,6 +63,14 @@ export async function POST(request: Request) {
       { status: 404 }
     );
   }
+
+  const admin = createAdminClient();
+  await writeAuditLog(admin, {
+    actor_user_id: user.id,
+    action: "access_request.deny",
+    target_table: "access_requests",
+    target_id: parsed.data.request_id,
+  });
 
   return NextResponse.json({ ok: true });
 }

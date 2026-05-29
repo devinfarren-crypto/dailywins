@@ -9,6 +9,7 @@ import type { User } from "@supabase/supabase-js";
 import dynamic from "next/dynamic";
 import { syncToGoogleSheets, getValidGoogleToken } from "./sheetsSync";
 import ManageLinksModal from "@/src/components/ManageLinksModal";
+import { fireAuditEvent } from "@/src/lib/audit-event-client";
 
 const ChartViews = dynamic(() => import("./ChartViews"), { ssr: false });
 
@@ -1189,6 +1190,16 @@ export default function DashboardClient() {
     } else {
       // Auto-sync to Google Sheets after successful DB save
       scheduleSheetSync(allScores);
+      // Audit: server-side endpoint silently no-ops unless caller is act-as'd.
+      fireAuditEvent({
+        action: "behavior_scores.save",
+        target_table: "behavior_scores",
+        after: {
+          student_id: selectedStudentId,
+          score_date: selectedDate,
+          row_count: upserts.length,
+        },
+      });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teacher, selectedStudentId, selectedDate, trackablePeriods.length, categories, scheduleSheetSync, periodAbsent]);
@@ -1373,6 +1384,16 @@ export default function DashboardClient() {
       period: (data.period as string | null) ?? null,
     };
     setNotes((prev) => [...prev, note]);
+    fireAuditEvent({
+      action: "note.create",
+      target_table: "notes",
+      target_id: data.id as string,
+      after: {
+        student_id: selectedStudentId,
+        is_private: !shared,
+        period: period,
+      },
+    });
   };
 
   const handleDeleteNote = async (id: string) => {
@@ -1382,6 +1403,11 @@ export default function DashboardClient() {
       return;
     }
     setNotes((prev) => prev.filter((n) => n.id !== id));
+    fireAuditEvent({
+      action: "note.delete",
+      target_table: "notes",
+      target_id: id,
+    });
   };
 
   const handleToggleNoteVisibility = async (id: string, currentlyShared: boolean) => {
@@ -1397,7 +1423,15 @@ export default function DashboardClient() {
       console.error("Failed to toggle note visibility:", error);
       // Revert on failure
       setNotes((prev) => prev.map((n) => n.id === id ? { ...n, shared: currentlyShared } : n));
+      return;
     }
+    fireAuditEvent({
+      action: "note.visibility_change",
+      target_table: "notes",
+      target_id: id,
+      before: { is_private: currentlyShared },
+      after: { is_private: !newShared },
+    });
   };
 
   const loadNoteHistory = async () => {
