@@ -691,15 +691,32 @@ export default function DashboardClient() {
       // passing u.id always returns the actor's row — that's the wrong lens
       // while act-as'd. The RLS-gated SELECT on teachers uses
       // effective_user_id() and resolves correctly in both cases.
+      //
+      // Note: the SELECT returns the raw teachers row (id, school_id, etc.),
+      // while TeacherProfile uses teacher_id + school_name (the shape
+      // ensure_teacher_exists returns). Map the row + join schools.name to
+      // match.
       const { data: existingTeacher } = await supabase
         .from("teachers")
-        .select("*")
+        .select("id, school_id, full_name, email, categories, schools(name)")
         .maybeSingle();
 
       let profile: TeacherProfile;
 
       if (existingTeacher) {
-        profile = existingTeacher as TeacherProfile;
+        const schoolName =
+          (existingTeacher.schools as { name?: string } | null)?.name ?? "";
+        // teachers.preferences exists on staging but not prod (drift) — don't
+        // SELECT it; leave preferences undefined and let downstream defaults
+        // apply.
+        profile = {
+          teacher_id: existingTeacher.id as string,
+          school_id: existingTeacher.school_id as string,
+          school_name: schoolName,
+          full_name: existingTeacher.full_name as string,
+          email: existingTeacher.email as string,
+          categories: (existingTeacher.categories as Category[]) ?? [],
+        };
       } else {
         // First-time provisioning path: actor has no teachers row yet. Call
         // ensure_teacher_exists to provision them. Cannot reach this branch
