@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import PWAProvider from "@/src/components/PWAProvider";
+import ActAsBanner from "@/src/components/ActAsBanner";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -38,6 +39,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <PWAProvider>
+          <ActAsBanner />
           {children}
           <footer className="w-full py-4 text-center text-xs text-gray-400">
             <Link href="/privacy" className="hover:text-gray-600 transition-colors">
