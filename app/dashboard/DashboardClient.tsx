@@ -4751,9 +4751,38 @@ export default function DashboardClient() {
                   >
                     Teachers (act-as)
                   </a>
+                  <a
+                    href="/admin/audit-log"
+                    style={{
+                      display: "inline-block",
+                      padding: "8px 14px",
+                      background: "transparent",
+                      color: "#3a7c6a",
+                      border: "1px solid #3a7c6a",
+                      borderRadius: 6,
+                      fontSize: 14,
+                      textDecoration: "none",
+                      fontWeight: 500,
+                    }}
+                  >
+                    Audit log
+                  </a>
                 </div>
               </div>
             )}
+
+            <div style={{ marginTop: 24, paddingTop: 16, borderTop: "1px solid #d0d0d0" }}>
+              <a
+                href="/audit/me"
+                style={{
+                  fontSize: 13,
+                  color: "#8a9690",
+                  textDecoration: "underline",
+                }}
+              >
+                View account access log
+              </a>
+            </div>
 
             {/* Done Button */}
             <div style={{ display: "flex", justifyContent: "flex-end" }}>
