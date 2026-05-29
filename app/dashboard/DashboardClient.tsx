@@ -685,31 +685,52 @@ export default function DashboardClient() {
         if (stored) setGoogleAccessToken(stored);
       }
 
-      const { data, error } = await supabase.rpc("ensure_teacher_exists", {
-        p_auth_id: u.id,
-        p_email: u.email ?? "",
-        p_full_name: u.user_metadata?.full_name ?? u.email?.split("@")[0] ?? "Teacher",
-      });
+      // Resolve the teacher profile through RLS so act-as sessions land on the
+      // TARGET's row (effective_user_id() != auth.uid() during a session).
+      // ensure_teacher_exists takes p_auth_id as an explicit parameter, so
+      // passing u.id always returns the actor's row — that's the wrong lens
+      // while act-as'd. The RLS-gated SELECT on teachers uses
+      // effective_user_id() and resolves correctly in both cases.
+      const { data: existingTeacher } = await supabase
+        .from("teachers")
+        .select("*")
+        .maybeSingle();
 
-      if (error) {
-        const isPendingAccessError =
-          error?.message?.toLowerCase().includes("no approved access request") ||
-          error?.message?.toLowerCase().includes("not provisioned") ||
-          error?.code === "insufficient_privilege" ||
-          error?.code === "42501";
+      let profile: TeacherProfile;
 
-        if (isPendingAccessError) {
-          router.replace("/pending");
+      if (existingTeacher) {
+        profile = existingTeacher as TeacherProfile;
+      } else {
+        // First-time provisioning path: actor has no teachers row yet. Call
+        // ensure_teacher_exists to provision them. Cannot reach this branch
+        // while act-as'd (the target must already be a Teacher to be a valid
+        // act-as target — enforced upstream in canActAs()).
+        const { data, error } = await supabase.rpc("ensure_teacher_exists", {
+          p_auth_id: u.id,
+          p_email: u.email ?? "",
+          p_full_name: u.user_metadata?.full_name ?? u.email?.split("@")[0] ?? "Teacher",
+        });
+
+        if (error) {
+          const isPendingAccessError =
+            error?.message?.toLowerCase().includes("no approved access request") ||
+            error?.message?.toLowerCase().includes("not provisioned") ||
+            error?.code === "insufficient_privilege" ||
+            error?.code === "42501";
+
+          if (isPendingAccessError) {
+            router.replace("/pending");
+            setLoading(false);
+            return;
+          }
+
+          console.error("Failed to ensure teacher:", error);
           setLoading(false);
           return;
         }
 
-        console.error("Failed to ensure teacher:", error);
-        setLoading(false);
-        return;
+        profile = data as TeacherProfile;
       }
-
-      const profile = data as TeacherProfile;
 
       // Load categories from teacher profile or use defaults
       if (profile.categories && Array.isArray(profile.categories) && profile.categories.length > 0) {
