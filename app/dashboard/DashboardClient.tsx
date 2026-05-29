@@ -1383,6 +1383,14 @@ export default function DashboardClient() {
       localStorage.setItem("dailywins_students", JSON.stringify(updated.map((s) => s.display_name)));
       return updated;
     });
+    for (const s of newStudents) {
+      fireAuditEvent({
+        action: "student.create",
+        target_table: "students",
+        target_id: s.id,
+        after: { display_name: s.display_name, school_id: s.school_id },
+      });
+    }
 
     if (!selectedStudentId && newStudents.length > 0) {
       setSelectedStudentId(newStudents[0].id);
@@ -3491,6 +3499,12 @@ export default function DashboardClient() {
                             const updated = prev.filter((st) => st.id !== s.id);
                             localStorage.setItem("dailywins_students", JSON.stringify(updated.map((st) => st.display_name)));
                             return updated;
+                          });
+                          fireAuditEvent({
+                            action: "student.delete",
+                            target_table: "students",
+                            target_id: s.id,
+                            before: { display_name: s.display_name },
                           });
                           if (selectedStudentId === s.id) {
                             const remaining = dbStudents.filter((st) => st.id !== s.id);
