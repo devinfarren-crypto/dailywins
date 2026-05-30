@@ -1,8 +1,16 @@
 # DailyWins Roadmap
 
-Last updated: May 30, 2026
+Last updated: May 30, 2026 (late afternoon)
 
-Phase 5 (act-as) shipped end-to-end and verified live. EGUSD compliance story now demo-able: approve-gated onboarding + audit-logged act-as + teacher self-serve transparency. Four pilot teachers in production (3 humans + 1 throwaway), all four-tier roles modeled in the schema.
+Phase 5 (act-as) shipped end-to-end and verified live. **Phase 4 audit triggers shipped today** (migration 029) — the "vendor can't see student data" claim is now structurally true at the database layer, not just at the app layer. EGUSD compliance story now demo-able end-to-end. Four pilot teachers' worth of rows in production, all four-tier roles modeled in the schema.
+
+## Shipped today (5/30 afternoon)
+- **Phase 4 audit triggers (migration 029, commit `6f40bc7`).** Postgres triggers on `behavior_scores` / `notes` / `students` write `audit_log` rows for every INSERT/UPDATE/DELETE. No-ops on service-role writes (auth.uid() NULL) so server routes' own `writeAuditLog` calls aren't duplicated. Staging-tested across 4 cases (regular teacher, act-as, service-role no-op, break-glass), prod-applied, then validated under unscripted load by a Chrome Claude agent that the triggers captured cleanly in 35 audit rows.
+- **`teachers.preferences` column (migration 030, commit `54d48a1`).** Adds `jsonb DEFAULT '{}'` to `teachers`. Closes the staging/prod drift that was making every Customize toggle silently fail to persist. Dashboard SELECT now reads the column too — toggles round-trip across sign-out / sign-in.
+- **"Show Period 0" toggle** (same commit). Period 0 is hidden by default — teachers almost never collect behavior data before school. One-line filter in `trackablePeriods`, new toggle in Customize, persisted via 030. Existing teachers will see their grid shrink to the periods they actually use.
+- **Stale `BELL_SCHEDULES` fallback purged** (same commit). The hardcoded TS constant in DashboardClient.tsx had diverged from `schools.schedules` JSONB (missing Period 0, lunch break entries, Monday Period 4). Now `{}` for both schools; DB is the sole source of truth, and a DB read failure shows nothing rather than misleading stale data.
+- **Test data cleanup on prod.** One test note from the Chrome agent's session deleted. Period 0 score values left as-is (the agent only mutated Period 0, which is rarely real data anyway).
+- **Migration drift reduced.** Staging caught up by replaying migrations 014–028 (it had been at 013b_role_grants). Prod's `schema_migrations` head is now `030_teachers_preferences`. Drift between repo and prod history is smaller but not fully closed.
 
 ## Shipped this week
 - **Beta access layer (data, migrations 022–024):** `access_requests` table + RLS, `approve_access_request` RPC (atomic provisioning), `ensure_teacher_exists` hardened.
@@ -21,14 +29,13 @@ Phase 5 (act-as) shipped end-to-end and verified live. EGUSD compliance story no
 - **Break-glass UI (5/29):** founder-only `/admin/break-glass` page — any-role candidate list (teachers + admins, identity via `access_requests`), confirmation modal with required reason + 15-min hard-timeout warning, rose-red styling. Posts to the existing `break-glass/start` route; banner already rendered the break-glass state. Rose link added to dashboard founder tools. Verified end-to-end live (Devin → break-glass into Nick @ COHS; RLS resolved to target's data, banner + reason correct). Header chip intentionally keeps showing the actor (attribution via `auth.uid()`), per design decision 5/29.
 
 ## Open — sorted by what blocks EGUSD or tester growth
-- **Resend setup** (only Devin can do): sign up, verify `dailywins.school` DNS, set `RESEND_API_KEY` + `NOTIFY_FROM_EMAIL` + `NOTIFY_TO_EMAIL` in Vercel. Code is dormant and ready. **Now double-duty:** also wire it as Supabase custom SMTP so magic-link emails (above) stop using the rate-limited built-in sender.
+- **Resend setup** (only Devin can do): sign up, verify `dailywins.school` DNS, set `RESEND_API_KEY` + `NOTIFY_FROM_EMAIL` + `NOTIFY_TO_EMAIL` in Vercel. Code is dormant and ready. **Double-duty:** also wire it as Supabase custom SMTP so magic-link emails stop using the rate-limited built-in sender.
 - **Inactivity-based renewal of `expires_at`.** Sessions hard-expire 60 min from start; long support calls get bumped mid-troubleshoot.
 - **Demo Mode cosmetic bugs:** Phone Out of Sight / On Task showing zero in demo seed data only. Now fixed in code (1f6ba4a); existing demo data needs a wipe+reseed to pick it up.
-- **`teachers.preferences` drift:** column exists on staging, not prod. Footgun — bit us today during the SELECT-shape fix. Decide: add to prod, or drop from staging.
-- **Capture live-only fixes as migration files:** legacy arrival cleanup, May 27 staging roles RLS fix, migration 027 v2 vs the local file (named drift in `schema_migrations`).
+- **Investigate "Tommy" pilot status.** Listed as a pilot teacher at PGHS, but absent from `public.teachers` as of 5/30. Either re-provision him through `/admin/requests` or remove from pilot status (here and in HANDOFF).
+- **Capture live-only fixes as migration files:** legacy arrival cleanup, May 27 staging roles RLS fix, migration 027 v2 vs the local file (named drift in `schema_migrations`). Today's catch-up handled staging 014–028 but live-only prod fixes are still outstanding.
 - **`allowed_emails` is vestigial** since the auth callback rewrite stopped reading it. Drop after a quiet observation period.
-- **Supabase migrations tracking drift:** prod's `schema_migrations` table has 11 entries; local has 28 files. Reconcile if it matters before EGUSD.
-- **Audit gap (v1.5 candidate):** student CRUD now logged, but a determined teacher could bypass the client-side `fireAuditEvent` call. Postgres triggers on `behavior_scores` + `notes` + `students` would guarantee coverage. ~1h.
+- **Audit-log coverage gap for MCP / admin-tool writes.** 029 trigger by design no-ops on service-role context (auth.uid() NULL), so direct admin SQL — e.g. the test-note delete done today — leaves no `audit_log` row. Future admin tooling that expands beyond chat-mediated approvals will want a session-variable "intended actor" mechanism so the trigger can attribute to a real user.
 
 ## Larger pieces
 - **`school_schedules` table** (move bell schedules out of hardcoded TypeScript). Cost: ~10h. Promoted to "before July 13" because admin UI now onboards a third school instantly and the EGUSD pitch needs this story straight.
@@ -42,12 +49,13 @@ Phase 5 (act-as) shipped end-to-end and verified live. EGUSD compliance story no
 - **Mock meeting with Nick** — not scheduled.
 - **Break-glass demo path** — would land harder than regular act-as because the rose-red banner + required reason field is the strongest visual proof.
 
-## Pilot status (snapshot 5/29/2026)
+## Pilot status (snapshot 5/30/2026)
 - Devin (founder + teacher) — PGHS
-- Tommy (teacher) — PGHS
 - Nick (teacher) — COHS
-- iwhowanders (throwaway test) — Sacramento HS, approved 5/28 via the new admin UI
+- iwhowanders (throwaway test) — Sacramento HS, approved 5/28
+- devintest2@proton.me (magic-link test) — separate test school
 - Approval-gated onboarding is the gate; `allowed_emails` table is vestigial.
+- **Tommy: listed in earlier ROADMAPs as PGHS teacher but not in `public.teachers`.** Investigate / re-provision / remove from pilot list.
 
 ## Tracked cautions (carried forward)
 - Read prod / write staging / propose prod writes. No autonomous prod schema or data writes by any Claude instance.
@@ -58,6 +66,6 @@ Phase 5 (act-as) shipped end-to-end and verified live. EGUSD compliance story no
 - Watch for shape mismatches: RPC responses are not interchangeable with raw row SELECTs even when the underlying data is the same.
 
 ## Infrastructure
-- **Prod:** Supabase `kvbpfvazddlmoxobqfev` (us-east-1). Vercel one project, three domains.
-- **Staging:** Supabase `oqhhpdaijscqdkpsxowq` (us-east-2) — paused 5/28. Restore before any staging-first work, or commit to Supabase branches.
+- **Prod:** Supabase `kvbpfvazddlmoxobqfev` (us-east-1). Vercel one project, three domains. Migrations head: `030_teachers_preferences`.
+- **Staging:** Supabase `oqhhpdaijscqdkpsxowq` (us-east-2). **Active** as of 5/30 (restored mid-day for the 029 + 030 staging-first pass). Re-pause manually if you want to save the t4g.nano cost.
 - **Git:** `main` is the only active branch. Latest commit: see `git log -1`.
