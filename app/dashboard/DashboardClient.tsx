@@ -102,6 +102,10 @@ interface Preferences {
   starIcon?: string;
   confetti?: boolean;
   compact?: boolean;
+  // Period 0 (zero-period prep block before school) is hidden by default —
+  // teachers almost never collect behavior data before school. Toggle on per
+  // teacher if they actually score a 0-period class.
+  showPeriodZero?: boolean;
 }
 
 interface TeacherProfile {
@@ -128,145 +132,15 @@ interface BellSchedule {
 
 // ─── Bell Schedules ───────────────────────────────────────────────────────────
 
+// Fallback only. Real schedules live in public.schools.schedules (JSONB) and
+// load via useSchedules(). The DB shape is richer (includes Period 0, typed
+// break entries for 1st/2nd Lunch, and the full Monday/Rally layouts that the
+// hardcoded version below was missing). An empty fallback means: on a cold
+// load before the DB read returns, or on a DB failure, the schedule modal
+// shows no variants instead of stale data that would mislead users.
 const BELL_SCHEDULES: Record<SchoolName, Record<string, BellSchedule>> = {
-  "Cosumnes Oaks High School": {
-    "Regular (1st Lunch)": {
-      periods: [
-        { label: "Period 1", start: "8:30", end: "10:05" },
-        { label: "Period 2", start: "10:15", end: "11:45" },
-        { label: "Lunch", start: "11:45", end: "12:15" },
-        { label: "Period 4", start: "12:25", end: "1:55" },
-        { label: "Period 5", start: "2:05", end: "3:35" },
-      ],
-    },
-    "Regular (2nd Lunch)": {
-      periods: [
-        { label: "Period 1", start: "8:30", end: "10:05" },
-        { label: "Period 2", start: "10:15", end: "11:45" },
-        { label: "Period 3", start: "11:55", end: "1:25" },
-        { label: "Lunch", start: "1:25", end: "1:55" },
-        { label: "Period 5", start: "2:05", end: "3:35" },
-      ],
-    },
-    "Wednesday (1st Lunch)": {
-      periods: [
-        { label: "Period 1", start: "9:30", end: "10:30" },
-        { label: "Period 2", start: "10:40", end: "11:35" },
-        { label: "Lunch", start: "11:35", end: "12:05" },
-        { label: "Period 4", start: "12:15", end: "1:10" },
-        { label: "Advocacy", start: "1:20", end: "2:30" },
-        { label: "Period 5", start: "2:40", end: "3:35" },
-      ],
-    },
-    "Wednesday (2nd Lunch)": {
-      periods: [
-        { label: "Period 1", start: "9:30", end: "10:30" },
-        { label: "Period 2", start: "10:40", end: "11:35" },
-        { label: "Period 3", start: "11:45", end: "12:40" },
-        { label: "Lunch", start: "12:40", end: "1:10" },
-        { label: "Advocacy", start: "1:20", end: "2:30" },
-        { label: "Period 5", start: "2:40", end: "3:35" },
-      ],
-    },
-    "Minimum Day": {
-      periods: [
-        { label: "Period 1", start: "8:00", end: "8:30" },
-        { label: "Period 2", start: "8:35", end: "9:05" },
-        { label: "Period 3", start: "9:10", end: "9:40" },
-        { label: "Period 4", start: "9:45", end: "10:15" },
-        { label: "Period 5", start: "10:20", end: "10:50" },
-        { label: "Period 6", start: "10:55", end: "11:25" },
-        { label: "Period 7", start: "11:30", end: "12:00" },
-      ],
-    },
-    "Reverse Minimum": {
-      periods: [
-        { label: "Period 7", start: "8:00", end: "8:30" },
-        { label: "Period 6", start: "8:35", end: "9:05" },
-        { label: "Period 5", start: "9:10", end: "9:40" },
-        { label: "Period 4", start: "9:45", end: "10:15" },
-        { label: "Period 3", start: "10:20", end: "10:50" },
-        { label: "Period 2", start: "10:55", end: "11:25" },
-        { label: "Period 1", start: "11:30", end: "12:00" },
-      ],
-    },
-    Finals: {
-      periods: [
-        { label: "Final 1", start: "8:00", end: "9:30" },
-        { label: "Final 2", start: "9:45", end: "11:15" },
-        { label: "Lunch", start: "11:15", end: "11:50" },
-        { label: "Final 3", start: "11:55", end: "1:25" },
-      ],
-    },
-    Rally: {
-      periods: [
-        { label: "Period 1", start: "8:00", end: "8:40" },
-        { label: "Period 2", start: "8:45", end: "9:25" },
-        { label: "Period 3", start: "9:30", end: "10:10" },
-        { label: "Rally", start: "10:15", end: "11:00" },
-        { label: "Advocacy", start: "11:00", end: "11:25" },
-        { label: "Period 4", start: "11:30", end: "12:10" },
-        { label: "Lunch", start: "12:10", end: "12:45" },
-        { label: "Period 5", start: "12:50", end: "1:30" },
-        { label: "Period 6", start: "1:35", end: "2:15" },
-        { label: "Period 7", start: "2:20", end: "3:00" },
-      ],
-    },
-  },
-  "Pleasant Grove High School": {
-    "Regular (Tue-Fri)": {
-      periods: [
-        { label: "Period 1", start: "8:30", end: "9:29" },
-        { label: "Period 2", start: "9:36", end: "10:36" },
-        { label: "Period 3", start: "10:46", end: "11:46" },
-        { label: "Period 4", start: "11:53", end: "12:53" },
-        { label: "Period 5", start: "12:23", end: "1:23" },
-        { label: "Period 6", start: "1:30", end: "2:30" },
-        { label: "Period 7", start: "2:40", end: "3:40" },
-      ],
-    },
-    "Monday Early Out": {
-      periods: [
-        { label: "Period 1", start: "8:30", end: "9:14" },
-        { label: "Period 2", start: "9:21", end: "10:05" },
-        { label: "Advocacy", start: "10:12", end: "10:42" },
-        { label: "Period 3", start: "10:52", end: "11:36" },
-        { label: "Period 5", start: "12:13", end: "12:57" },
-        { label: "Period 6", start: "1:04", end: "1:48" },
-        { label: "Period 7", start: "1:55", end: "2:40" },
-      ],
-    },
-    "Minimum Day": {
-      periods: [
-        { label: "Period 1", start: "8:30", end: "9:04" },
-        { label: "Period 2", start: "9:11", end: "9:45" },
-        { label: "Period 3", start: "9:55", end: "10:29" },
-        { label: "Period 4/5", start: "10:36", end: "11:10" },
-        { label: "Period 6", start: "11:17", end: "11:51" },
-        { label: "Period 7", start: "11:58", end: "12:33" },
-        { label: "Lunch", start: "12:33", end: "1:00" },
-      ],
-    },
-    "Rally Day": {
-      periods: [
-        { label: "Period 1", start: "8:30", end: "9:23" },
-        { label: "Period 2", start: "9:30", end: "10:23" },
-        { label: "Period 3", start: "10:33", end: "11:26" },
-        { label: "Period 4", start: "11:33", end: "12:26" },
-        { label: "Period 5", start: "12:03", end: "12:56" },
-        { label: "Period 6", start: "1:06", end: "1:56" },
-        { label: "Period 7", start: "2:06", end: "2:59" },
-        { label: "Rally", start: "3:03", end: "3:40" },
-      ],
-    },
-    Finals: {
-      periods: [
-        { label: "Testing Block 1", start: "8:30", end: "10:30" },
-        { label: "Testing Block 2", start: "10:40", end: "12:40" },
-        { label: "Lunch", start: "12:40", end: "1:10" },
-      ],
-    },
-  },
+  "Cosumnes Oaks High School": {},
+  "Pleasant Grove High School": {},
 };
 
 const SCHOOLS: SchoolName[] = ["Cosumnes Oaks High School", "Pleasant Grove High School"];
@@ -698,7 +572,7 @@ export default function DashboardClient() {
       // match.
       const { data: existingTeacher } = await supabase
         .from("teachers")
-        .select("id, school_id, full_name, email, categories, schools(name)")
+        .select("id, school_id, full_name, email, categories, preferences, schools(name)")
         .maybeSingle();
 
       let profile: TeacherProfile;
@@ -706,9 +580,6 @@ export default function DashboardClient() {
       if (existingTeacher) {
         const schoolName =
           (existingTeacher.schools as { name?: string } | null)?.name ?? "";
-        // teachers.preferences exists on staging but not prod (drift) — don't
-        // SELECT it; leave preferences undefined and let downstream defaults
-        // apply.
         profile = {
           teacher_id: existingTeacher.id as string,
           school_id: existingTeacher.school_id as string,
@@ -716,6 +587,7 @@ export default function DashboardClient() {
           full_name: existingTeacher.full_name as string,
           email: existingTeacher.email as string,
           categories: (existingTeacher.categories as Category[]) ?? [],
+          preferences: (existingTeacher.preferences as Preferences | null) ?? undefined,
         };
       } else {
         // First-time provisioning path: actor has no teachers row yet. Call
@@ -900,6 +772,8 @@ export default function DashboardClient() {
     // Falls back to label-matching for legacy data without a type field, so existing rows keep working.
     if (getPeriodType(p) !== "class") return false;
     if (p.label === "Lunch" || p.label === "Rally") return false;
+    // Period 0 = before-school prep block; hidden unless the teacher opts in.
+    if (p.label === "Period 0" && !prefs.showPeriodZero) return false;
     if (hasSplitLunch) {
       if (lunchPref === "1st" && p.label === "Period 4") return false;
       if (lunchPref === "2nd" && p.label === "Period 5") return false;
@@ -4694,6 +4568,41 @@ export default function DashboardClient() {
                   position: "absolute",
                   top: 2,
                   left: prefs.compact ? 22 : 2,
+                  transition: "left 0.2s",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                }} />
+              </div>
+            </div>
+
+            {/* Show Period 0 Toggle */}
+            <div style={{ marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: C.dark }}>
+                  Show Period 0
+                </div>
+                <div style={{ fontSize: 11, color: "#888" }}>Include the before-school zero-period row in the scoring grid</div>
+              </div>
+              <div
+                onClick={() => savePreferences({ ...prefs, showPeriodZero: !prefs.showPeriodZero })}
+                style={{
+                  width: 44,
+                  height: 24,
+                  borderRadius: 12,
+                  background: prefs.showPeriodZero ? C.secondary : "#ccc",
+                  position: "relative",
+                  transition: "background 0.2s",
+                  cursor: "pointer",
+                  flexShrink: 0,
+                }}
+              >
+                <div style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: "50%",
+                  background: "white",
+                  position: "absolute",
+                  top: 2,
+                  left: prefs.showPeriodZero ? 22 : 2,
                   transition: "left 0.2s",
                   boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
                 }} />
