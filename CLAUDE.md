@@ -55,6 +55,10 @@ npm run start  # Start production server
 npm run lint   # Run ESLint
 ```
 
+## Conventions for Claude
+
+DailyWins is a two-machine project. When the user types **`sync`** (typically at the end of a session), run the cross-machine handoff refresh: pick a new passphrase for [HANDOFF.md](HANDOFF.md), rewrite its "Where things stand" + "What's queued next" sections based on the session's commits and uncommitted changes, update [ROADMAP.md](ROADMAP.md) if any items moved status, then commit `docs: HANDOFF + ROADMAP refresh ...` and push to `origin/main`. Skip if no real work happened this session.
+
 ## Domain Model
 
 Teachers track 5 behavior categories per student per period:
