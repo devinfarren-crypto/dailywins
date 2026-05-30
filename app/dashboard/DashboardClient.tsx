@@ -4853,6 +4853,22 @@ export default function DashboardClient() {
                   >
                     Audit log
                   </a>
+                  <a
+                    href="/admin/break-glass"
+                    style={{
+                      display: "inline-block",
+                      padding: "8px 14px",
+                      background: "transparent",
+                      color: "#e11d48",
+                      border: "1px solid #e11d48",
+                      borderRadius: 6,
+                      fontSize: 14,
+                      textDecoration: "none",
+                      fontWeight: 500,
+                    }}
+                  >
+                    Break-glass
+                  </a>
                 </div>
               </div>
             )}

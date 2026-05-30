@@ -17,10 +17,10 @@ Phase 5 (act-as) shipped end-to-end and verified live. EGUSD compliance story no
   - UI: `/admin/teachers` picker, sticky in-session ActAsBanner with Exit, `/admin/audit-log` (founder global), `/audit/me` (self-serve "who acted as me" + "what I've done").
   - Audit writes wired into approve/deny + score save + note CRUD + student add/delete. Client writes audit only when act-as'd (avoids classroom-write blowup).
   - Two regressions caught and fixed mid-test: dashboard was loading the actor's teacher profile instead of the target's (used `u.id` instead of going through RLS); subsequent SELECT-shape vs RPC-shape mismatch (`id` vs `teacher_id`) silently broke note + score writes during act-as.
+- **Break-glass UI (today):** founder-only `/admin/break-glass` page — any-role candidate list (teachers + admins, identity via `access_requests`), confirmation modal with required reason + 15-min hard-timeout warning, rose-red styling. Posts to the existing `break-glass/start` route; banner already rendered the break-glass state. Rose link added to dashboard founder tools. Verified end-to-end live (Devin → break-glass into Nick @ COHS; RLS resolved to target's data, banner + reason correct). Header chip intentionally keeps showing the actor (attribution via `auth.uid()`), per design decision 5/29.
 
 ## Open — sorted by what blocks EGUSD or tester growth
 - **Resend setup** (only Devin can do): sign up, verify `dailywins.school` DNS, set `RESEND_API_KEY` + `NOTIFY_FROM_EMAIL` + `NOTIFY_TO_EMAIL` in Vercel. Code is dormant and ready.
-- **Break-glass path untested.** Route exists, no UI yet, never exercised end-to-end. ~15 min of UI + one test session.
 - **Inactivity-based renewal of `expires_at`.** Sessions hard-expire 60 min from start; long support calls get bumped mid-troubleshoot.
 - **Demo Mode cosmetic bugs:** Phone Out of Sight / On Task showing zero in demo seed data only. Now fixed in code (1f6ba4a); existing demo data needs a wipe+reseed to pick it up.
 - **`teachers.preferences` drift:** column exists on staging, not prod. Footgun — bit us today during the SELECT-shape fix. Decide: add to prod, or drop from staging.
