@@ -10,7 +10,7 @@ Classroom behavior tracking app for school districts. Migrating from a Google Ap
 - **Framework:** Next.js 16 (App Router), React 19, TypeScript (strict)
 - **Styling:** Tailwind CSS v4 (mixed with inline `style={}` in legacy dashboard code)
 - **Backend/DB:** Supabase (Postgres, Auth, Realtime) via `@supabase/ssr` + `@supabase/supabase-js`
-- **Auth:** Google SSO via Supabase Auth, gated by an email allowlist
+- **Auth:** Supabase Auth — Google SSO + passwordless email magic-link ([app/page.tsx](app/page.tsx)). Both routes flow through the same `/auth/callback` gate; access is granted by founder approval of an access request (`access_requests` + `/admin/requests`), not the legacy email allowlist.
 - **Charts:** Recharts (browser-only — see Gotchas)
 - **PDF export:** jspdf + jspdf-autotable (browser-only — see Gotchas)
 - **Validation:** zod
@@ -69,7 +69,7 @@ Teachers track 5 behavior categories per student per period:
 
 - Up to 9 periods per day (0–8) — schools with a zero-period prep block use Period 0; most schools use 1–8
 - Each behavior is a binary win (yes/no) per period
-- Teachers log in via Google SSO (school Google accounts) and must be on the allowlist (migration 009)
+- Teachers log in via Google SSO or a passwordless email magic-link; new accounts land in `/pending` until a founder approves their access request in `/admin/requests`
 
 ## Brand
 
@@ -98,6 +98,6 @@ Teachers track 5 behavior categories per student per period:
 - **Recharts is browser-only.** Any page that imports it must opt out of SSR via `dynamic(() => import("..."), { ssr: false })`. See [app/dashboard/page.tsx](app/dashboard/page.tsx) — it wraps [DashboardClient](app/dashboard/DashboardClient.tsx) precisely for this reason. Importing Recharts directly into a Server Component (or a client component that gets server-rendered) crashes the module silently at build/runtime.
 - **jspdf and jspdf-autotable are browser-only.** Always lazy-import inside the event handler that needs them, e.g. `const { default: jsPDF } = await import("jspdf")` — never at the top of a module. Examples in [app/dashboard/DashboardClient.tsx:1466](app/dashboard/DashboardClient.tsx#L1466) and [:1545](app/dashboard/DashboardClient.tsx#L1545).
 - **`createAdminClient` uses the service role key and bypasses RLS.** Use it only in Route Handlers / server actions, never in a file that could be bundled into the client.
-- **Email allowlist enforced.** Only emails in the allowlist table (migration 009) can sign in; sign-in works locally but redirects to `/access-denied` for unlisted users.
+- **Access is approval-gated, not allowlist-gated.** Anyone can authenticate (Google or magic-link), but unprovisioned users land in `/pending` until a founder approves their `access_requests` row in `/admin/requests`. The old `allowed_emails` table (migration 009) + `api/auth/check-allowed` are vestigial — the active `/auth/callback` route no longer reads them.
 - **Bell schedules are still hardcoded in TypeScript** under `src/lib/` and `docs/bell-schedules/` is the source of truth for PDFs. Moving to a `school_schedules` table is roadmapped (see [ROADMAP.md](ROADMAP.md)); don't add a third school's schedule inline without checking the roadmap.
-- **Pilot is allowlist-scoped** to three teachers (Devin/Tommy at PGHS, Nick at COHS) — bear that in mind before assuming multi-tenant features are wired up.
+- **Pilot is approval-scoped** to a handful of teachers (Devin/Tommy at PGHS, Nick at COHS, plus a throwaway test account) — bear that in mind before assuming multi-tenant features are wired up.

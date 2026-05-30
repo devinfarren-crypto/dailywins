@@ -8,6 +8,10 @@ export default function LoginPage() {
   const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [error, setError] = useState("");
+  const [email, setEmail] = useState("");
+  const [magicBusy, setMagicBusy] = useState(false);
+  const [magicSent, setMagicSent] = useState(false);
+  const [magicError, setMagicError] = useState("");
 
   useEffect(() => {
     const supabase = createClient();
@@ -87,6 +91,33 @@ export default function LoginPage() {
         queryParams: { prompt: "select_account" },
       },
     });
+  };
+
+  // Passwordless email sign-in for accounts outside the Google ecosystem
+  // (e.g. proton/outlook). Routes the magic link through the same
+  // /auth/callback gate as Google, so the access-request approval flow and
+  // RLS are identical — only the credential differs. shouldCreateUser is left
+  // at its default (true) so a new tester lands in /pending awaiting approval.
+  const handleMagicLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed) {
+      setMagicError("Enter your email address.");
+      return;
+    }
+    setMagicError("");
+    setMagicBusy(true);
+    const supabase = createClient();
+    const { error: otpError } = await supabase.auth.signInWithOtp({
+      email: trimmed,
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    });
+    setMagicBusy(false);
+    if (otpError) {
+      setMagicError(otpError.message);
+      return;
+    }
+    setMagicSent(true);
   };
 
   if (checking) {
@@ -193,6 +224,52 @@ export default function LoginPage() {
                 </svg>
                 Sign in with Google
               </button>
+
+              {/* Divider */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "16px 0" }}>
+                <span style={{ flex: 1, height: 1, background: "#ebe5d8" }} />
+                <span style={{ fontSize: 12, color: "#a0a8a4" }}>or</span>
+                <span style={{ flex: 1, height: 1, background: "#ebe5d8" }} />
+              </div>
+
+              {magicSent ? (
+                <div style={{ background: "#f0f7f4", border: "1px solid #cfe3da", borderRadius: 8, padding: "12px 14px", fontSize: 13, color: "#2a4d42", lineHeight: 1.5 }}>
+                  Check your inbox — we sent a sign-in link to{" "}
+                  <span style={{ fontWeight: 600 }}>{email.trim().toLowerCase()}</span>.
+                  The link opens DailyWins and expires shortly.
+                  <button
+                    onClick={() => { setMagicSent(false); setMagicError(""); }}
+                    style={{ display: "block", marginTop: 8, background: "none", border: "none", padding: 0, color: "#3a7c6a", fontSize: 12, fontWeight: 500, cursor: "pointer" }}
+                  >
+                    Use a different email
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleMagicLink}>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@school.org"
+                    autoComplete="email"
+                    className="w-full rounded-lg border px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
+                    style={{ borderColor: "#e5e2d8", color: "#2a4d42" }}
+                  />
+                  {magicError && (
+                    <p style={{ margin: "8px 0 0", fontSize: 12, color: "#dc2626", fontWeight: 500 }}>
+                      {magicError}
+                    </p>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={magicBusy}
+                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-white transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+                    style={{ background: "#3a7c6a" }}
+                  >
+                    {magicBusy ? "Sending…" : "Email me a sign-in link"}
+                  </button>
+                </form>
+              )}
 
               <p style={{ marginTop: 14, textAlign: "center", fontSize: 12, color: "#8a9690" }}>
                 By signing in you agree to our <a href="/privacy" style={{ color: "#3a7c6a", textDecoration: "none" }}>privacy policy</a>.
