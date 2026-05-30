@@ -1,19 +1,22 @@
 # Session Handoff
 
-**Handoff passphrase: `slate-heron-compass-12`**
+**Handoff passphrase: `pewter-marlin-sextant-07`**
 
 > Cross-machine continuity check: on another computer, `git pull`, open this
 > project in Claude Code, and ask *"what's the handoff passphrase?"* If Claude
-> reads back `slate-heron-compass-12`, the repo is synced and Claude can see
+> reads back `pewter-marlin-sextant-07`, the repo is synced and Claude can see
 > the full state below. (This file travels with git; the chat history and the
 > local `~/.claude/.../memory/` files do **not** — everything you need is here
 > and in [ROADMAP.md](ROADMAP.md) / [CLAUDE.md](CLAUDE.md).)
 
-Last handoff: 2026-05-30 (late afternoon)
+Last handoff: 2026-05-30 (evening — `sync` convention added)
 
 ## Where things stand
-`main` is clean and in sync with `origin/main`. Two commits shipped this
-session, both browser-verified end-to-end:
+`main` is clean and in sync with `origin/main`. Latest commit `5a83030` adds
+the `sync` convention to [CLAUDE.md](CLAUDE.md) — when you type `sync` on
+either machine, Claude refreshes HANDOFF + ROADMAP and pushes. Otherwise
+no functional code changes since the prior afternoon handoff. The shipped
+work that's still load-bearing:
 
 - **`6f40bc7` — Phase 4 audit triggers (migration 029).** Postgres triggers
   on `behavior_scores` / `notes` / `students` write `audit_log` rows for every
