@@ -9,9 +9,16 @@ import {
 } from "@/src/lib/schedule-shape";
 import { SchedulesSchema, type Schedules } from "@/src/lib/schedules-schema";
 
+// "merge"   → union the incoming variants over the existing ones (PDF-upload
+//             flow: a partial upload must not clobber other variants).
+// "replace" → write the incoming set as the school's entire schedule (full-edit
+//             flow: a variant the admin deleted in the editor must disappear).
+type SaveMode = "merge" | "replace";
+
 interface SaveRequestBody {
   school_id: string;
   schedule: ExtractedSchedule;
+  mode?: SaveMode;
 }
 
 interface SaveErrorResponse {
@@ -31,6 +38,9 @@ function isValidEnvelope(body: unknown): body is SaveRequestBody {
   const b = body as Record<string, unknown>;
   if (typeof b.school_id !== "string" || b.school_id.length === 0) return false;
   if (!b.schedule || typeof b.schedule !== "object") return false;
+  if (b.mode !== undefined && b.mode !== "merge" && b.mode !== "replace") {
+    return false;
+  }
   return true;
 }
 
@@ -95,6 +105,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { school_id, schedule } = body;
+    const mode: SaveMode = body.mode ?? "merge";
 
     // --- Authorization: must be admin of this school. ---
     // Runs as the user (not service role) so auth.uid() inside is_school_admin
@@ -158,10 +169,16 @@ export async function POST(req: NextRequest) {
       throw err;
     }
 
+    // In "replace" mode the incoming set IS the school's whole schedule, so
+    // deletions the admin made in the editor stick. In "merge" mode we union
+    // over what's already there. Both paths validate the final shape below.
     const existingSchedules = (existingRow.schedules as Schedules) ?? null;
-    const merged = mergeSchedules(existingSchedules, incomingDbShape);
+    const merged =
+      mode === "replace"
+        ? incomingDbShape
+        : mergeSchedules(existingSchedules, incomingDbShape);
 
-    // --- Validate merged shape. ---
+    // --- Validate final shape. ---
     const validation = SchedulesSchema.safeParse(merged);
     if (!validation.success) {
       console.error("[schedule/save] merged shape failed validation:");
@@ -193,7 +210,7 @@ export async function POST(req: NextRequest) {
     const totalCount = Object.keys(merged).length;
 
     console.log(
-      `[schedule/save] success: user=${user.email ?? user.id}, school=${school_id}, saved=${incomingCount}, total=${totalCount}`,
+      `[schedule/save] success: user=${user.email ?? user.id}, school=${school_id}, mode=${mode}, saved=${incomingCount}, total=${totalCount}`,
     );
 
     return NextResponse.json<SaveSuccessResponse>({

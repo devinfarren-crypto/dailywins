@@ -1,33 +1,19 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import {
+  dbShapeToExtracted,
+  type ScheduleType,
+  type ExtractedPeriod,
+  type ExtractedVariant,
+  type ExtractedSchedule,
+} from '@/src/lib/schedule-shape';
+import type { Schedules } from '@/src/lib/schedules-schema';
 
-// Types mirror the API route. In your real codebase, import from a shared types file.
-type ScheduleType = 'class' | 'break' | 'non_student';
-
-interface ExtractedPeriod {
-  name: string;
-  start: string;
-  end: string;
-  type: ScheduleType;
-  parent: string | null;
-  day_notes: string | null;
-}
-
-interface ExtractedVariant {
-  name: string;
-  days: string[] | null;
-  specific_dates: string[] | null;
-  notes: string | null;
-  periods: ExtractedPeriod[];
-}
-
-interface ExtractedSchedule {
-  school_name: string | null;
-  school_year: string | null;
-  variants: ExtractedVariant[];
-  uncertainties: string[];
-}
+// "merge"   → POST adds these variants over the school's existing ones (upload).
+// "replace" → POST writes these variants AS the school's whole schedule, so a
+//             variant deleted in the editor actually disappears (edit-existing).
+type SaveMode = 'merge' | 'replace';
 
 type UploadState =
   | { kind: 'idle' }
@@ -63,6 +49,19 @@ const DAY_LABELS: Record<string, string> = {
 export interface SchoolOption {
   id: string;
   name: string;
+  // The school's current stored schedule (DB JSONB shape), if any. Powers the
+  // "Edit current schedule" entry point. Absent/null/empty → upload-only.
+  schedules?: Schedules;
+}
+
+/** A blank period for the "Add period" affordance. */
+function blankPeriod(): ExtractedPeriod {
+  return { name: 'New period', start: '08:00', end: '08:50', type: 'class', parent: null, day_notes: null };
+}
+
+/** A blank variant for the "Add variant" affordance. */
+function blankVariant(): ExtractedVariant {
+  return { name: 'New schedule', days: null, specific_dates: null, notes: null, periods: [blankPeriod()] };
 }
 
 export default function ScheduleUploader({
@@ -77,6 +76,14 @@ export default function ScheduleUploader({
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>(
     schools[0]?.id ?? ''
   );
+  // Which write semantics the next save uses. Upload → "merge"; editing an
+  // existing schedule → "replace" so deletes persist. See SaveMode above.
+  const [saveMode, setSaveMode] = useState<SaveMode>('merge');
+
+  const selectedSchool = schools.find((s) => s.id === selectedSchoolId);
+  const existingVariantCount = selectedSchool?.schedules
+    ? Object.keys(selectedSchool.schedules).length
+    : 0;
 
   const handleUpload = useCallback(async (file: File) => {
     if (file.type !== 'application/pdf') {
@@ -114,8 +121,10 @@ export default function ScheduleUploader({
         return;
       }
 
+      setSaveMode('merge');
       setState({ kind: 'review', schedule: data });
       setEditedSchedule(data);
+      setExpandedVariant(0);
     } catch (err) {
       setState({
         kind: 'error',
@@ -123,6 +132,22 @@ export default function ScheduleUploader({
       });
     }
   }, []);
+
+  // Load the selected school's stored schedule into the review editor. Uses
+  // "replace" save semantics so edits and deletions overwrite what's on file.
+  const handleEditExisting = useCallback(() => {
+    const school = schools.find((s) => s.id === selectedSchoolId);
+    if (!school?.schedules || Object.keys(school.schedules).length === 0) {
+      setState({ kind: 'error', message: 'This school has no saved schedule to edit yet. Upload a PDF to start.' });
+      return;
+    }
+    const extracted = dbShapeToExtracted(school.schedules, school.name);
+    setSaveMode('replace');
+    setEditedSchedule(extracted);
+    setExpandedVariant(0);
+    setShowOnlyFlagged(false);
+    setState({ kind: 'review', schedule: extracted });
+  }, [schools, selectedSchoolId]);
 
   const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -161,6 +186,28 @@ export default function ScheduleUploader({
     setExpandedVariant(null);
   };
 
+  const addVariant = () => {
+    if (!editedSchedule) return;
+    const next = structuredClone(editedSchedule);
+    next.variants.push(blankVariant());
+    setEditedSchedule(next);
+    setExpandedVariant(next.variants.length - 1);
+  };
+
+  const addPeriod = (variantIdx: number) => {
+    if (!editedSchedule) return;
+    const next = structuredClone(editedSchedule);
+    next.variants[variantIdx].periods.push(blankPeriod());
+    setEditedSchedule(next);
+  };
+
+  const removePeriod = (variantIdx: number, periodIdx: number) => {
+    if (!editedSchedule) return;
+    const next = structuredClone(editedSchedule);
+    next.variants[variantIdx].periods.splice(periodIdx, 1);
+    setEditedSchedule(next);
+  };
+
   const handleSave = async () => {
     if (!editedSchedule) return;
     if (!selectedSchoolId) {
@@ -176,6 +223,7 @@ export default function ScheduleUploader({
         body: JSON.stringify({
           school_id: selectedSchoolId,
           schedule: editedSchedule,
+          mode: saveMode,
         }),
       });
       const data = await res.json();
@@ -219,12 +267,77 @@ export default function ScheduleUploader({
     return (
       <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif', color: C.body }}>
         <h2 style={{ color: C.heading, fontSize: 24, fontWeight: 500, marginBottom: 8 }}>
-          Upload your bell schedule
+          Bell schedules
         </h2>
-        <p style={{ color: C.hint, marginBottom: 24, fontSize: 15 }}>
-          Drop your school's bell schedule PDF and we'll read it for you. You'll get a chance to
-          review and fix anything before it's saved.
+        <p style={{ color: C.hint, marginBottom: 20, fontSize: 15 }}>
+          Upload a PDF and we&apos;ll read it for you, or edit the schedule that&apos;s already on
+          file. You&apos;ll review everything before it&apos;s saved.
         </p>
+
+        {/* School picker — which school you're managing. */}
+        <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <label htmlFor="idle-school-picker" style={{ fontSize: 13, color: C.hint }}>
+            School:
+          </label>
+          {schools.length <= 1 ? (
+            <span style={{ fontSize: 14, color: C.heading, fontWeight: 500 }}>
+              {selectedSchool?.name ?? 'No schools available'}
+            </span>
+          ) : (
+            <select
+              id="idle-school-picker"
+              value={selectedSchoolId}
+              onChange={(e) => setSelectedSchoolId(e.target.value)}
+              style={{ ...inputStyle, width: 'auto', padding: '8px 10px', fontSize: 14 }}
+            >
+              {schools.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        {/* Edit-existing entry — only when this school already has a saved schedule. */}
+        {existingVariantCount > 0 && (
+          <div
+            style={{
+              marginBottom: 16,
+              padding: 16,
+              background: '#fff',
+              border: `1px solid ${C.border}`,
+              borderRadius: 12,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+            }}
+          >
+            <div>
+              <div style={{ color: C.heading, fontSize: 15, fontWeight: 500 }}>
+                Edit current schedule
+              </div>
+              <div style={{ color: C.hint, fontSize: 13 }}>
+                {existingVariantCount} variant{existingVariantCount === 1 ? '' : 's'} on file · tweak times, add or remove variants
+              </div>
+            </div>
+            <button
+              onClick={handleEditExisting}
+              style={{
+                padding: '8px 16px',
+                background: C.primary,
+                color: '#fff',
+                border: 'none',
+                borderRadius: 6,
+                fontSize: 14,
+                fontWeight: 500,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Edit schedule
+            </button>
+          </div>
+        )}
 
         <div
           onDrop={handleDrop}
@@ -242,7 +355,7 @@ export default function ScheduleUploader({
         >
           <div style={{ fontSize: 32, marginBottom: 12 }}>📄</div>
           <div style={{ color: C.heading, fontSize: 16, marginBottom: 6, fontWeight: 500 }}>
-            Drop your bell schedule PDF here
+            {existingVariantCount > 0 ? 'Or upload a new PDF' : 'Drop your bell schedule PDF here'}
           </div>
           <div style={{ color: C.hint, fontSize: 14 }}>or click to choose a file</div>
           <input
@@ -321,6 +434,7 @@ export default function ScheduleUploader({
             setState({ kind: 'idle' });
             setEditedSchedule(null);
             setExpandedVariant(0);
+            setSaveMode('merge');
           }}
           style={{
             padding: '10px 20px',
@@ -333,7 +447,7 @@ export default function ScheduleUploader({
             cursor: 'pointer',
           }}
         >
-          Upload another
+          Done
         </button>
       </div>
     );
@@ -353,12 +467,13 @@ export default function ScheduleUploader({
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
         <h2 style={{ color: C.heading, fontSize: 24, fontWeight: 500, marginBottom: 4 }}>
-          Review your schedule
+          {saveMode === 'replace' ? 'Edit your schedule' : 'Review your schedule'}
         </h2>
         <p style={{ color: C.hint, fontSize: 14, margin: 0 }}>
           {schedule.school_name && <>{schedule.school_name} · </>}
           {schedule.school_year && <>{schedule.school_year} · </>}
-          {schedule.variants.length} variant{schedule.variants.length === 1 ? '' : 's'} found
+          {schedule.variants.length} variant{schedule.variants.length === 1 ? '' : 's'}
+          {saveMode === 'replace' ? ' on file' : ' found'}
         </p>
       </div>
 
@@ -560,7 +675,7 @@ export default function ScheduleUploader({
                           key={pIdx}
                           style={{
                             display: 'grid',
-                            gridTemplateColumns: '1fr 80px 80px 110px',
+                            gridTemplateColumns: '1fr 80px 80px 110px 28px',
                             gap: 8,
                             padding: 8,
                             background: bg,
@@ -614,10 +729,45 @@ export default function ScheduleUploader({
                             <option value="break">break</option>
                             <option value="non_student">not for students</option>
                           </select>
+                          <button
+                            onClick={() => removePeriod(idx, pIdx)}
+                            title="Remove this period"
+                            aria-label={`Remove period ${period.name}`}
+                            disabled={variant.periods.length === 1}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: variant.periods.length === 1 ? C.border : C.hint,
+                              fontSize: 16,
+                              lineHeight: 1,
+                              cursor: variant.periods.length === 1 ? 'not-allowed' : 'pointer',
+                              padding: 0,
+                            }}
+                          >
+                            ✕
+                          </button>
                         </div>
                       );
                     })}
                   </div>
+
+                  {/* Add period */}
+                  <button
+                    onClick={() => addPeriod(idx)}
+                    style={{
+                      marginTop: 8,
+                      padding: '6px 10px',
+                      background: 'transparent',
+                      color: C.primary,
+                      border: `1px dashed ${C.primary}`,
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    + Add period
+                  </button>
 
                   {/* Remove variant */}
                   <button
@@ -640,6 +790,27 @@ export default function ScheduleUploader({
             </div>
           );
         })}
+
+        {/* Add variant — hidden while the flagged-only filter is on (it would
+            be confusing to add into a filtered list). */}
+        {!showOnlyFlagged && (
+          <button
+            onClick={addVariant}
+            style={{
+              padding: '12px 16px',
+              background: 'transparent',
+              color: C.primary,
+              border: `1px dashed ${C.primary}`,
+              borderRadius: 8,
+              fontSize: 14,
+              fontWeight: 500,
+              cursor: 'pointer',
+              textAlign: 'left',
+            }}
+          >
+            + Add a schedule variant
+          </button>
+        )}
       </div>
 
       {/* Save bar */}
@@ -657,30 +828,39 @@ export default function ScheduleUploader({
           <label htmlFor="school-picker" style={{ fontSize: 13, color: C.hint }}>
             Save to:
           </label>
-          <select
-            id="school-picker"
-            value={selectedSchoolId}
-            onChange={(e) => setSelectedSchoolId(e.target.value)}
-            style={{
-              ...inputStyle,
-              width: 'auto',
-              padding: '8px 10px',
-              fontSize: 14,
-            }}
-          >
-            {schools.length === 0 && (
-              <option value="">No schools available</option>
-            )}
-            {schools.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
+          {saveMode === 'replace' ? (
+            // Editing a specific school's existing schedule — lock the target so
+            // a "replace" can't accidentally overwrite a different school.
+            <span style={{ fontSize: 14, color: C.heading, fontWeight: 500 }}>
+              {selectedSchool?.name ?? '—'}
+            </span>
+          ) : (
+            <select
+              id="school-picker"
+              value={selectedSchoolId}
+              onChange={(e) => setSelectedSchoolId(e.target.value)}
+              style={{
+                ...inputStyle,
+                width: 'auto',
+                padding: '8px 10px',
+                fontSize: 14,
+              }}
+            >
+              {schools.length === 0 && (
+                <option value="">No schools available</option>
+              )}
+              {schools.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          )}
         </div>
         <div style={{ display: 'flex', gap: 12 }}>
           <button
             onClick={() => {
               setState({ kind: 'idle' });
               setEditedSchedule(null);
+              setSaveMode('merge');
             }}
             style={{
               padding: '10px 16px',
@@ -708,7 +888,7 @@ export default function ScheduleUploader({
               cursor: selectedSchoolId ? 'pointer' : 'not-allowed',
             }}
           >
-            Save schedule
+            {saveMode === 'replace' ? 'Save changes' : 'Save schedule'}
           </button>
         </div>
       </div>
