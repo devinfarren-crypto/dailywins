@@ -37,7 +37,7 @@ export default function PrivacyPage() {
               <strong>Effective Date:</strong> April 1, 2026
             </p>
             <p>
-              <strong>Last Updated:</strong> March 31, 2026
+              <strong>Last Updated:</strong> June 1, 2026
             </p>
             <p>
               <strong>Website:</strong>{" "}
@@ -144,9 +144,14 @@ export default function PrivacyPage() {
             <h3>3.2 Teacher / Staff Information</h3>
             <ul>
               <li>
-                Name and email address (via Google OAuth single sign-on)
+                Name and email address (via Google OAuth single sign-on or a
+                passwordless email magic-link sign-in)
               </li>
               <li>School and district affiliation</li>
+              <li>
+                Assigned role within the Service (Teacher, Site Administrator,
+                District Administrator, or Operator)
+              </li>
               <li>
                 Configuration preferences (bell schedules, category settings,
                 progress bar thresholds)
@@ -158,8 +163,9 @@ export default function PrivacyPage() {
               <li>Browser type and version</li>
               <li>Device type (for responsive display purposes only)</li>
               <li>
-                Authentication tokens (managed by Google OAuth; DailyWins does
-                not store passwords)
+                Authentication tokens (managed by our authentication provider
+                via Google OAuth or email magic-link; DailyWins does not store
+                passwords)
               </li>
             </ul>
 
@@ -182,7 +188,16 @@ export default function PrivacyPage() {
               <li>
                 To enable PDF and chart exports for teacher and school use
               </li>
-              <li>To authenticate authorized users via Google OAuth</li>
+              <li>
+                To authenticate authorized users via Google OAuth or email
+                magic-link
+              </li>
+              <li>
+                To read uploaded bell-schedule documents using an automated
+                parsing service. Only the school&rsquo;s bell-schedule PDF is
+                processed for this purpose &mdash; <strong>no student
+                information is sent</strong> to this service
+              </li>
               <li>
                 To maintain and improve the functionality, security, and
                 reliability of the Service
@@ -239,9 +254,9 @@ export default function PrivacyPage() {
             <h3>7.1 Where Data Is Stored</h3>
             <p>
               All student data is stored on Supabase (PostgreSQL) servers
-              located in the United States (East US &mdash; Ohio region). Data
-              is encrypted in transit using TLS 1.2+ and encrypted at rest using
-              AES-256 encryption.
+              located in the United States (US East region). Data is encrypted
+              in transit using TLS 1.2+ and encrypted at rest using AES-256
+              encryption.
             </p>
 
             <h3>7.2 Security Measures</h3>
@@ -252,14 +267,33 @@ export default function PrivacyPage() {
             </p>
             <ul>
               <li>
-                Row-Level Security (RLS) policies ensuring that each teacher can
-                only access their own students&rsquo; data
+                <strong>Row-Level Security (RLS) enforced at the database
+                layer</strong> on every read and write, so access is restricted
+                by the database itself &mdash; not only by application code. Each
+                teacher can access only their own students&rsquo; data.
               </li>
               <li>
-                Google OAuth 2.0 for authentication (DailyWins never stores or
-                handles user passwords)
+                <strong>Role-based access</strong> across four tiers (Teacher,
+                Site Administrator, District Administrator, and Operator), each
+                scoped to the minimum data its function requires (see Section
+                7.3).
               </li>
-              <li>HTTPS encryption for all data in transit</li>
+              <li>
+                <strong>Approval-gated access:</strong> a new account can view no
+                student data until it is explicitly approved by the Operator.
+                Unapproved accounts are held in a pending state with no data
+                access.
+              </li>
+              <li>
+                Google OAuth 2.0 or passwordless email magic-link for
+                authentication (DailyWins never stores or handles user
+                passwords)
+              </li>
+              <li>
+                An <strong>append-only audit log</strong> recording sensitive
+                administrative actions (see Section 7.4)
+              </li>
+              <li>HTTPS / TLS encryption for all data in transit; AES-256 at rest</li>
               <li>
                 Access controls limiting data access to authorized personnel only
               </li>
@@ -268,7 +302,72 @@ export default function PrivacyPage() {
               </li>
             </ul>
 
-            <h3>7.3 Designated Responsible Individual</h3>
+            <h3>
+              7.3 Role-Based Access and the Operator&rsquo;s Limited Visibility
+            </h3>
+            <p>
+              DailyWins is built so that the people who operate the Service
+              cannot casually browse student data. Row-Level Security at the
+              database layer scopes every read to the requesting user&rsquo;s
+              role:
+            </p>
+            <ul>
+              <li>
+                <strong>Teachers</strong> can access only the students in their
+                own classes &mdash; their behavior scores, notes, and records.
+              </li>
+              <li>
+                <strong>Site Administrators</strong> can access student records
+                for the specific school(s) they administer, for legitimate
+                school-administration purposes.
+              </li>
+              <li>
+                <strong>District Administrators and the Operator (Sure Step
+                Education)</strong> administer the system but,{" "}
+                <strong>
+                  through their role-based access in the application, cannot view
+                  individual student behavior records or teacher notes
+                </strong>
+                . The database&rsquo;s Row-Level Security policies do not grant
+                these roles read access to pupil records; their access is limited
+                to the operational and aggregate information needed to run the
+                Service.
+              </li>
+            </ul>
+            <p>
+              Two limited exceptions exist and are handled transparently:
+            </p>
+            <ul>
+              <li>
+                <strong>Supervised &ldquo;act-as&rdquo; support sessions.</strong>{" "}
+                An administrator may, when necessary to provide support or
+                troubleshoot, operate the Service as a specific user. Every such
+                session is recorded in the audit log with the administrator&rsquo;s
+                identity, the affected user, the stated reason, and a time limit;
+                it is visible to the affected user and automatically expires.
+              </li>
+              <li>
+                <strong>Engineering and database maintenance.</strong> Routine
+                operation and maintenance of the underlying database may require
+                privileged technical access by authorized Sure Step Education
+                personnel. Such access is used solely to operate, secure, and
+                maintain the Service and never for the purposes prohibited in
+                Section 5.
+              </li>
+            </ul>
+
+            <h3>7.4 Administrative Transparency and Audit Logging</h3>
+            <p>
+              DailyWins maintains an <strong>append-only audit log</strong> of
+              sensitive administrative actions &mdash; including access
+              approvals and &ldquo;act-as&rdquo; support sessions, together with
+              changes made to student records during those sessions. Each entry
+              records who performed the action and when. This log supports
+              accountability and enables an LEA to review how administrative
+              access to its data has been used.
+            </p>
+
+            <h3>7.5 Designated Responsible Individual</h3>
             <p>
               DailyWins designates the following individual as responsible for
               ensuring the security and confidentiality of pupil records:
@@ -332,6 +431,13 @@ export default function PrivacyPage() {
                 contacting their school district.
               </li>
             </ul>
+            <p>
+              In addition, a teacher or school may provide a parent or guardian
+              with a secure, <strong>read-only</strong> link to view their own
+              child&rsquo;s behavior data. Such links are scoped to a single
+              student, do not permit any changes to records, and can be revoked
+              by the teacher or school.
+            </p>
             <p>
               DailyWins will cooperate with the LEA in fulfilling all such
               requests in a timely manner.
@@ -497,6 +603,17 @@ export default function PrivacyPage() {
                     </td>
                     <td className="px-4 py-3">
                       No student data stored; serves application code only
+                    </td>
+                  </tr>
+                  <tr className="border-t border-gray-200 bg-gray-50">
+                    <td className="px-4 py-3 font-medium">Anthropic (Claude API)</td>
+                    <td className="px-4 py-3">
+                      Automated reading of uploaded bell-schedule documents
+                    </td>
+                    <td className="px-4 py-3">
+                      Bell-schedule PDFs only &mdash; <strong>no student
+                      information</strong>. Submitted content is not used to train
+                      models.
                     </td>
                   </tr>
                 </tbody>
