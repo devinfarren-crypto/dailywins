@@ -203,6 +203,16 @@ export default function ScheduleUploader({
 
   const removePeriod = (variantIdx: number, periodIdx: number) => {
     if (!editedSchedule) return;
+    const variant = editedSchedule.variants[variantIdx];
+    // Never drop the last period — a variant with zero periods fails
+    // translateVariant() on save. The ✕ is also disabled in this case; this is
+    // the belt-and-suspenders guard.
+    if (variant.periods.length <= 1) return;
+    // Confirm by name. Periods can share a label with their variant (e.g. a
+    // "Rally" period inside "Rally Schedule"), which makes a stray click easy —
+    // naming the target in the prompt prevents deleting the wrong one.
+    const periodName = variant.periods[periodIdx]?.name?.trim() || 'this period';
+    if (!confirm(`Remove period "${periodName}"?`)) return;
     const next = structuredClone(editedSchedule);
     next.variants[variantIdx].periods.splice(periodIdx, 1);
     setEditedSchedule(next);
