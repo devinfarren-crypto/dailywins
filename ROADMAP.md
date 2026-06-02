@@ -1,71 +1,55 @@
 # DailyWins Roadmap
 
-Last updated: May 30, 2026 (late afternoon)
+Last updated: June 2, 2026
 
-Phase 5 (act-as) shipped end-to-end and verified live. **Phase 4 audit triggers shipped today** (migration 029) — the "vendor can't see student data" claim is now structurally true at the database layer, not just at the app layer. EGUSD compliance story now demo-able end-to-end. Four pilot teachers' worth of rows in production, all four-tier roles modeled in the schema.
+## Status
+Phases **4 (audit log), 5 (act-as), and 6 (Site Admin schedule editor)** are shipped and live-verified. The "vendor cannot see student data, by database design" story is structurally true — RLS at the DB layer, audit triggers on PII + admin/config tables, PII-blind Operator/District-Admin tiers — and is now documented on `/privacy`. Pilot is approval-scoped to a handful of teachers. **Prod migration head: `032`.**
 
-## Shipped today (5/30 afternoon)
-- **Phase 4 audit triggers (migration 029, commit `6f40bc7`).** Postgres triggers on `behavior_scores` / `notes` / `students` write `audit_log` rows for every INSERT/UPDATE/DELETE. No-ops on service-role writes (auth.uid() NULL) so server routes' own `writeAuditLog` calls aren't duplicated. Staging-tested across 4 cases (regular teacher, act-as, service-role no-op, break-glass), prod-applied, then validated under unscripted load by a Chrome Claude agent that the triggers captured cleanly in 35 audit rows.
-- **`teachers.preferences` column (migration 030, commit `54d48a1`).** Adds `jsonb DEFAULT '{}'` to `teachers`. Closes the staging/prod drift that was making every Customize toggle silently fail to persist. Dashboard SELECT now reads the column too — toggles round-trip across sign-out / sign-in.
-- **"Show Period 0" toggle** (same commit). Period 0 is hidden by default — teachers almost never collect behavior data before school. One-line filter in `trackablePeriods`, new toggle in Customize, persisted via 030. Existing teachers will see their grid shrink to the periods they actually use.
-- **Stale `BELL_SCHEDULES` fallback purged** (same commit). The hardcoded TS constant in DashboardClient.tsx had diverged from `schools.schedules` JSONB (missing Period 0, lunch break entries, Monday Period 4). Now `{}` for both schools; DB is the sole source of truth, and a DB read failure shows nothing rather than misleading stale data.
-- **Test data cleanup on prod.** One test note from the Chrome agent's session deleted. Period 0 score values left as-is (the agent only mutated Period 0, which is rarely real data anyway).
-- **Migration drift reduced.** Staging caught up by replaying migrations 014–028 (it had been at 013b_role_grants). Prod's `schema_migrations` head is now `030_teachers_preferences`. Drift between repo and prod history is smaller but not fully closed.
+## Open — sorted by what blocks EGUSD (July 13) or tester growth
+- **Resend setup** — ⚠️ *only Devin can do.* Sign up, verify `dailywins.school` DNS, set `RESEND_API_KEY` + `NOTIFY_FROM_EMAIL` + `NOTIFY_TO_EMAIL` in Vercel. **Double-duty:** also wire as Supabase custom SMTP so magic-link emails stop using the rate-limited built-in sender. Code is dormant and ready. *This is the real blocker on adding testers.*
+- **Demo script for EGUSD** — not started. The compliance walkthrough: approve-under-audit → act-as picker → coral banner → audit-log artifact → break-glass as the strongest visual proof. Highest-leverage remaining July 13 item.
+- **Inactivity-based renewal of `expires_at`** — act-as sessions hard-expire 60 min from start; long support calls get bumped mid-troubleshoot.
+- **Demo Mode reseed** — Phone-Away / On-Task show zero in demo seed data only; fixed in code (`1f6ba4a`), needs a demo wipe+reseed to take.
+- **General audit gap for direct admin/MCP SQL** — the trigger no-ops on service-role context (auth.uid() NULL). 032 closed this for *schedule* edits app-side (`writeAuditLog('schedule.update')`); the general case (arbitrary admin SQL) still wants a session-variable "intended actor" so the trigger can attribute to a real user.
+- **Drop `allowed_emails`** — vestigial since the auth-callback rewrite stopped reading it. Drop after a quiet observation period (snapshot first — it's a one-way door).
 
-## Shipped this week
-- **Beta access layer (data, migrations 022–024):** `access_requests` table + RLS, `approve_access_request` RPC (atomic provisioning), `ensure_teacher_exists` hardened.
-- **Beta access layer (app):** `/pending` page, sign-in-first auth callback, founder `/admin/requests` queue with Approve/Deny + school picker, Resend email notification dormant until env vars set.
-- **Bugs fixed:** Period-0 save (migration 025), L/E arrival ambiguity (adaeb5f + 2c70d2f), arrival bulk-fill + mobile encoding, legacy `arrival = 3` cleanup (live SQL, captured as no-op in migration 026), demo-seed encoding mismatch (post-arrival-rewrite).
-- **Sign-in UX:** Google `prompt=select_account` so multi-account users get the picker every time.
-- **UNIQUE(user_id) on access_requests** (migration 026) so onConflict upserts actually work.
-- **Phase 5 act-as (today):**
-  - Migration 027: `districts`, `act_as_sessions`, `audit_log`, `schools.district_id`, `role_assignments.district_id`, `effective_user_id()`. Backfill PGHS + COHS → "Elk Grove Unified School District"; Sacramento HS → "Sacramento".
-  - Migration 028: RLS rewrite — `has_role()` + `is_school_admin()` + 14 PII policies now route through `effective_user_id()`. Attribution-stamping kept on `auth.uid()`.
-  - Server routes: act-as start/end + break-glass start; `canActAs()` + `canBreakGlass()` scope helpers; `writeAuditLog()` server helper + `fireAuditEvent()` client helper.
-  - UI: `/admin/teachers` picker, sticky in-session ActAsBanner with Exit, `/admin/audit-log` (founder global), `/audit/me` (self-serve "who acted as me" + "what I've done").
-  - Audit writes wired into approve/deny + score save + note CRUD + student add/delete. Client writes audit only when act-as'd (avoids classroom-write blowup).
-  - Two regressions caught and fixed mid-test: dashboard was loading the actor's teacher profile instead of the target's (used `u.id` instead of going through RLS); subsequent SELECT-shape vs RPC-shape mismatch (`id` vs `teacher_id`) silently broke note + score writes during act-as.
-- **Passwordless email login (5/30):** magic-link sign-in (`signInWithOtp`) added alongside Google SSO in [app/page.tsx](app/page.tsx), so non-Google accounts (proton/outlook/etc.) can join. Routes through the same `/auth/callback` gate → identical access-request approval + RLS; only the credential differs. Verified end-to-end live (non-Google email → `/pending`). Supabase prod auth config done (Email provider on, `localhost:3000/**` redirect added). Prod-grade delivery still gated on Resend/SMTP (see Open) — built-in sender is rate-limited + spammy. CLAUDE.md auth/allowlist docs corrected to match (approval-gated, not allowlist-gated).
-- **Break-glass UI (5/29):** founder-only `/admin/break-glass` page — any-role candidate list (teachers + admins, identity via `access_requests`), confirmation modal with required reason + 15-min hard-timeout warning, rose-red styling. Posts to the existing `break-glass/start` route; banner already rendered the break-glass state. Rose link added to dashboard founder tools. Verified end-to-end live (Devin → break-glass into Nick @ COHS; RLS resolved to target's data, banner + reason correct). Header chip intentionally keeps showing the actor (attribution via `auth.uid()`), per design decision 5/29.
-
-## Open — sorted by what blocks EGUSD or tester growth
-- **Resend setup** (only Devin can do): sign up, verify `dailywins.school` DNS, set `RESEND_API_KEY` + `NOTIFY_FROM_EMAIL` + `NOTIFY_TO_EMAIL` in Vercel. Code is dormant and ready. **Double-duty:** also wire it as Supabase custom SMTP so magic-link emails stop using the rate-limited built-in sender.
-- **Inactivity-based renewal of `expires_at`.** Sessions hard-expire 60 min from start; long support calls get bumped mid-troubleshoot.
-- **Demo Mode cosmetic bugs:** Phone Out of Sight / On Task showing zero in demo seed data only. Now fixed in code (1f6ba4a); existing demo data needs a wipe+reseed to pick it up.
-- ~~Investigate "Tommy" pilot status.~~ **Resolved 5/31:** intentionally dormant — Tommy is a friend who may not use the app for months. His absence from `public.teachers` is expected, not a bug. He'll self-provision through `/admin/requests` whenever he signs in. No action needed.
-- ~~Capture live-only fixes as migration files.~~ **Done 6/01 (verified against prod via MCP):** (1) *Legacy arrival cleanup* → captured as `031_capture_legacy_arrival_cleanup.sql` and applied to prod — finished the 6 out-of-range `arrival=3` rows the 5/27 live SQL missed, mapping them to index 0 ("On Time"); idempotent, ledger recorded. (2) *May 27 staging roles RLS* → non-item; prod ledger already has 013–028. (3) *027 named drift* → schema fully present in prod; only the ledger name differs (repo `027_act_as_foundation.sql` vs prod ledger `027_act_as_foundation_v2`). Doc-only, no schema fix — noted here so it isn't re-investigated.
-- **`allowed_emails` is vestigial** since the auth callback rewrite stopped reading it. Drop after a quiet observation period.
-- **Audit-log coverage gap for MCP / admin-tool writes.** 029 trigger by design no-ops on service-role context (auth.uid() NULL), so direct admin SQL — e.g. the test-note delete done today — leaves no `audit_log` row. Future admin tooling that expands beyond chat-mediated approvals will want a session-variable "intended actor" mechanism so the trigger can attribute to a real user.
-
-## Larger pieces
-- **`school_schedules` table** (move bell schedules out of hardcoded TypeScript). Cost: ~10h. Promoted to "before July 13" because admin UI now onboards a third school instantly and the EGUSD pitch needs this story straight.
-- ~~Phase 4 generalized audit log expansion.~~ **Shipped 6/02 (migration 032, applied + verified in prod).** Extended the generic 029 trigger to role_assignments, school_admins, schools, districts (alias map only; 029 tables unchanged) — 21 audit triggers total. Schedule edits write via service role (trigger no-ops), so they're audited app-side via `writeAuditLog('schedule.update')` in the save route. Verified: triggers attached + no 029 regression, function alias updated, ledger recorded, and a rolled-back behavioral test confirmed a new trigger fires with correct actor attribution (zero residue). Note for review: approve_access_request runs under the founder JWT, so role_assignments INSERTs log a complementary `role_assignment.insert` alongside `access_request.approve` (kept by design). Remaining: extend coverage to `teachers` edits if desired; add act-as attribution to the schedule.update app-layer audit for parity with triggers.
-- ~~Phase 6 Site Admin schedule editor.~~ **Shipped 6/01.** The AI PDF uploader (parse → review/edit → save) was already built; this session graduated it from a hardcoded test harness into a real Site Admin feature: [app/admin/upload-schedule/page.tsx](app/admin/upload-schedule/page.tsx) is now a DB-backed server component (auth-gated, loads the user's own `school_admins` schools), and the uploader gained an **edit-existing** path — load the current `schools.schedules` back into the review UI, add/remove variants & periods, and save via a new `replace` mode so deletions persist (vs the upload flow's `merge`). Reverse-translation lives in `dbShapeToExtracted()`. **Live-verified against prod 6/01** (commit 4c5eb1f): add-period and replace-mode save persist correctly to `schools.schedules`, other variants untouched, backup/restore safety net works. Testing surfaced + fixed a footgun — remove-period now confirms by name and guards the last period. Follow-ups: (1) founders who lack a `school_admins` row for a school can't edit it (matches save-route authz) — wire founder-implicit edit or auto-insert a row on school creation; (2) schedule saves write via service role so they don't hit the audit triggers — fold into the Phase 4 audit-expansion item.
+## Follow-ups from recent work
+- **Founder-implicit schedule-edit access** (P6) — founders without a `school_admins` row for a school can't edit its schedule (matches save-route authz). Wire founder-implicit edit, or auto-insert a `school_admins` row on school creation, for the "founder onboards a 3rd school" story.
+- **Act-as attribution on the `schedule.update` audit** (P4 parity) — the app-layer schedule audit stamps `actor_user_id` but not `acting_as_user_id`; add the act-as lookup to match the triggers. Optional: extend trigger coverage to the `teachers` table.
+- **Re-evaluate the `school_schedules` table (~10h)** — was slated to move bell schedules out of hardcoded TS. The JSONB-on-`schools` column + the new editor already solved the practical problem, so decide whether a normalized table still earns its cost before building it.
 
 ## EGUSD July 13 prep
-- ✅ Compliance story is now demo-able: `/admin/requests` (approve under audit) → `/admin/teachers` (act-as picker) → coral banner in act-as session → `/admin/audit-log` (every action recorded with actor + acting-as).
-- **Compliance folder refresh** — ~~privacy page~~ **`/privacy` shipped 6/02** (merged to main → live): now documents RLS-at-DB-layer, the four-tier model with the Operator/District-Admin PII-blindness (verified against live RLS policies), approval-gated onboarding, audited/transparent act-as, magic-link auth, the parent read-only link, and Anthropic as a schedule-parsing subprocessor. ⚠️ Pending sign-off (revisable anytime): confirm exact data-residency region (de-specified "Ohio"→"US East" since prod is us-east-1), and have counsel eyeball the PII-blindness + Anthropic "not used to train" wording. The broader compliance *folder* (DPA templates, etc.) is still TODO.
-- **Demo script** — not addressed. Should center on the four-tier model + the audit-log artifact.
-- **Mock meeting with Nick** — not scheduled.
-- **Break-glass demo path** — would land harder than regular act-as because the rose-red banner + required reason field is the strongest visual proof.
+- ✅ Compliance story demo-able end-to-end: `/admin/requests` (approve under audit) → `/admin/teachers` (act-as) → coral banner → `/admin/audit-log`.
+- ✅ `/privacy` reflects the shipped architecture (RLS, four-tier PII-blindness, audited act-as, magic-link, parent read-only link, Anthropic subprocessor). **Pending:** confirm exact data-residency region (de-specified "Ohio"→"US East"; prod is us-east-1), counsel eyeball on the PII-blindness + Anthropic "not used to train" wording.
+- Demo script — not started (see Open).
+- Mock meeting with Nick — not scheduled.
+- Compliance *folder* (DPA templates: CSDPA / National DPA) — TODO; `/privacy` says we're ready to sign one.
 
-## Pilot status (snapshot 5/30/2026)
-- Devin (founder + teacher) — PGHS
-- Nick (teacher) — COHS
-- iwhowanders (throwaway test) — Sacramento HS, approved 5/28
-- devintest2@proton.me (magic-link test) — separate test school
-- Approval-gated onboarding is the gate; `allowed_emails` table is vestigial.
-- **Tommy: listed in earlier ROADMAPs as PGHS teacher but not in `public.teachers`.** Investigate / re-provision / remove from pilot list.
+## Recently shipped (newest first)
+- **6/02 — Phase 4 audit expansion (migration 032).** Generic 029 trigger extended to `role_assignments`, `school_admins`, `schools`, `districts` (alias map only; 029 tables untouched) → 21 triggers. Schedule edits (service-role) audited app-side. Applied + verified in prod (structural + rolled-back behavioral test, zero residue).
+- **6/02 — `/privacy` refresh.** Now matches shipped security architecture; claims verified against live RLS policies.
+- **6/01 — Phase 6 Site Admin schedule editor.** DB-backed page (loads the user's own `school_admins` schools), edit-existing path via `dbShapeToExtracted()`, merge vs replace save modes, add/remove variants & periods. Live-verified on prod; remove-period confirm + last-period guard added after testing.
+- **6/01 — Migration 031, legacy arrival cleanup.** Finished the 6 out-of-range `arrival=3` rows the 5/27 live SQL missed (→ index 0). Applied + verified. Also closed the 027 ledger-name-drift and "May 27 staging RLS" non-items.
+- **5/31 — Tommy pilot status resolved** (intentionally dormant; self-provisions via `/admin/requests`).
+- **5/30 — Phase 4 audit triggers (029), `teachers.preferences` (030), "Show Period 0", `BELL_SCHEDULES` purge, passwordless magic-link login.**
+- **5/29 — Break-glass UI** (founder-only, rose-red banner + required reason, 15-min timeout). Verified live.
+- **Earlier — Phase 5 act-as (027/028):** districts/act_as_sessions/audit_log, `effective_user_id()`, RLS rewrite, act-as + break-glass routes, `/admin/teachers`, `/admin/audit-log`, `/audit/me`. **Beta access layer (022–026):** access_requests + RLS, approve RPC, `/pending`, `/admin/requests`.
 
-## Tracked cautions (carried forward)
-- Read prod / write staging / propose prod writes. No autonomous prod schema or data writes by any Claude instance.
-- Stage-test, **then** commit migrations — not the reverse.
-- A passing type-check is not a working feature. Two bugs today were caught only by Devin exercising the act-as feature end-to-end. Always close the loop in the browser.
-- `onConflict` upserts require a real UNIQUE constraint. Verify before trusting.
-- `auth.uid()` for attribution, `effective_user_id()` for data access. Mixing them is what caused both 5/29 regressions.
-- Watch for shape mismatches: RPC responses are not interchangeable with raw row SELECTs even when the underlying data is the same.
+## Pilot status (snapshot 6/02)
+- **Devin** (founder + teacher) — PGHS; admins PGHS + COHS.
+- **Nick** (teacher + Site Admin) — COHS.
+- Throwaway/test accounts — Sacramento HS + a magic-link test school.
+- Approval-gated onboarding is the gate; `allowed_emails` is vestigial.
+
+## Working guardrails (current)
+- **Reversibility gate** (adopted 6/01): do anything reversible — including backed-up prod data writes; **always snapshot before a prod mutation.** Queue genuine one-way doors (force-push/history rewrite, un-backed-up destructive SQL, bulk ops, real-user emails, infra teardown, auth-config lockout) for an attended, approved moment.
+- **Guarded-apply or stage-test migrations** — capture the restore point first; verify after.
+- A passing type-check is not a working feature — close the loop in the app.
+- `auth.uid()` for attribution, `effective_user_id()` for data access — mixing them caused both 5/29 act-as regressions.
+- `onConflict` upserts require a real UNIQUE constraint — verify before trusting.
+- RPC responses are not interchangeable with raw row SELECTs even on the same data — watch for shape mismatches.
 
 ## Infrastructure
-- **Prod:** Supabase `kvbpfvazddlmoxobqfev` (us-east-1). Vercel one project, three domains. Migrations head: `030_teachers_preferences`.
-- **Staging:** Supabase `oqhhpdaijscqdkpsxowq` (us-east-2). **Active** as of 5/30 (restored mid-day for the 029 + 030 staging-first pass). Re-pause manually if you want to save the t4g.nano cost.
-- **Git:** `main` is the only active branch. Latest commit: see `git log -1`.
+- **Prod:** Supabase `kvbpfvazddlmoxobqfev` (us-east-1). Vercel, one project, three domains. **Migration head: `032`.** Supabase MCP pinned to prod via an `sbp_…` PAT in `~/.claude.json` (no dev branches; staging is a separate, MCP-unreachable project).
+- **Staging:** Supabase `oqhhpdaijscqdkpsxowq` (us-east-2). Pause manually to save the t4g.nano cost; restoring takes a few minutes.
+- **Git:** `main` is the only active branch.

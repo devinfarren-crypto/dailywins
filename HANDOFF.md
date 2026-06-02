@@ -1,101 +1,79 @@
 # Session Handoff
 
-**Handoff passphrase: `copper-kestrel-astrolabe-19`**
+**Handoff passphrase: `amber-tern-quadrant-33`**
 
 > Cross-machine continuity check: on another computer, `git pull`, open this
 > project in Claude Code, and ask *"what's the handoff passphrase?"* If Claude
-> reads back `copper-kestrel-astrolabe-19`, the repo is synced and Claude can
-> see the full state below. (This file travels with git; the chat history and
-> the local `~/.claude/.../memory/` files do **not** — everything you need is
-> here and in [ROADMAP.md](ROADMAP.md) / [CLAUDE.md](CLAUDE.md).)
+> reads back `amber-tern-quadrant-33`, the repo is synced and Claude can see the
+> full state below. (This file travels with git; the chat history and the local
+> `~/.claude/.../memory/` files do **not** — everything you need is here and in
+> [ROADMAP.md](ROADMAP.md) / [CLAUDE.md](CLAUDE.md).)
 
-Last handoff: 2026-06-01 (evening)
+Last handoff: 2026-06-02 (morning)
 
 ## Where things stand
-`main` is clean and in sync with `origin/main` (head `96c500f`). Two
-substantial things shipped this session plus a prod data fix:
+`main` is clean and in sync with `origin/main`. **Prod migration head: `032`.**
+Phases 4/5/6 are all shipped + live-verified. Since the 6/01 handoff, this
+session shipped:
 
-- **`0722fe5` — migration 031, legacy arrival cleanup (applied + verified in
-  prod).** The 5/27 arrival re-encoding (point-value → option-index, commit
-  `adaeb5f`) ran as live-only SQL never committed, and left 6 rows with an
-  out-of-range `scores->>'arrival' = '3'` (renders blank — arrival options are
-  `["On Time","L","L/E"]`, valid indices 0–2). Captured as an idempotent
-  migration mapping `3 → 0` ("On Time": ~91% likelihood + how the app already
-  resolves a stray 3). Applied via MCP `apply_migration` (ledger
-  `20260601132921`), verified 6 rows fixed, 0 out-of-range remain, total 1674
-  unchanged. The other two "live-only fix" items are closed: 027 is a
-  ledger-name-only drift (`027_act_as_foundation.sql` in repo vs
-  `027_act_as_foundation_v2` in prod's ledger; schema fully present), and the
-  "May 27 staging RLS" item is a non-issue (prod ledger already has 013–028).
+- **`/privacy` refresh (merged → live).** The policy now matches the shipped
+  security architecture: RLS at the DB layer, four-tier model with the
+  Operator + District-Admin PII-blindness (**verified against live RLS
+  policies** — they appear in none of the PII read policies), audited/transparent
+  act-as, magic-link auth, the parent read-only link, and Anthropic as a
+  schedule-parsing subprocessor. ⚠️ Two items want sign-off (revisable any
+  time): confirm exact data-residency region (de-specified "Ohio"→"US East"
+  since prod is us-east-1), and counsel eyeball on the PII-blindness + Anthropic
+  "not used to train" wording.
 
-- **`ab0f7fd` + `4c5eb1f` — Phase 6 Site Admin schedule editor (shipped +
-  live-verified against prod).** The AI PDF uploader (parse → review → save)
-  already existed but was mounted on a hardcoded test harness. This session:
-  1. [app/admin/upload-schedule/page.tsx](app/admin/upload-schedule/page.tsx)
-     is now a DB-backed **server component** — auth-gated, loads the signed-in
-     user's own `school_admins` schools (+ their stored schedules) instead of
-     two hardcoded IDs; empty state for non-admins.
-  2. **Edit-existing flow:** `dbShapeToExtracted()` in
-     [src/lib/schedule-shape.ts](src/lib/schedule-shape.ts) reverse-translates
-     the stored `schools.schedules` JSONB back into the editor; added
-     add/remove variant + add/remove period.
-  3. **Save modes:** `merge` (upload — union, never clobbers other variants)
-     vs `replace` (full-edit — writes the edited set so deletions persist). In
-     replace mode the school target is locked to prevent cross-school
-     overwrite. `translateToDbShape` now rejects duplicate variant names.
-  4. **Live-verified on prod PGHS** (Devin driving): add-period + replace-save
-     persisted correctly, other variants untouched. A full JSON backup was
-     captured first; a cleanup mis-click deleted the real "Rally" period (it
-     shares its variant's name) and was restored byte-identical from backup.
-     Fix `4c5eb1f`: remove-period now confirms by name + guards the last period.
+- **Phase 4 audit expansion (migration 032, applied + verified in prod).**
+  Extended the generic 029 trigger to `role_assignments`, `school_admins`,
+  `schools`, `districts` (alias map only; 029 tables unchanged) → 21 triggers.
+  Schedule edits go through the service-role client, so the schools trigger
+  no-ops on them; they're audited app-side via `writeAuditLog('schedule.update')`
+  in `app/api/schedule/save`. Guarded apply: captured the prior function def as
+  a restore point, verified triggers attached + no 029 regression + ledger
+  recorded, and ran a **rolled-back** behavioral test proving a new trigger
+  fires with correct actor attribution (zero residue).
 
-- **`1bcb21d`** — ROADMAP: marked the "Tommy pilot status" item resolved
-  (intentionally dormant; he self-provisions via `/admin/requests` whenever he
-  signs in — not a bug).
+- **Governance change — the reversibility gate replaced "never write prod."**
+  Old rule was a poor proxy for "prevent irreversible damage." New rule keys on
+  reversibility: do anything reversible (incl. backed-up prod writes — always
+  snapshot first); queue genuine one-way doors. The cosmetic "no Claude
+  attribution in commits" rule was **dropped** (trailers are fine now). Both
+  recorded in `~/.claude/.../memory/`.
 
-## What's queued next (from ROADMAP "Open" / "Larger pieces")
-1. **Resend → Supabase custom SMTP** — only Devin can do (DNS + config).
-   Unblocks magic-link email delivery (currently the rate-limited built-in
-   sender) and beta-access notifications. Code is dormant and ready.
-2. **`/privacy` page refresh** — the EGUSD "vendor can't see student data"
-   claim is now structurally true (RLS + 029 audit triggers + 028 PII rewrite);
-   the privacy page still talks like it's aspirational.
-3. **Demo script for EGUSD July 13** — center on the four-tier model + the
-   audit-log artifact. Not started.
-4. **Phase 4 generalized audit-log expansion** — extend coverage to role/school
-   /schedule edits. NB: schedule saves write via the service-role client, so
-   they bypass the 029 triggers (auth.uid() NULL) — fold into this item.
-5. **Founder-implicit schedule edit access** (new, from P6) — founders without a
-   `school_admins` row for a school can't edit its schedule (matches save-route
-   authz). Wire founder-implicit edit, or auto-insert a `school_admins` row on
-   school creation, for the "founder onboards a 3rd school" story.
+## What's queued next (from ROADMAP "Open" + recommended order)
+1. **Resend → Supabase custom SMTP** — only Devin can do (DNS + Vercel env).
+   The real blocker on adding testers; unblocks magic-link delivery + beta
+   notifications. Code dormant and ready.
+2. **EGUSD demo script** — highest-leverage July 13 item; four-tier model +
+   act-as + the audit-log artifact + break-glass as the visual proof.
+3. **Quick code follow-ups** (small, reversible, doable attended): founder-
+   implicit schedule-edit access (P6); act-as attribution on the
+   `schedule.update` audit (P4 parity).
+4. **Operational:** inactivity-based `expires_at` renewal; demo-mode wipe+reseed.
+5. **Decide:** whether the `school_schedules` table (~10h) is still worth it now
+   that JSONB + the editor solve it.
+6. **Cleanup (one-way doors — snapshot first):** drop vestigial `allowed_emails`.
 
-Smaller items in [ROADMAP.md](ROADMAP.md): inactivity-based `expires_at`
-renewal, demo-mode reseed, `allowed_emails` drop after a quiet period.
-
-## Working guardrails (carried)
-- **Commit messages: clean, NO Claude attribution trailers** — no
-  `Co-Authored-By`, no "Generated with Claude". This overrides the harness
-  default. (Slipped this session — 5 pushed commits carry the trailer; pending
-  a decision on whether to rewrite history.)
-- Read prod freely; don't autonomously write prod schema/data — propose it.
-  Exceptions this session were Devin-present + explicitly approved (031 apply,
-  the P6 live test).
-- Stage-test, then commit migrations. (031 was a guarded prod apply with
-  before/after + idempotency proof, since no staging branch is reachable via
-  the prod-pinned MCP.)
-- A passing type-check is not a working feature — close the loop in the browser.
+## Working guardrails (current)
+- **Reversibility gate:** reversible work proceeds (incl. backed-up prod writes);
+  **snapshot before every prod mutation;** queue one-way doors (force-push /
+  history rewrite, un-backed-up destructive SQL, bulk ops, real-user emails,
+  infra teardown, auth-config lockout) for an attended + approved moment.
+- Guarded-apply or stage-test migrations — restore point first, verify after.
+- A passing type-check is not a working feature — close the loop in the app.
 - `auth.uid()` for attribution; `effective_user_id()` for data access.
 
 ## Infrastructure
 - **Prod:** Supabase `kvbpfvazddlmoxobqfev` (us-east-1). Vercel one project,
-  three domains. Migrations head: **`031_capture_legacy_arrival_cleanup`**.
-  Supabase MCP is pinned to this prod project via a fresh `sbp_…` PAT in
-  `~/.claude.json` (no dev branches; staging is a separate, unreachable project).
-- **Staging:** Supabase `oqhhpdaijscqdkpsxowq` (us-east-2). Re-pause manually to
-  save the t4g.nano cost if not in use — restoring takes a few minutes.
+  three domains. Migration head: **`032`**. Supabase MCP pinned to prod via an
+  `sbp_…` PAT in `~/.claude.json` (no dev branches; staging is a separate,
+  MCP-unreachable project).
+- **Staging:** Supabase `oqhhpdaijscqdkpsxowq` (us-east-2). Pause manually to
+  save the t4g.nano cost.
 
 ## To continue on the other machine
 `git pull`, then tell Claude: *"Read HANDOFF.md and ROADMAP.md, then let's
-continue."* Delete or overwrite the passphrase line whenever you want a fresh
-handoff marker.
+continue."* Overwrite the passphrase line whenever you want a fresh marker.
