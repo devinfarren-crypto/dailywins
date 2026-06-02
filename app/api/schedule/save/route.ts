@@ -8,6 +8,7 @@ import {
   type ExtractedSchedule,
 } from "@/src/lib/schedule-shape";
 import { SchedulesSchema, type Schedules } from "@/src/lib/schedules-schema";
+import { writeAuditLog } from "@/src/lib/audit-log";
 
 // "merge"   → union the incoming variants over the existing ones (PDF-upload
 //             flow: a partial upload must not clobber other variants).
@@ -205,6 +206,20 @@ export async function POST(req: NextRequest) {
         { status: 500 },
       );
     }
+
+    // Audit the schedule edit. This write goes through the service-role client,
+    // so the schools AFTER-UPDATE trigger (migration 032) no-ops on it — we
+    // record it here with known-actor attribution instead. Best-effort: a
+    // failed audit write logs but never fails the save (see writeAuditLog).
+    await writeAuditLog(serviceClient, {
+      actor_user_id: user.id,
+      action: "schedule.update",
+      target_table: "schools",
+      target_id: school_id,
+      before: existingSchedules,
+      after: merged,
+      reason: `mode=${mode}`,
+    });
 
     const incomingCount = Object.keys(incomingDbShape).length;
     const totalCount = Object.keys(merged).length;
