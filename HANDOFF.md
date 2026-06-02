@@ -1,20 +1,47 @@
 # Session Handoff
 
-**Handoff passphrase: `amber-tern-quadrant-33`**
+**Handoff passphrase: `cobalt-heron-sextant-58`**
 
 > Cross-machine continuity check: on another computer, `git pull`, open this
 > project in Claude Code, and ask *"what's the handoff passphrase?"* If Claude
-> reads back `amber-tern-quadrant-33`, the repo is synced and Claude can see the
+> reads back `cobalt-heron-sextant-58`, the repo is synced and Claude can see the
 > full state below. (This file travels with git; the chat history and the local
 > `~/.claude/.../memory/` files do **not** — everything you need is here and in
 > [ROADMAP.md](ROADMAP.md) / [CLAUDE.md](CLAUDE.md).)
 
-Last handoff: 2026-06-02 (morning)
+Last handoff: 2026-06-02 (midday)
 
 ## Where things stand
 `main` is clean and in sync with `origin/main`. **Prod migration head: `032`.**
-Phases 4/5/6 are all shipped + live-verified. Since the 6/01 handoff, this
-session shipped:
+Phases 4/5/6 are all shipped + live-verified. Focus shifted to **EGUSD July 13
+demo prep** — Devin is building a separate "Demo Project" covering both tools
+(DailyWins + Transition Ready), the privacy posture, and the **CA Gov Code §1090
+constraint** ("can't accept money" → free-pilot framing; needs counsel). A full
+**DailyWins demo briefing** was handed to Devin to paste into that project (it
+lives in chat, not the repo). This session shipped:
+
+- **Resend setup checklist — [docs/RESEND_SETUP.md](docs/RESEND_SETUP.md)** (6/02).
+  Verified the code path (`notify-new-access-request.ts` → `auth/callback`,
+  `resend@^6.12.4` installed, no-ops until configured). Checklist covers DNS
+  verification, the 3 Vercel env vars (founder notifications), and Supabase
+  custom SMTP (magic-link delivery). **Devin's to action** — the one true
+  tester-growth blocker.
+
+- **Demo data verified healthy (6/02), no reseed done.** The "all-zero" bug is
+  already fixed in the live data (phoneAway non-zero 1366/1590, onTask
+  1586/1590) and it's only ~4 days stale. Reseed for date-freshness right before
+  the demo via Demo Mode → Wipe → Seed (or ask Claude to script it). Confirm the
+  dashboard *renders* it right during a dry-run.
+
+- **`/privacy` refresh (merged → live).** The policy now matches the shipped
+  security architecture: RLS at the DB layer, four-tier model with the
+  Operator + District-Admin PII-blindness (**verified against live RLS
+  policies** — they appear in none of the PII read policies), audited/transparent
+  act-as, magic-link auth, the parent read-only link, and Anthropic as a
+  schedule-parsing subprocessor. ⚠️ Two items want sign-off (revisable any
+  time): confirm exact data-residency region (de-specified "Ohio"→"US East"
+  since prod is us-east-1), and counsel eyeball on the PII-blindness + Anthropic
+  "not used to train" wording.
 
 - **`/privacy` refresh (merged → live).** The policy now matches the shipped
   security architecture: RLS at the DB layer, four-tier model with the
@@ -44,11 +71,12 @@ session shipped:
   recorded in `~/.claude/.../memory/`.
 
 ## What's queued next (from ROADMAP "Open" + recommended order)
-1. **Resend → Supabase custom SMTP** — only Devin can do (DNS + Vercel env).
-   The real blocker on adding testers; unblocks magic-link delivery + beta
-   notifications. Code dormant and ready.
-2. **EGUSD demo script** — highest-leverage July 13 item; four-tier model +
-   act-as + the audit-log artifact + break-glass as the visual proof.
+1. **Resend setup** — only Devin can do (DNS + Vercel env + Supabase SMTP).
+   Follow **[docs/RESEND_SETUP.md](docs/RESEND_SETUP.md)**; Step 1 (DNS) is the
+   slow part, so start early. The real blocker on adding testers.
+2. **EGUSD demo plan** — Devin building it in a separate project (DW + Transition
+   Ready + privacy + §1090). DW briefing already delivered. Claude can still
+   draft a DW demo clickpath on request.
 3. **Quick code follow-ups** (small, reversible, doable attended): founder-
    implicit schedule-edit access (P6); act-as attribution on the
    `schedule.update` audit (P4 parity).
