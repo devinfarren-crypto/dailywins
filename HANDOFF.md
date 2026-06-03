@@ -1,89 +1,78 @@
 # Session Handoff
 
-**Handoff passphrase: `cobalt-heron-sextant-58`**
+**Handoff passphrase: `amber-falcon-lantern-37`**
 
 > Cross-machine continuity check: on another computer, `git pull`, open this
 > project in Claude Code, and ask *"what's the handoff passphrase?"* If Claude
-> reads back `cobalt-heron-sextant-58`, the repo is synced and Claude can see the
+> reads back `amber-falcon-lantern-37`, the repo is synced and Claude can see the
 > full state below. (This file travels with git; the chat history and the local
 > `~/.claude/.../memory/` files do **not** — everything you need is here and in
 > [ROADMAP.md](ROADMAP.md) / [CLAUDE.md](CLAUDE.md).)
 
-Last handoff: 2026-06-02 (midday)
+Last handoff: 2026-06-03 (evening)
 
 ## Where things stand
-`main` is clean and in sync with `origin/main`. **Prod migration head: `032`.**
-Phases 4/5/6 are all shipped + live-verified. Focus shifted to **EGUSD July 13
-demo prep** — Devin is building a separate "Demo Project" covering both tools
-(DailyWins + Transition Ready), the privacy posture, and the **CA Gov Code §1090
-constraint** ("can't accept money" → free-pilot framing; needs counsel). A full
-**DailyWins demo briefing** was handed to Devin to paste into that project (it
-lives in chat, not the repo). This session shipped:
+`main` is clean and in sync with `origin/main`. **Prod migration head: `032`**
+(no migrations this session — all app/config changes). Phases 4/5/6 shipped +
+live-verified. **The big win this session: email is live and magic links now
+work cross-device — the tester-growth blocker is fully cleared.** Two commits
+shipped to prod (`73aef2c`, `aca6bfc`), both Vercel-deployed and verified.
 
-- **Resend setup checklist — [docs/RESEND_SETUP.md](docs/RESEND_SETUP.md)** (6/02).
-  Verified the code path (`notify-new-access-request.ts` → `auth/callback`,
-  `resend@^6.12.4` installed, no-ops until configured). Checklist covers DNS
-  verification, the 3 Vercel env vars (founder notifications), and Supabase
-  custom SMTP (magic-link delivery). **Devin's to action** — the one true
-  tester-growth blocker.
+- **Resend / email is LIVE.** Domain `send.dailywins.school` verified at GoDaddy
+  (DKIM/SPF/MX/DMARC all resolving). Vercel env: `RESEND_API_KEY`,
+  `NOTIFY_FROM_EMAIL` (`DailyWins <noreply@send.dailywins.school>`),
+  `NOTIFY_TO_EMAIL` → **`devinfarren@gmail.com`** (the surestep mailbox isn't
+  bridged to Gmail, so alerts go straight to the inbox Devin reads). Supabase
+  custom SMTP wired (smtp.resend.com:465, user `resend`); email rate limit
+  bumped 30→100/hr. Both founder-notification and magic-link delivery confirmed
+  in Resend logs. ⚠️ New domain → first sends land in **Spam/Promotions** until
+  reputation warms; mark "Not spam" on the early ones.
 
-- **Demo data verified healthy (6/02), no reseed done.** The "all-zero" bug is
-  already fixed in the live data (phoneAway non-zero 1366/1590, onTask
-  1586/1590) and it's only ~4 days stale. Reseed for date-freshness right before
-  the demo via Demo Mode → Wipe → Seed (or ask Claude to script it). Confirm the
-  dashboard *renders* it right during a dry-run.
+- **Cross-device magic links FIXED (`73aef2c`).** The bug: magic-link sign-in
+  used PKCE (`exchangeCodeForSession` needs the requesting browser's
+  `code_verifier` cookie), so clicking the link on a different device/browser
+  failed silently (`email_confirmed_at` set, `last_sign_in_at` null, no
+  access-request row, no notification). Fix: new **`/auth/confirm`** route uses
+  `verifyOtp({ token_hash })` — no cookie, works cross-device — plus a `?code=`
+  fallback. Shared provisioning gate extracted to **`src/lib/auth-provision.ts`**
+  (both `/auth/callback` OAuth and `/auth/confirm` email call it). Email
+  templates flipped to the `token_hash` URL. **Proven in prod** via an incognito
+  (cross-context) test: `last_sign_in_at` finally non-null, row + Gmail alert
+  landed.
 
-- **`/privacy` refresh (merged → live).** The policy now matches the shipped
-  security architecture: RLS at the DB layer, four-tier model with the
-  Operator + District-Admin PII-blindness (**verified against live RLS
-  policies** — they appear in none of the PII read policies), audited/transparent
-  act-as, magic-link auth, the parent read-only link, and Anthropic as a
-  schedule-parsing subprocessor. ⚠️ Two items want sign-off (revisable any
-  time): confirm exact data-residency region (de-specified "Ohio"→"US East"
-  since prod is us-east-1), and counsel eyeball on the PII-blindness + Anthropic
-  "not used to train" wording.
+- **`/pending` hardened (`aca6bfc`).** Was an ungated client page (unauth
+  visitors saw the shell; the `/api/access-request/mine` fetch 401'd → "Unable
+  to load your request status"). Now a server component that `getUser()`s and
+  redirects (no session → `/`, approved → `/dashboard`, denied/missing →
+  `/access-denied`, pending → render with status/school as props). Dead
+  `/api/access-request/mine` route removed. Verified: unauth `/pending` → 307
+  `/`; mine → 404.
 
-- **`/privacy` refresh (merged → live).** The policy now matches the shipped
-  security architecture: RLS at the DB layer, four-tier model with the
-  Operator + District-Admin PII-blindness (**verified against live RLS
-  policies** — they appear in none of the PII read policies), audited/transparent
-  act-as, magic-link auth, the parent read-only link, and Anthropic as a
-  schedule-parsing subprocessor. ⚠️ Two items want sign-off (revisable any
-  time): confirm exact data-residency region (de-specified "Ohio"→"US East"
-  since prod is us-east-1), and counsel eyeball on the PII-blindness + Anthropic
-  "not used to train" wording.
-
-- **Phase 4 audit expansion (migration 032, applied + verified in prod).**
-  Extended the generic 029 trigger to `role_assignments`, `school_admins`,
-  `schools`, `districts` (alias map only; 029 tables unchanged) → 21 triggers.
-  Schedule edits go through the service-role client, so the schools trigger
-  no-ops on them; they're audited app-side via `writeAuditLog('schedule.update')`
-  in `app/api/schedule/save`. Guarded apply: captured the prior function def as
-  a restore point, verified triggers attached + no 029 regression + ledger
-  recorded, and ran a **rolled-back** behavioral test proving a new trigger
-  fires with correct actor attribution (zero residue).
-
-- **Governance change — the reversibility gate replaced "never write prod."**
-  Old rule was a poor proxy for "prevent irreversible damage." New rule keys on
-  reversibility: do anything reversible (incl. backed-up prod writes — always
-  snapshot first); queue genuine one-way doors. The cosmetic "no Claude
-  attribution in commits" rule was **dropped** (trailers are fine now). Both
-  recorded in `~/.claude/.../memory/`.
+EGUSD July 13 prep is otherwise unchanged — Devin's separate "Demo Project"
+(DW + Transition Ready + privacy + §1090 free-pilot framing) and the DW demo
+clickpath are still the headline remaining work. The `/privacy` sign-off items
+(data-residency region; counsel eyeball on PII-blindness + Anthropic wording)
+also still stand.
 
 ## What's queued next (from ROADMAP "Open" + recommended order)
-1. **Resend setup** — only Devin can do (DNS + Vercel env + Supabase SMTP).
-   Follow **[docs/RESEND_SETUP.md](docs/RESEND_SETUP.md)**; Step 1 (DNS) is the
-   slow part, so start early. The real blocker on adding testers.
-2. **EGUSD demo plan** — Devin building it in a separate project (DW + Transition
-   Ready + privacy + §1090). DW briefing already delivered. Claude can still
-   draft a DW demo clickpath on request.
-3. **Quick code follow-ups** (small, reversible, doable attended): founder-
-   implicit schedule-edit access (P6); act-as attribution on the
-   `schedule.update` audit (P4 parity).
-4. **Operational:** inactivity-based `expires_at` renewal; demo-mode wipe+reseed.
-5. **Decide:** whether the `school_schedules` table (~10h) is still worth it now
-   that JSONB + the editor solve it.
-6. **Cleanup (one-way doors — snapshot first):** drop vestigial `allowed_emails`.
+1. **Flip the "Magic Link" email template** — *unverified; likely not done.* The
+   "Confirm signup" template IS flipped (proven by the cross-device test). The
+   "Magic Link" template (existing users re-requesting a link) needs the same
+   edit: Supabase → Auth → Emails → Templates → **Magic Link** → set the href to
+   `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=magiclink`.
+   30-sec dashboard job; can't be read remotely. Low-stakes (the `?code=`
+   fallback keeps existing-user links working same-device; the flip closes the
+   existing-user cross-device gap).
+2. **Clean up test accounts** — ~9 `devintest*@proton.me` / `devintest3@proton.me`
+   rows in `auth.users` + `access_requests` from today's testing. Safe scoped
+   delete; left in place pending Devin's OK (asked, not yet answered).
+3. **EGUSD demo plan** — Devin building it in a separate project. DW briefing
+   delivered. Claude can draft a DW demo clickpath on request.
+4. **Quick code follow-ups:** founder-implicit schedule-edit access (P6); act-as
+   attribution on the `schedule.update` audit (P4 parity).
+5. **Operational:** inactivity-based `expires_at` renewal; demo-mode wipe+reseed.
+6. **Decide:** whether the `school_schedules` table (~10h) still earns its cost.
+7. **Cleanup (one-way doors — snapshot first):** drop vestigial `allowed_emails`.
 
 ## Working guardrails (current)
 - **Reversibility gate:** reversible work proceeds (incl. backed-up prod writes);
