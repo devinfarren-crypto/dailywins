@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/src/lib/supabase-server";
-import { createAdminClient } from "@/src/lib/supabase-admin";
-import { notifyNewAccessRequest } from "@/src/lib/notify-new-access-request";
+import { resolvePostAuthRedirect } from "@/src/lib/auth-provision";
 
+// OAuth (Google) callback. The provider redirects here with a PKCE ?code= that
+// we exchange for a session — this requires the code_verifier cookie set when
+// the flow began, which is always present because OAuth completes in the same
+// browser that started it. Email magic-links use /auth/confirm instead, since
+// those can be opened on a different device. Both share resolvePostAuthRedirect.
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
@@ -26,90 +30,6 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/access-denied`);
   }
 
-  const admin = createAdminClient();
-  const email = user.email.toLowerCase();
-
-  const { data: existingTeacher } = await admin
-    .from("teachers")
-    .select("id")
-    .eq("auth_id", user.id)
-    .maybeSingle();
-
-  const { data: existingRoleAssignment } = await admin
-    .from("role_assignments")
-    .select("role")
-    .eq("user_id", user.id)
-    .in("role", ["teacher", "site_admin", "district_admin", "founder"])
-    .maybeSingle();
-
-  if (existingTeacher || existingRoleAssignment) {
-    return NextResponse.redirect(`${origin}/dashboard`);
-  }
-
-  if (inviteToken) {
-    try {
-      const { error: inviteError } = await admin.rpc("redeem_invite", {
-        p_raw_token: inviteToken,
-      });
-
-      if (!inviteError) {
-        return NextResponse.redirect(`${origin}/dashboard`);
-      }
-
-      console.error("Invite redemption failed:", inviteError.message);
-    } catch (inviteFailure) {
-      console.error("Invite redemption threw:", inviteFailure);
-    }
-  }
-
-  const { data: requestRow } = await admin
-    .from("access_requests")
-    .select("status")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (requestRow) {
-    if (requestRow.status === "approved") {
-      return NextResponse.redirect(`${origin}/dashboard`);
-    }
-
-    if (requestRow.status === "pending") {
-      return NextResponse.redirect(`${origin}/pending`);
-    }
-
-    return NextResponse.redirect(`${origin}/access-denied`);
-  }
-
-  const fullName =
-    user.user_metadata?.full_name ??
-    user.user_metadata?.name ??
-    user.email?.split("@")[0] ??
-    "Teacher";
-
-  const { data: newRequest, error: upsertError } = await admin
-    .from("access_requests")
-    .upsert(
-      {
-        user_id: user.id,
-        email,
-        full_name: fullName,
-        status: "pending",
-      },
-      { onConflict: "user_id" }
-    )
-    .select("id")
-    .single();
-
-  if (upsertError) {
-    console.error("Failed to auto-create access request:", upsertError.message);
-  } else if (newRequest) {
-    await notifyNewAccessRequest({
-      email,
-      fullName,
-      requestId: newRequest.id,
-      origin,
-    });
-  }
-
-  return NextResponse.redirect(`${origin}/pending`);
+  const redirectPath = await resolvePostAuthRedirect(user, origin, inviteToken);
+  return NextResponse.redirect(`${origin}${redirectPath}`);
 }

@@ -94,10 +94,12 @@ export default function LoginPage() {
   };
 
   // Passwordless email sign-in for accounts outside the Google ecosystem
-  // (e.g. proton/outlook). Routes the magic link through the same
-  // /auth/callback gate as Google, so the access-request approval flow and
-  // RLS are identical — only the credential differs. shouldCreateUser is left
-  // at its default (true) so a new tester lands in /pending awaiting approval.
+  // (e.g. proton/outlook). Routes the magic link through /auth/confirm, which
+  // verifies a token_hash server-side (no code_verifier cookie required) so the
+  // link works even when opened on a different device than it was requested on.
+  // The provisioning gate (access-request approval, RLS) is shared with the
+  // Google /auth/callback path. shouldCreateUser is left at its default (true)
+  // so a new tester lands in /pending awaiting approval.
   const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = email.trim().toLowerCase();
@@ -110,7 +112,7 @@ export default function LoginPage() {
     const supabase = createClient();
     const { error: otpError } = await supabase.auth.signInWithOtp({
       email: trimmed,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      options: { emailRedirectTo: `${window.location.origin}/auth/confirm` },
     });
     setMagicBusy(false);
     if (otpError) {
