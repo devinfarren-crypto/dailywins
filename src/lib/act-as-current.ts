@@ -47,6 +47,35 @@ export async function getCurrentActAsSession(): Promise<ActAsSessionInfo | null>
     return null;
   }
 
+  // Sliding expiration for regular act-as sessions: a long support call
+  // shouldn't be cut off at a hard 60 min from start. On each active-session
+  // read (the banner renders on every authenticated page) we push expires_at
+  // forward, throttled to at most one write per RENEW_THROTTLE_MS so we're not
+  // writing on every render. Break-glass is intentionally hard-capped for
+  // safety and is never extended.
+  let expiresAt = session.expires_at;
+  if (!session.break_glass) {
+    const WINDOW_MS = 60 * 60 * 1000; // matches REGULAR_SESSION_MINUTES in act-as/start
+    const RENEW_THROTTLE_MS = 5 * 60 * 1000;
+    const remainingMs = new Date(session.expires_at).getTime() - Date.now();
+    if (remainingMs < WINDOW_MS - RENEW_THROTTLE_MS) {
+      const next = new Date(Date.now() + WINDOW_MS).toISOString();
+      const { error: renewError } = await admin
+        .from("act_as_sessions")
+        .update({ expires_at: next })
+        .eq("id", session.id)
+        .is("ended_at", null);
+      if (renewError) {
+        console.error(
+          "getCurrentActAsSession: failed to extend expires_at",
+          renewError,
+        );
+      } else {
+        expiresAt = next;
+      }
+    }
+  }
+
   // Fetch target identity — teacher row first (most common), fall back to
   // auth.users for break-glass against admin/founder targets.
   const { data: targetTeacher } = await admin
@@ -76,6 +105,6 @@ export async function getCurrentActAsSession(): Promise<ActAsSessionInfo | null>
     break_glass: session.break_glass,
     reason: session.reason,
     started_at: session.started_at,
-    expires_at: session.expires_at,
+    expires_at: expiresAt,
   };
 }
