@@ -124,52 +124,70 @@ export default function LoginPage() {
 
   if (checking) {
     return (
-      <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center", background: "#faf7f0" }}>
-        <div style={{ background: "white", borderRadius: 14, padding: 32, textAlign: "center", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
+      <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center", background: "var(--ssd-paper)" }}>
+        <div style={{ background: "var(--ssd-surface)", borderRadius: "var(--ssd-radius)", border: "1px solid var(--ssd-border)", padding: 32, textAlign: "center", boxShadow: "var(--ssd-shadow)" }}>
           <div style={{
-            background: "#3a7c6a",
-            width: 44, height: 44, borderRadius: 11,
+            background: "var(--ssd-ink)",
+            width: 44, height: 44, borderRadius: "var(--ssd-radius-sm)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            color: "white", fontWeight: 700, fontSize: 16,
+            color: "white", fontWeight: 600, fontSize: 16,
             margin: "0 auto 14px",
           }}>DW</div>
-          <div style={{ color: "#2a4d42", fontSize: 14, fontWeight: 500 }}>Signing in...</div>
+          <div className="ssd-eyebrow" style={{ marginBottom: 2 }}>Signing in</div>
+          <div style={{ color: "var(--ssd-text-muted)", fontSize: 14 }}>One moment…</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#faf7f0", display: "flex", flexDirection: "column" }}>
-      <main style={{ flex: 1, width: "100%", maxWidth: 1200, margin: "0 auto", padding: "40px 24px" }}>
+    <div style={{ minHeight: "100vh", background: "var(--ssd-paper)", display: "flex", flexDirection: "column" }}>
+      <main style={{ flex: 1, width: "100%", maxWidth: 1200, margin: "0 auto", padding: "48px 24px" }}>
         <div className="flex flex-col gap-10 md:flex-row md:gap-14 md:items-center">
           {/* LEFT COLUMN — 60% on desktop */}
           <div className="w-full md:w-3/5">
             {/* Logo + wordmark */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 28 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 32 }}>
               <div style={{
-                width: 28, height: 28, borderRadius: 7, background: "#3a7c6a",
+                width: 30, height: 30, borderRadius: "var(--ssd-radius-sm)", background: "var(--ssd-ink)",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                color: "white", fontWeight: 700, fontSize: 12, letterSpacing: "0.02em",
+                color: "white", fontWeight: 600, fontSize: 12, letterSpacing: "0.02em",
               }}>DW</div>
-              <span style={{ color: "#2a4d42", fontWeight: 600, fontSize: 17 }}>DailyWins</span>
+              <span style={{ fontWeight: 600, fontSize: 18, letterSpacing: "-0.01em" }}>
+                <span style={{ color: "var(--ssd-ink)" }}>Daily</span>
+                <span style={{ color: "var(--ssd-amber-deep)" }}>Wins</span>
+              </span>
             </div>
 
-            {/* Headline */}
+            {/* Mono eyebrow */}
+            <p className="ssd-eyebrow" style={{ margin: "0 0 14px" }}>· Built by a teacher ·</p>
+
+            {/* Headline — display serif with a single green emphasis clause */}
             <h1
-              className="text-[24px] md:text-[28px] text-balance"
-              style={{ fontWeight: 500, color: "#2a4d42", lineHeight: 1.25, letterSpacing: "-0.01em", margin: "0 0 16px", maxWidth: 560 }}
+              className="text-balance"
+              style={{
+                fontFamily: "var(--ssd-font-display), Georgia, serif",
+                fontWeight: 500,
+                fontSize: "clamp(32px, 4.4vw, 44px)",
+                color: "var(--ssd-ink)",
+                lineHeight: 1.12,
+                letterSpacing: "-0.01em",
+                margin: "0 0 18px",
+                maxWidth: 620,
+              }}
             >
-              Behavior tracking that takes seconds, not class periods.
+              Behavior tracking that{" "}
+              <span style={{ color: "var(--ssd-green)" }}>takes seconds,</span>{" "}
+              not class periods.
             </h1>
 
             {/* Subheadline */}
-            <p style={{ fontSize: 15, lineHeight: 1.6, color: "#5a6e66", margin: "0 0 28px", maxWidth: 540 }}>
+            <p style={{ fontSize: 16, lineHeight: 1.6, color: "var(--ssd-text)", margin: "0 0 30px", maxWidth: 540 }}>
               Built by a teacher, for teachers. Track student behavior across all your periods, share progress with parents, and never lose another data point to a paper roster again.
             </p>
 
             {/* Demo video */}
-            <div style={{ position: "relative", aspectRatio: "16/9", borderRadius: 8, overflow: "hidden", boxShadow: "0 4px 16px rgba(0,0,0,0.08)", marginBottom: 20 }}>
+            <div style={{ position: "relative", aspectRatio: "16/9", borderRadius: "var(--ssd-radius)", overflow: "hidden", border: "1px solid var(--ssd-border)", boxShadow: "var(--ssd-shadow)", marginBottom: 24 }}>
               <iframe
                 src="https://www.youtube.com/embed/Apg6t8i7rl4"
                 title="DailyWins demo"
@@ -181,10 +199,10 @@ export default function LoginPage() {
             </div>
 
             {/* Trust badges */}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 20, fontSize: 13, color: "#5a6e66" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 20, fontSize: 13, color: "var(--ssd-text-muted)" }}>
               {["FERPA-aligned", "AB 1584-compliant", "Pilot teachers love it"].map((label) => (
                 <div key={label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#3a7c6a", display: "inline-block" }} />
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--ssd-green)", display: "inline-block" }} />
                   {label}
                 </div>
               ))}
@@ -193,30 +211,34 @@ export default function LoginPage() {
 
           {/* RIGHT COLUMN — 40% on desktop */}
           <div className="w-full md:w-2/5">
+            {/* House "card" look: full border + one thin green accent edge */}
             <div style={{
-              background: "white",
-              borderRadius: 14,
-              border: "0.5px solid rgba(0,0,0,0.08)",
-              padding: "28px 24px",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 20px rgba(0,0,0,0.04)",
+              background: "var(--ssd-surface)",
+              borderRadius: "var(--ssd-radius)",
+              border: "1px solid var(--ssd-border)",
+              borderLeft: "3px solid var(--ssd-green)",
+              padding: "30px 26px",
+              boxShadow: "var(--ssd-shadow)",
             }}>
-              <h2 style={{ fontSize: 18, fontWeight: 500, color: "#2a4d42", margin: "0 0 6px" }}>
-                Sign in to DailyWins
+              <p className="ssd-eyebrow" style={{ margin: "0 0 8px" }}>Sign in</p>
+              <h2 style={{ fontFamily: "var(--ssd-font-display), Georgia, serif", fontSize: 22, fontWeight: 500, color: "var(--ssd-ink)", margin: "0 0 6px" }}>
+                Welcome back
               </h2>
-              <p style={{ fontSize: 13, color: "#6b7d75", margin: "0 0 20px" }}>
+              <p style={{ fontSize: 13, color: "var(--ssd-text-muted)", margin: "0 0 20px" }}>
                 Pilot teachers and approved accounts only.
               </p>
 
               {error && (
-                <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "10px 14px", marginBottom: 16, color: "#dc2626", fontSize: 13, fontWeight: 600 }}>
+                <div style={{ background: "#fbeae6", border: "1px solid var(--ssd-status-support)", borderRadius: "var(--ssd-radius-sm)", padding: "10px 14px", marginBottom: 16, color: "#9c3a22", fontSize: 13, fontWeight: 600 }}>
                   {error}
                 </div>
               )}
 
+              {/* Secondary button: transparent, ink border, ink text */}
               <button
                 onClick={handleGoogleSignIn}
-                className="flex w-full items-center justify-center gap-3 rounded-lg border bg-white px-4 py-3 text-sm font-medium transition-colors hover:bg-[#faf7f0] focus:outline-none focus:ring-2 focus:ring-offset-2"
-                style={{ borderColor: "#e5e2d8", color: "#2a4d42" }}
+                className="flex w-full items-center justify-center gap-3 px-4 py-3 text-sm font-medium transition-colors"
+                style={{ border: "1px solid var(--ssd-ink)", borderRadius: "var(--ssd-radius-sm)", background: "transparent", color: "var(--ssd-ink)" }}
               >
                 <svg className="h-[18px] w-[18px]" viewBox="0 0 24 24">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
@@ -228,20 +250,20 @@ export default function LoginPage() {
               </button>
 
               {/* Divider */}
-              <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "16px 0" }}>
-                <span style={{ flex: 1, height: 1, background: "#ebe5d8" }} />
-                <span style={{ fontSize: 12, color: "#a0a8a4" }}>or</span>
-                <span style={{ flex: 1, height: 1, background: "#ebe5d8" }} />
+              <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "18px 0" }}>
+                <span style={{ flex: 1, height: 1, background: "var(--ssd-border)" }} />
+                <span className="ssd-eyebrow" style={{ fontSize: 11 }}>or</span>
+                <span style={{ flex: 1, height: 1, background: "var(--ssd-border)" }} />
               </div>
 
               {magicSent ? (
-                <div style={{ background: "#f0f7f4", border: "1px solid #cfe3da", borderRadius: 8, padding: "12px 14px", fontSize: 13, color: "#2a4d42", lineHeight: 1.5 }}>
+                <div style={{ background: "var(--ssd-surface-alt)", border: "1px solid var(--ssd-border)", borderLeft: "3px solid var(--ssd-green)", borderRadius: "var(--ssd-radius-sm)", padding: "12px 14px", fontSize: 13, color: "var(--ssd-text)", lineHeight: 1.5 }}>
                   Check your inbox — we sent a sign-in link to{" "}
                   <span style={{ fontWeight: 600 }}>{email.trim().toLowerCase()}</span>.
                   The link opens DailyWins and expires shortly.
                   <button
                     onClick={() => { setMagicSent(false); setMagicError(""); }}
-                    style={{ display: "block", marginTop: 8, background: "none", border: "none", padding: 0, color: "#3a7c6a", fontSize: 12, fontWeight: 500, cursor: "pointer" }}
+                    style={{ display: "block", marginTop: 8, background: "none", border: "none", padding: 0, color: "var(--ssd-green-deep)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
                   >
                     Use a different email
                   </button>
@@ -254,36 +276,37 @@ export default function LoginPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@school.org"
                     autoComplete="email"
-                    className="w-full rounded-lg border px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
-                    style={{ borderColor: "#e5e2d8", color: "#2a4d42" }}
+                    className="w-full px-4 py-3 text-sm"
+                    style={{ border: "1px solid var(--ssd-border)", borderRadius: "var(--ssd-radius-sm)", color: "var(--ssd-text)", background: "var(--ssd-surface)" }}
                   />
                   {magicError && (
-                    <p style={{ margin: "8px 0 0", fontSize: 12, color: "#dc2626", fontWeight: 500 }}>
+                    <p style={{ margin: "8px 0 0", fontSize: 12, color: "#9c3a22", fontWeight: 500 }}>
                       {magicError}
                     </p>
                   )}
+                  {/* Primary button: green-deep fill, white text */}
                   <button
                     type="submit"
                     disabled={magicBusy}
-                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-white transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-                    style={{ background: "#3a7c6a" }}
+                    className="mt-3 flex w-full items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                    style={{ background: "var(--ssd-green-deep)", borderRadius: "var(--ssd-radius-sm)" }}
                   >
                     {magicBusy ? "Sending…" : "Email me a sign-in link"}
                   </button>
                 </form>
               )}
 
-              <p style={{ marginTop: 14, textAlign: "center", fontSize: 12, color: "#8a9690" }}>
-                By signing in you agree to our <a href="/privacy" style={{ color: "#3a7c6a", textDecoration: "none" }}>privacy policy</a>.
+              <p style={{ marginTop: 16, textAlign: "center", fontSize: 12, color: "var(--ssd-text-muted)" }}>
+                By signing in you agree to our <a href="/privacy" style={{ color: "var(--ssd-green-deep)", textDecoration: "none", fontWeight: 500 }}>privacy policy</a>.
               </p>
 
-              <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px solid #ebe5d8" }}>
-                <p style={{ fontSize: 12, color: "#8a9690", margin: "0 0 6px" }}>
+              <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px solid var(--ssd-border)" }}>
+                <p style={{ fontSize: 12, color: "var(--ssd-text-muted)", margin: "0 0 6px" }}>
                   Want to bring DailyWins to your school?
                 </p>
                 <a
                   href="mailto:devin@surestepeducation.com?subject=DailyWins%20pilot%20interest"
-                  style={{ fontSize: 13, fontWeight: 500, color: "#3a7c6a", textDecoration: "none" }}
+                  style={{ fontSize: 13, fontWeight: 600, color: "var(--ssd-green-deep)", textDecoration: "none" }}
                 >
                   Request a pilot →
                 </a>
@@ -294,17 +317,17 @@ export default function LoginPage() {
       </main>
 
       {/* Page footer */}
-      <footer style={{ borderTop: "1px solid #ebe5d8", padding: "16px 24px", marginTop: 32 }}>
+      <footer style={{ borderTop: "1px solid var(--ssd-border)", padding: "16px 24px", marginTop: 32 }}>
         <div style={{
           maxWidth: 1200, margin: "0 auto",
           display: "flex", justifyContent: "space-between", alignItems: "center",
           flexWrap: "wrap", gap: 8,
-          fontSize: 12, color: "#8a9690",
+          fontSize: 12, color: "var(--ssd-text-muted)",
         }}>
           <span>
-            A product of <span style={{ color: "#3a7c6a", fontWeight: 500 }}>Sure Step Education</span>
+            A product of <span style={{ color: "var(--ssd-green-deep)", fontWeight: 600 }}>Sure Step Education</span>
           </span>
-          <span>dailywins.school</span>
+          <span className="ssd-eyebrow" style={{ fontSize: 11 }}>dailywins.school</span>
         </div>
       </footer>
     </div>

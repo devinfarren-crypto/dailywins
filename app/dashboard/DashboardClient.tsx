@@ -15,19 +15,24 @@ const ChartViews = dynamic(() => import("./ChartViews"), { ssr: false });
 
 // ─── Colors & Constants ───────────────────────────────────────────────────────
 
+// Sure Step Education design tokens (see sure-step-design-system.md).
+// primary/secondary collapse onto the single green signature accent; dark is
+// ink navy; red/gold/green/blue map onto the §2 status scale so the standing
+// zones (support → working → track → exceptional) match the brand exactly.
 const COLORS = {
-  primary: "#e07850",
-  secondary: "#3a7c6a",
-  accent: "#f0b647",
-  dark: "#2c3e50",
-  red: "#e74c3c",
-  gold: "#f0b647",
-  green: "#3a7c6a",
-  blue: "#3498db",
+  primary: "#1c5c3c",   // green-deep — primary CTAs (was coral #e07850)
+  secondary: "#2e8b5e", // green — signature accent (was teal #3a7c6a)
+  accent: "#e3a23c",    // amber — warm highlight (was gold #f0b647)
+  dark: "#16263d",      // ink navy — headers, headings, dark text (was #2c3e50)
+  red: "#dd6b4d",       // status-support — "Needs Support"
+  gold: "#e3a23c",      // status-working — "Working On It"
+  green: "#4fa07e",     // status-track — "On Track"
+  blue: "#5e97c4",      // status-exceptional — "Exceptional"
 };
 
 const THEMES: Record<string, { name: string; header: string; primary: string; secondary: string; accent: string; bg: string; swatch: string[] }> = {
-  default: { name: "DailyWins", header: "#2c3e50", primary: "#e07850", secondary: "#3a7c6a", accent: "#f0b647", bg: "#f5f5f0", swatch: ["#2c3e50", "#e07850", "#3a7c6a"] },
+  default: { name: "Sure Step", header: "#16263d", primary: "#1c5c3c", secondary: "#2e8b5e", accent: "#e3a23c", bg: "#f7f3ec", swatch: ["#16263d", "#2e8b5e", "#e3a23c"] },
+  classic: { name: "Classic DailyWins", header: "#2c3e50", primary: "#e07850", secondary: "#3a7c6a", accent: "#f0b647", bg: "#f5f5f0", swatch: ["#2c3e50", "#e07850", "#3a7c6a"] },
   steelBlue: { name: "Steel Blue", header: "#34495e", primary: "#2980b9", secondary: "#27ae60", accent: "#f39c12", bg: "#eef3f7", swatch: ["#34495e", "#2980b9", "#27ae60"] },
   warmSlate: { name: "Warm Slate", header: "#4a4a4a", primary: "#c0392b", secondary: "#16a085", accent: "#e67e22", bg: "#f5f0ee", swatch: ["#4a4a4a", "#c0392b", "#16a085"] },
   sage: { name: "Sage Green", header: "#2d5a3d", primary: "#8e6b47", secondary: "#5d8a68", accent: "#d4a76a", bg: "#eff5f1", swatch: ["#2d5a3d", "#5d8a68", "#8e6b47"] },
@@ -38,6 +43,8 @@ const THEMES: Record<string, { name: string; header: string; primary: string; se
 };
 
 const FONTS = [
+  { id: "publicsans", name: "Public Sans", value: "'Public Sans', system-ui, sans-serif" },
+  { id: "fraunces", name: "Fraunces", value: "'Fraunces', Georgia, serif" },
   { id: "nunito", name: "Nunito", value: "'Nunito', sans-serif" },
   { id: "inter", name: "Inter", value: "'Inter', sans-serif" },
   { id: "baloo", name: "Baloo 2", value: "'Baloo 2', cursive" },
@@ -45,6 +52,9 @@ const FONTS = [
   { id: "patrick", name: "Patrick Hand", value: "'Patrick Hand', cursive" },
   { id: "quicksand", name: "Quicksand", value: "'Quicksand', sans-serif" },
 ];
+
+// Display serif for headings — design system's editorial voice (§5).
+const DISPLAY_FONT = "'Fraunces', Georgia, serif";
 
 const STAR_ICONS = ["⭐", "🏆", "🎯", "💪", "🔥", "✨", "🌟", "💎"];
 
@@ -526,7 +536,7 @@ export default function DashboardClient() {
     secondary: activeTheme.secondary,
     accent: activeTheme.accent,
   };
-  const activeFont = FONTS.find((f) => f.id === (prefs.font ?? "nunito"))?.value ?? FONTS[0].value;
+  const activeFont = FONTS.find((f) => f.id === (prefs.font ?? "publicsans"))?.value ?? FONTS[0].value;
   const starIcon = prefs.starIcon ?? "⭐";
   const confettiEnabled = prefs.confetti !== false;
   const compactMode = prefs.compact === true;
@@ -2055,39 +2065,42 @@ export default function DashboardClient() {
 
   return (
     <>
-      {/* Google Fonts for theme options */}
-      <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Inter:wght@400;600;700;800&family=Baloo+2:wght@400;600;700;800&family=Fredoka:wght@400;600;700&family=Patrick+Hand&family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet" />
+      {/* Google Fonts for theme options (design-system trio first: Public Sans, Fraunces, IBM Plex Mono) */}
+      <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=Nunito:wght@400;600;700;800&family=Inter:wght@400;600;700;800&family=Baloo+2:wght@400;600;700;800&family=Fredoka:wght@400;600;700&family=Patrick+Hand&family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet" />
     <div style={{ minHeight: "100vh", background: activeTheme.bg, fontFamily: activeFont }}>
       <ConfettiCanvas active={showConfetti && confettiEnabled} />
 
-      {/* Header */}
-      <header style={{ background: C.dark, boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 16px" }}>
+      {/* Header — ink bar, green mark, Daily·Wins amber-half wordmark (design system §9) */}
+      <header style={{ background: C.dark, boxShadow: "0 1px 2px rgba(22,38,61,0.06), 0 6px 16px rgba(22,38,61,0.07)" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{
-              background: COLORS.primary,
-              width: 38,
+              background: C.secondary,
+              width: 36,
               height: 32,
-              borderRadius: 10,
+              borderRadius: 8,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               color: "white",
-              fontWeight: 800,
+              fontWeight: 600,
               fontSize: 14,
             }}>
               DW
             </div>
-            <h1 style={{ color: "white", fontSize: 22, fontWeight: 700, margin: 0 }}>DailyWins</h1>
+            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, letterSpacing: "-0.01em" }}>
+              <span style={{ color: "white" }}>Daily</span>
+              <span style={{ color: C.accent }}>Wins</span>
+            </h1>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <span style={{ color: "#ccc", fontSize: 13 }}>{user.email}</span>
+            <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 13 }}>{user.email}</span>
             <button
               onClick={handleSignOut}
               style={{
-                background: COLORS.primary,
+                background: "transparent",
                 color: "white",
-                border: "none",
+                border: "1px solid rgba(255,255,255,0.35)",
                 borderRadius: 8,
                 padding: "6px 14px",
                 fontSize: 13,
@@ -2106,15 +2119,16 @@ export default function DashboardClient() {
         {!hasStudents && (
           <div style={{
             background: "white",
-            borderRadius: 16,
+            borderRadius: 12,
             padding: "40px 24px",
             textAlign: "center",
             marginBottom: 24,
-            boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
-            border: `2px dashed ${COLORS.accent}`,
+            boxShadow: "0 1px 2px rgba(22,38,61,0.06), 0 6px 16px rgba(22,38,61,0.07)",
+            border: `1px solid ${COLORS.dark}1a`,
+            borderTop: `3px solid ${COLORS.secondary}`,
           }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>&#127942;</div>
-            <h2 style={{ color: COLORS.dark, fontSize: 24, fontWeight: 700, margin: "0 0 8px" }}>
+            <h2 style={{ fontFamily: DISPLAY_FONT, color: COLORS.dark, fontSize: 26, fontWeight: 500, margin: "0 0 8px" }}>
               Welcome to DailyWins!
             </h2>
             <p style={{ color: "#666", fontSize: 15, margin: "0 0 20px" }}>

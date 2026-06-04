@@ -1,18 +1,28 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Fraunces, Public_Sans, IBM_Plex_Mono } from "next/font/google";
 import Link from "next/link";
 import PWAProvider from "@/src/components/PWAProvider";
 import ActAsBanner from "@/src/components/ActAsBanner";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Sure Step Education design system — three-voice type:
+// display serif (Fraunces), accessible body sans (Public Sans), mono eyebrows (IBM Plex Mono).
+const display = Fraunces({
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--ssd-font-display",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const body = Public_Sans({
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--ssd-font-body",
+});
+
+const mono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--ssd-font-mono",
 });
 
 export const metadata: Metadata = {
@@ -29,14 +39,14 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#3a3028" />
+        <meta name="theme-color" content="#16263d" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="DailyWins" />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${display.variable} ${body.variable} ${mono.variable} antialiased`}
       >
         <PWAProvider>
           <ActAsBanner />

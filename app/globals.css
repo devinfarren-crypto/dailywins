@@ -1,21 +1,110 @@
 @import "tailwindcss";
 
+/* ──────────────────────────────────────────────────────────────────────────
+   Sure Step Education — Design System tokens
+   See sure-step-design-system.md. Editorial, warm, accessible (SPED-first).
+   ────────────────────────────────────────────────────────────────────────── */
 :root {
+  /* brand */
+  --ssd-ink: #16263d;
+  --ssd-ink-soft: #26456a;
+  --ssd-green: #2e8b5e;
+  --ssd-green-deep: #1c5c3c;
+  --ssd-amber: #e3a23c;
+  --ssd-amber-deep: #8a5a12;
+
+  /* neutrals */
+  --ssd-paper: #f7f3ec;
+  --ssd-surface: #ffffff;
+  --ssd-surface-alt: #f1f3f1;
+  --ssd-border: #e4e7e3;
+  --ssd-text: #2b2b29;
+  --ssd-text-muted: #6b6e69;
+
+  /* status (DailyWins) */
+  --ssd-status-support: #dd6b4d;
+  --ssd-status-working: #e3a23c;
+  --ssd-status-track: #4fa07e;
+  --ssd-status-exceptional: #5e97c4;
+
+  /* shape & elevation */
+  --ssd-radius-sm: 8px;
+  --ssd-radius: 12px;
+  --ssd-radius-pill: 999px;
+  --ssd-shadow: 0 1px 2px rgba(22, 38, 61, 0.06), 0 6px 16px rgba(22, 38, 61, 0.07);
+  --ssd-shadow-sm: 0 1px 2px rgba(22, 38, 61, 0.06);
+
+  /* legacy aliases kept so existing surfaces don't break */
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: var(--ssd-text);
 }
 
+/* Map design tokens into Tailwind v4's theme so utilities like
+   text-ink / bg-paper / font-display resolve. */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  --color-ink: var(--ssd-ink);
+  --color-ink-soft: var(--ssd-ink-soft);
+  --color-green: var(--ssd-green);
+  --color-green-deep: var(--ssd-green-deep);
+  --color-amber: var(--ssd-amber);
+  --color-amber-deep: var(--ssd-amber-deep);
+  --color-paper: var(--ssd-paper);
+  --color-surface: var(--ssd-surface);
+  --color-surface-alt: var(--ssd-surface-alt);
+  --color-line: var(--ssd-border);
+  --color-body: var(--ssd-text);
+  --color-muted: var(--ssd-text-muted);
+  --color-status-support: var(--ssd-status-support);
+  --color-status-working: var(--ssd-status-working);
+  --color-status-track: var(--ssd-status-track);
+  --color-status-exceptional: var(--ssd-status-exceptional);
+
+  --font-display: var(--ssd-font-display), Georgia, serif;
+  --font-sans: var(--ssd-font-body), system-ui, sans-serif;
+  --font-mono: var(--ssd-font-mono), ui-monospace, monospace;
+
+  --radius-ssd: 12px;
+  --radius-pill: 999px;
 }
 
 /* Dark mode disabled — DailyWins uses its own light color scheme */
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--ssd-surface);
+  color: var(--ssd-text);
+  font-family: var(--ssd-font-body), system-ui, sans-serif;
+}
+
+/* Signature mono eyebrow label (§5). */
+.ssd-eyebrow {
+  font-family: var(--ssd-font-mono), ui-monospace, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 12px;
+  color: var(--ssd-text-muted);
+}
+
+/* The one allowed translucent element — sticky nav (§7). */
+.ssd-nav {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--ssd-border);
+}
+
+/* Visible keyboard focus ring on interactive elements (§10). */
+:where(a, button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--ssd-green-deep);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
