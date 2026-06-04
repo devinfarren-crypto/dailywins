@@ -9,6 +9,7 @@ import {
 } from "@/src/lib/schedule-shape";
 import { SchedulesSchema, type Schedules } from "@/src/lib/schedules-schema";
 import { writeAuditLog } from "@/src/lib/audit-log";
+import { getCurrentActAsSession } from "@/src/lib/act-as-current";
 
 // "merge"   → union the incoming variants over the existing ones (PDF-upload
 //             flow: a partial upload must not clobber other variants).
@@ -124,7 +125,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!adminCheck) {
+    // Founder-implicit edit: a founder can manage any school's bell schedule
+    // even without an explicit school_admins row (matches their authority
+    // elsewhere and unblocks the "founder onboards a new school" flow). Like
+    // is_school_admin, has_role() resolves through effective_user_id(), so an
+    // active act-as session correctly scopes this to the target's authority.
+    let authorized = adminCheck === true;
+    if (!authorized) {
+      const { data: founderCheck, error: founderError } = await userClient.rpc(
+        "has_role",
+        { p_role: "founder" },
+      );
+      if (founderError) {
+        console.error("[schedule/save] has_role RPC failed:", founderError);
+        return NextResponse.json<SaveErrorResponse>(
+          { error: "auth_check_failed", detail: founderError.message },
+          { status: 500 },
+        );
+      }
+      authorized = founderCheck === true;
+    }
+
+    if (!authorized) {
       return NextResponse.json<SaveErrorResponse>(
         { error: "forbidden", detail: "You are not an admin of this school." },
         { status: 403 },
@@ -211,8 +233,14 @@ export async function POST(req: NextRequest) {
     // so the schools AFTER-UPDATE trigger (migration 032) no-ops on it — we
     // record it here with known-actor attribution instead. Best-effort: a
     // failed audit write logs but never fails the save (see writeAuditLog).
+    //
+    // Stamp act-as attribution to match the DB triggers (029/032): record the
+    // real actor and, when an act-as session is open, the user being acted as.
+    const actAs = await getCurrentActAsSession();
     await writeAuditLog(serviceClient, {
       actor_user_id: user.id,
+      acting_as_user_id: actAs?.target_user_id ?? null,
+      break_glass: actAs?.break_glass ?? false,
       action: "schedule.update",
       target_table: "schools",
       target_id: school_id,

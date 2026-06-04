@@ -12,16 +12,17 @@ export const dynamic = "force-dynamic";
 /**
  * Site Admin bell-schedule manager.
  *
- * Loads the schools the signed-in user administers (their `school_admins` rows —
- * the same table is_school_admin() checks, so the picker stays consistent with
- * what the save route will accept) and hands them, with their current stored
- * schedules, to the uploader/editor.
+ * Loads the schools the signed-in user can manage. Founders see every school
+ * (matches the save route's founder-implicit authz); everyone else is scoped to
+ * their `school_admins` rows — the same table is_school_admin() checks, so the
+ * picker stays consistent with what the save route will accept. Each school is
+ * handed over with its current stored schedules to the uploader/editor.
  *
  * Auth: redirects unauthenticated users to the landing page. A signed-in user
  * who admins no schools gets an explanatory empty state. The school_admins +
  * schools reads run through the service-role client because a Site Admin may
  * administer a school they don't teach at (RLS would hide that schools row) —
- * authorization is still scoped explicitly by user.id.
+ * authorization is still scoped explicitly by user.id (or founder role).
  */
 export default async function UploadSchedulePage() {
   const supabase = await createClient();
@@ -33,27 +34,41 @@ export default async function UploadSchedulePage() {
 
   const admin = createAdminClient();
 
-  const { data: adminRows } = await admin
-    .from("school_admins")
-    .select("school_id")
-    .eq("user_id", user.id);
+  // Founders manage every school; everyone else is scoped to their
+  // school_admins rows. has_role() runs as the caller (auth.uid/effective).
+  const { data: founderCheck } = await supabase.rpc("has_role", {
+    p_role: "founder",
+  });
+  const isFounder = founderCheck === true;
 
-  const schoolIds = (adminRows ?? []).map((r) => r.school_id as string);
-
-  let schools: SchoolOption[] = [];
-  if (schoolIds.length > 0) {
-    const { data: schoolRows } = await admin
+  let schoolRows:
+    | { id: string; name: string; schedules: Schedules }[]
+    | null = null;
+  if (isFounder) {
+    ({ data: schoolRows } = await admin
       .from("schools")
       .select("id, name, schedules")
-      .in("id", schoolIds)
-      .order("name");
-
-    schools = (schoolRows ?? []).map((s) => ({
-      id: s.id as string,
-      name: s.name as string,
-      schedules: (s.schedules as Schedules) ?? null,
-    }));
+      .order("name"));
+  } else {
+    const { data: adminRows } = await admin
+      .from("school_admins")
+      .select("school_id")
+      .eq("user_id", user.id);
+    const schoolIds = (adminRows ?? []).map((r) => r.school_id as string);
+    if (schoolIds.length > 0) {
+      ({ data: schoolRows } = await admin
+        .from("schools")
+        .select("id, name, schedules")
+        .in("id", schoolIds)
+        .order("name"));
+    }
   }
+
+  const schools: SchoolOption[] = (schoolRows ?? []).map((s) => ({
+    id: s.id as string,
+    name: s.name as string,
+    schedules: (s.schedules as Schedules) ?? null,
+  }));
 
   return (
     <main style={{ padding: 40, maxWidth: 900, margin: "0 auto" }}>
