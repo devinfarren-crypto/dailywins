@@ -1,23 +1,19 @@
 # DailyWins Roadmap
 
-Last updated: June 3, 2026
+Last updated: June 4, 2026
 
 ## Status
-Phases **4 (audit log), 5 (act-as), and 6 (Site Admin schedule editor)** are shipped and live-verified. The "vendor cannot see student data, by database design" story is structurally true — RLS at the DB layer, audit triggers on PII + admin/config tables, PII-blind Operator/District-Admin tiers — and is now documented on `/privacy`. **Email is live (Resend)** and **magic links now work cross-device** — the tester-growth blocker is cleared. Pilot is approval-scoped to a handful of teachers. **Prod migration head: `032`.**
+Phases **4 (audit log), 5 (act-as), and 6 (Site Admin schedule editor)** are shipped and live-verified. The "vendor cannot see student data, by database design" story is structurally true — RLS at the DB layer, audit triggers on PII + admin/config tables, PII-blind Operator/District-Admin tiers — and is now documented on `/privacy`. **Email is live (Resend)** and **magic links now work cross-device, both templates** — the tester-growth blocker is fully cleared. The three Phase 4/5/6 follow-ups (founder-implicit schedule edit, act-as audit attribution, inactivity-based act-as expiry) shipped 6/04 (`659a73a`). Pilot is approval-scoped to a handful of teachers; the `devintest*` clutter is cleaned out. **Prod migration head: `032`.**
 
 ## Open — sorted by what blocks EGUSD (July 13) or tester growth
-- **Demo script for EGUSD** — not started. The compliance walkthrough: approve-under-audit → act-as picker → coral banner → audit-log artifact → break-glass as the strongest visual proof. Highest-leverage remaining July 13 item.
-- **Inactivity-based renewal of `expires_at`** — act-as sessions hard-expire 60 min from start; long support calls get bumped mid-troubleshoot.
+- **Demo script for EGUSD** — Devin is building it in a separate project. The compliance walkthrough: approve-under-audit → act-as picker → coral banner → audit-log artifact → break-glass as the strongest visual proof. Highest-leverage remaining July 13 item; Claude can draft a DW clickpath on request.
 - ~~Demo Mode reseed.~~ **Verified healthy 6/02.** Live demo data already reflects the `1f6ba4a` fix (phoneAway non-zero in 1366/1590 rows, onTask in 1586/1590 — correct distributions, not the old all-zero bug) and is only ~4 days stale (Apr 6 → May 29). No reseed needed now; reseed for date-freshness right before a dry-run / the demo via **Demo Mode → Wipe → Seed** in the dashboard (or ask Claude to script it). Worth a quick in-app glance during a dry-run to confirm the dashboard *renders* it right.
-- **General audit gap for direct admin/MCP SQL** — the trigger no-ops on service-role context (auth.uid() NULL). 032 closed this for *schedule* edits app-side (`writeAuditLog('schedule.update')`); the general case (arbitrary admin SQL) still wants a session-variable "intended actor" so the trigger can attribute to a real user.
+- **General audit gap for direct admin/MCP SQL** — the trigger no-ops on service-role context (auth.uid() NULL). 032 + the 6/04 schedule-audit attribution closed this for *schedule* edits app-side (`writeAuditLog('schedule.update')` now stamps actor + acting-as); the general case (arbitrary admin SQL) still wants a session-variable "intended actor" so the trigger can attribute to a real user.
 - **Drop `allowed_emails`** — vestigial since the auth-callback rewrite stopped reading it. Drop after a quiet observation period (snapshot first — it's a one-way door).
 
 ## Follow-ups from recent work
-- **Flip the "Magic Link" email template** — the "Confirm signup" template is verified flipped to the `/auth/confirm?token_hash=…` URL (proven by a cross-device test 6/03). The **"Magic Link"** template (used only by *existing* users re-requesting a link) was likely NOT flipped — needs a 30-sec dashboard check (Supabase → Auth → Emails → Templates → Magic Link → `…&type=magiclink`). Low-stakes: the `/auth/confirm` `?code=` fallback keeps existing-user links working *same-device*; the flip closes the existing-user *cross-device* gap. Can't be read remotely (GoTrue config).
-- **Clean up test accounts** — ~9 `devintest*@proton.me` / `devintest3@proton.me` rows in `auth.users` + `access_requests` from the 6/03 Resend/auth testing. Safe scoped delete; left in place pending a green light.
-- **Founder-implicit schedule-edit access** (P6) — founders without a `school_admins` row for a school can't edit its schedule (matches save-route authz). Wire founder-implicit edit, or auto-insert a `school_admins` row on school creation, for the "founder onboards a 3rd school" story.
-- **Act-as attribution on the `schedule.update` audit** (P4 parity) — the app-layer schedule audit stamps `actor_user_id` but not `acting_as_user_id`; add the act-as lookup to match the triggers. Optional: extend trigger coverage to the `teachers` table.
-- **Re-evaluate the `school_schedules` table (~10h)** — was slated to move bell schedules out of hardcoded TS. The JSONB-on-`schools` column + the new editor already solved the practical problem, so decide whether a normalized table still earns its cost before building it.
+- **Re-evaluate the `school_schedules` table (~10h)** — was slated to move bell schedules out of hardcoded TS. The JSONB-on-`schools` column + the editor already solved the practical problem, so decide whether a normalized table still earns its cost before building it.
+- **Live-verify the act-as schedule items** — build/typecheck pass, but founder-implicit edit (#2), act-as audit attribution (#3), and sliding expiry (#4) only fully exercise under an active act-as session. Walk one in prod: start act-as → edit a schedule → confirm the audit row carries `acting_as_user_id` and `expires_at` slides on activity. Optional: extend the act-as attribution lookup / trigger coverage to the `teachers` table.
 
 ## EGUSD July 13 prep
 - ✅ Compliance story demo-able end-to-end: `/admin/requests` (approve under audit) → `/admin/teachers` (act-as) → coral banner → `/admin/audit-log`.
@@ -27,6 +23,9 @@ Phases **4 (audit log), 5 (act-as), and 6 (Site Admin schedule editor)** are shi
 - Compliance *folder* (DPA templates: CSDPA / National DPA) — TODO; `/privacy` says we're ready to sign one.
 
 ## Recently shipped (newest first)
+- **6/04 — Phase 4/5/6 follow-ups (`659a73a`).** (1) Founder-implicit schedule edit: a founder manages any school's bell schedule without a `school_admins` row — `/admin/upload-schedule` loads all schools for founders, the save route falls back to `has_role('founder')`; both resolve via `effective_user_id()` so act-as scopes to the target. (2) Act-as attribution: `schedule.update` audit now stamps `acting_as_user_id` + `break_glass` via `getCurrentActAsSession()`. (3) Inactivity-based act-as expiry: regular sessions slide `expires_at` forward on activity (1 write / 5 min throttle); break-glass stays hard-capped. Build + typecheck green; live-verification under act-as still pending (see Follow-ups).
+- **6/04 — "Magic Link" email template flipped (Devin).** The last open auth item; existing-user cross-device re-request links now work. Magic-link saga fully closed.
+- **6/04 — Test-account cleanup.** Deleted ~9 `devintest*@proton.me` accounts (9 `auth.users` + 3 `access_requests`; one test teacher/role cascaded, 0 behavior rows). Snapshot at `.snapshots/2026-06-04-…json` (gitignored). 6 real users / 3 founders intact.
 - **6/03 — Email live (Resend) + founder notifications.** Domain `send.dailywins.school` verified (DNS at GoDaddy: DKIM/SPF/MX/DMARC), `RESEND_API_KEY` + `NOTIFY_FROM_EMAIL` + `NOTIFY_TO_EMAIL` set in Vercel, Supabase custom SMTP wired (smtp.resend.com:465) so magic-link delivery is fast/reliable. `NOTIFY_TO_EMAIL` → `devinfarren@gmail.com` (surestep mailbox isn't bridged to Gmail). All verified in Resend logs. New domain → first sends land in Spam/Promotions until reputation warms (mark "Not spam").
 - **6/03 — Cross-device magic links fixed (`73aef2c`).** Magic-link sign-in used the PKCE code flow (`exchangeCodeForSession` needs the requesting browser's `code_verifier` cookie) → clicking on a different device/browser left `email_confirmed_at` set but `last_sign_in_at` null, no session, no access-request row. New `/auth/confirm` route verifies a `token_hash` via `verifyOtp` (no cookie) → works cross-device; also accepts a `?code=` fallback. Shared provisioning gate extracted to `src/lib/auth-provision.ts` (used by both `/auth/callback` OAuth and `/auth/confirm` email). Email templates flipped to the `token_hash` URL (Confirm-signup verified; Magic-Link pending — see Follow-ups). Proven in prod via an incognito (cross-context) test.
 - **6/03 — `/pending` gated + dead route removed (`aca6bfc`).** `/pending` was an ungated client page (unauth visitors saw the shell; its `/api/access-request/mine` fetch 401'd → "Unable to load your request status"). Now a server component: `getUser()` → redirect (no session → `/`, approved → `/dashboard`, denied/missing → `/access-denied`, pending → render with status/school as props). Removed `/api/access-request/mine` (sole consumer was `/pending`). Verified in prod (unauth `/pending` → 307 `/`; mine → 404).
@@ -39,10 +38,10 @@ Phases **4 (audit log), 5 (act-as), and 6 (Site Admin schedule editor)** are shi
 - **5/29 — Break-glass UI** (founder-only, rose-red banner + required reason, 15-min timeout). Verified live.
 - **Earlier — Phase 5 act-as (027/028):** districts/act_as_sessions/audit_log, `effective_user_id()`, RLS rewrite, act-as + break-glass routes, `/admin/teachers`, `/admin/audit-log`, `/audit/me`. **Beta access layer (022–026):** access_requests + RLS, approve RPC, `/pending`, `/admin/requests`.
 
-## Pilot status (snapshot 6/02)
+## Pilot status (snapshot 6/04)
 - **Devin** (founder + teacher) — PGHS; admins PGHS + COHS.
 - **Nick** (teacher + Site Admin) — COHS.
-- Throwaway/test accounts — Sacramento HS + a magic-link test school.
+- 6 `auth.users` total / 3 teachers after the `devintest*` cleanup.
 - Approval-gated onboarding is the gate; `allowed_emails` is vestigial.
 
 ## Working guardrails (current)
