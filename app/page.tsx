@@ -66,7 +66,7 @@ export default function LoginPage() {
                   if (saveErr) console.error("Failed to save refresh token:", saveErr);
                 });
             }
-            router.replace("/dashboard");
+            window.location.href = "/auth/home";
           })
           .catch((e) => {
             console.error("Allowlist check failed:", e);
@@ -79,7 +79,8 @@ export default function LoginPage() {
     // No code — check if user already has a session
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
-        router.replace("/dashboard");
+        // Role-aware: an admin account must not be dumped on /dashboard.
+        window.location.href = "/auth/home";
       } else {
         setChecking(false);
       }
