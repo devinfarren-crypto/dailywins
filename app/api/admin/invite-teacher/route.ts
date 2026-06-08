@@ -3,12 +3,16 @@ import { z } from "zod";
 import { createClient } from "@/src/lib/supabase-server";
 import { createAdminClient } from "@/src/lib/supabase-admin";
 import { writeAuditLog } from "@/src/lib/audit-log";
+import { sendTeacherInvite } from "@/src/lib/send-teacher-invite";
 
-const Body = z.object({ school_id: z.string().uuid().optional() });
+const Body = z.object({
+  email: z.string().trim().email("Enter a valid email address"),
+  school_id: z.string().uuid().optional(),
+});
 
-// Site Admin (or Founder) generates a single-use invite link for a teacher at a
-// school they administer. The link is shared out-of-band; the invitee signs in
-// through it and is provisioned as a teacher (see redeem_invite, migration 036).
+// Site Admin (or Founder) invites a teacher by EMAIL. Creates an email-bound
+// invite (claimed automatically when that email signs in) and emails the teacher
+// a link — no copy/paste, no out-of-band sending.
 export async function POST(request: Request) {
   const { origin } = new URL(request.url);
   const supabase = await createClient();
@@ -21,8 +25,12 @@ export async function POST(request: Request) {
 
   const parsed = Body.safeParse(await request.json().catch(() => ({})));
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "Invalid request" },
+      { status: 400 }
+    );
   }
+  const email = parsed.data.email.toLowerCase();
 
   const admin = createAdminClient();
   const { data: roleRows } = await admin
@@ -35,7 +43,7 @@ export async function POST(request: Request) {
     .filter((r) => r.role === "site_admin" && r.school_id)
     .map((r) => r.school_id as string);
 
-  // Resolve the school to invite into, scoped to what the caller administers.
+  // Resolve the school, scoped to what the caller administers.
   let schoolId = parsed.data.school_id;
   if (!isFounder) {
     if (siteSchoolIds.length === 0) {
@@ -61,27 +69,53 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "school_id required" }, { status: 400 });
   }
 
-  // Run as the caller so generate_invite's tier-rank check + created_by resolve
-  // to them (a site_admin may invite the strictly-lower teacher tier).
-  const { data: token, error } = await supabase.rpc("generate_invite", {
-    p_role: "teacher",
+  // Create the email-bound invite as the caller (RPC re-checks authority).
+  const { error: inviteError } = await supabase.rpc("create_teacher_invite", {
     p_school_id: schoolId,
+    p_email: email,
   });
-  if (error) {
-    console.error("generate_invite failed", error);
-    return NextResponse.json({ error: error.message }, { status: 400 });
+  if (inviteError) {
+    console.error("create_teacher_invite failed", inviteError);
+    return NextResponse.json({ error: inviteError.message }, { status: 400 });
   }
+
+  // Look up the school name + inviter name for the email body.
+  const { data: school } = await admin
+    .from("schools")
+    .select("name")
+    .eq("id", schoolId)
+    .maybeSingle();
+  const { data: inviter } = await admin
+    .from("teachers")
+    .select("full_name")
+    .eq("auth_id", user.id)
+    .maybeSingle();
+
+  const result = await sendTeacherInvite({
+    to: email,
+    origin,
+    schoolName: school?.name ?? "your school",
+    inviterName: inviter?.full_name ?? undefined,
+  });
 
   await writeAuditLog(admin, {
     actor_user_id: user.id,
     action: "invite.create",
     target_table: "invites",
     target_id: schoolId,
-    after: { role: "teacher", school_id: schoolId },
+    after: { role: "teacher", school_id: schoolId, email, email_sent: result.sent },
   });
 
-  return NextResponse.json({
-    ok: true,
-    invite_url: `${origin}/?invite=${token}`,
-  });
+  if (!result.sent) {
+    // The invite exists; the email just didn't go out. Tell the admin so they
+    // can fall back to "go to dailywins.school and sign in with your email".
+    return NextResponse.json({
+      ok: true,
+      email,
+      email_sent: false,
+      warning: result.error ?? "Invite created but the email could not be sent.",
+    });
+  }
+
+  return NextResponse.json({ ok: true, email, email_sent: true });
 }

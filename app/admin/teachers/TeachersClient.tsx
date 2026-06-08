@@ -28,10 +28,11 @@ export default function TeachersClient({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string>("");
 
-  // Invite flow
+  // Invite flow (email-bound: type the teacher's email, we send the invite)
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
   const [inviting, setInviting] = useState(false);
-  const [inviteUrl, setInviteUrl] = useState("");
-  const [copied, setCopied] = useState(false);
+  const [inviteMsg, setInviteMsg] = useState("");
 
   const canManage = isFounder || isSiteAdmin; // deactivate / reactivate
 
@@ -54,35 +55,31 @@ export default function TeachersClient({
     }
   };
 
-  const generateInvite = async () => {
+  const inviteTeacher = async (e: React.FormEvent) => {
+    e.preventDefault();
     setError("");
+    setInviteMsg("");
     setInviting(true);
-    setInviteUrl("");
-    setCopied(false);
     try {
       const res = await fetch("/api/admin/invite-teacher", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify({}),
+        body: JSON.stringify({ email: inviteEmail.trim() }),
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.error ?? "Unable to create invite");
-      setInviteUrl(body.invite_url as string);
+      if (!res.ok) throw new Error(body.error ?? "Unable to send invite");
+      setInviteMsg(
+        body.email_sent
+          ? `Invitation emailed to ${body.email}. They sign in with that email and land in their classroom.`
+          : `Invite created for ${body.email}, but the email didn't send (${body.warning ?? "email not configured"}). Ask them to go to this site and sign in with that email.`
+      );
+      setInviteEmail("");
+      setInviteOpen(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invite failed");
     } finally {
       setInviting(false);
-    }
-  };
-
-  const copyInvite = async () => {
-    try {
-      await navigator.clipboard.writeText(inviteUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setError("Copy failed — select and copy the link manually.");
     }
   };
 
@@ -125,35 +122,55 @@ export default function TeachersClient({
           </div>
           {isSiteAdmin ? (
             <button
-              onClick={generateInvite}
-              disabled={inviting}
-              className="rounded-xl bg-[#1c5c3c] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#16263d] disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={() => {
+                setInviteOpen((v) => !v);
+                setInviteMsg("");
+                setError("");
+              }}
+              className="rounded-xl bg-[#1c5c3c] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#16263d]"
             >
-              {inviting ? "Generating…" : "+ Invite teacher"}
+              {inviteOpen ? "Cancel" : "+ Invite teacher"}
             </button>
           ) : null}
         </header>
 
-        {inviteUrl ? (
-          <div className="mb-4 rounded-2xl border border-[#e4e7e3] bg-white p-4 shadow-sm">
-            <div className="mb-2 text-sm font-semibold text-[#16263d]">
-              Invite link — share it with the teacher (single use):
-            </div>
+        {inviteOpen ? (
+          <form
+            onSubmit={inviteTeacher}
+            className="mb-4 rounded-2xl border border-[#e4e7e3] bg-white p-4 shadow-sm"
+          >
+            <label className="mb-2 block text-sm font-semibold text-[#16263d]">
+              Invite a teacher by email
+            </label>
             <div className="flex flex-wrap items-center gap-2">
               <input
-                readOnly
-                value={inviteUrl}
-                onFocus={(e) => e.target.select()}
-                className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-700"
+                type="email"
+                required
+                autoFocus
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="teacher@school.org"
+                className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700"
               />
               <button
-                onClick={copyInvite}
-                className="rounded-lg bg-[#16263d] px-3 py-2 text-xs font-semibold text-white"
+                type="submit"
+                disabled={inviting}
+                className="rounded-lg bg-[#16263d] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {copied ? "Copied!" : "Copy"}
+                {inviting ? "Sending…" : "Send invite"}
               </button>
             </div>
-          </div>
+            <p className="mt-2 text-xs text-[#8a9690]">
+              We email them a link. They sign in with this address and go straight
+              to their classroom — no approval needed.
+            </p>
+          </form>
+        ) : null}
+
+        {inviteMsg ? (
+          <p className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            {inviteMsg}
+          </p>
         ) : null}
 
         {error ? (

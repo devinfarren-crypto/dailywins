@@ -12,9 +12,10 @@ export default function LoginPage() {
   const [magicBusy, setMagicBusy] = useState(false);
   const [magicSent, setMagicSent] = useState(false);
   const [magicError, setMagicError] = useState("");
-  // Invite token from /?invite=… — carried through sign-in so the chosen auth
-  // route can redeem it (provisioning the invitee as a teacher).
-  const [inviteToken, setInviteToken] = useState("");
+  // Set when arriving from a teacher-invite email (/?email=…): pre-fills the
+  // address and shows an invited banner. Provisioning happens on sign-in via the
+  // email-bound invite — no token to carry through the URL.
+  const [invited, setInvited] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
@@ -24,8 +25,11 @@ export default function LoginPage() {
     // to the code_verifier cookie it stored during signInWithOAuth).
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
-    const invite = params.get("invite")?.trim() ?? "";
-    setInviteToken(invite);
+    const prefillEmail = params.get("email")?.trim() ?? "";
+    if (prefillEmail) {
+      setEmail(prefillEmail);
+      setInvited(true);
+    }
 
     if (code) {
       supabase.auth.exchangeCodeForSession(code).then(({ data, error: err }) => {
@@ -77,15 +81,7 @@ export default function LoginPage() {
       return;
     }
 
-    // No code — check if user already has a session. An invite link is the
-    // exception: even if someone is already signed in (e.g. an admin testing),
-    // show the sign-in form so the invitee can authenticate as the new account
-    // instead of being bounced to the existing session's home (which silently
-    // dropped the invite).
-    if (invite) {
-      setChecking(false);
-      return;
-    }
+    // No code — check if user already has a session.
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
         // Role-aware: an admin account must not be dumped on /dashboard.
@@ -98,11 +94,10 @@ export default function LoginPage() {
 
   const handleGoogleSignIn = async () => {
     const supabase = createClient();
-    const invite = inviteToken ? `?invite=${encodeURIComponent(inviteToken)}` : "";
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback${invite}`,
+        redirectTo: `${window.location.origin}/auth/callback`,
         queryParams: { prompt: "select_account" },
       },
     });
@@ -125,10 +120,9 @@ export default function LoginPage() {
     setMagicError("");
     setMagicBusy(true);
     const supabase = createClient();
-    const invite = inviteToken ? `?invite=${encodeURIComponent(inviteToken)}` : "";
     const { error: otpError } = await supabase.auth.signInWithOtp({
       email: trimmed,
-      options: { emailRedirectTo: `${window.location.origin}/auth/confirm${invite}` },
+      options: { emailRedirectTo: `${window.location.origin}/auth/confirm` },
     });
     setMagicBusy(false);
     if (otpError) {
@@ -236,17 +230,17 @@ export default function LoginPage() {
               padding: "30px 26px",
               boxShadow: "var(--ssd-shadow)",
             }}>
-              {inviteToken && (
+              {invited && (
                 <div style={{ background: "var(--ssd-surface-alt)", border: "1px solid var(--ssd-border)", borderLeft: "3px solid var(--ssd-green)", borderRadius: "var(--ssd-radius-sm)", padding: "10px 14px", marginBottom: 16, fontSize: 13, color: "var(--ssd-text)", lineHeight: 1.5 }}>
-                  You&apos;ve been <span style={{ fontWeight: 600 }}>invited to DailyWins</span>. Sign in below to join your school.
+                  You&apos;ve been <span style={{ fontWeight: 600 }}>invited to DailyWins</span>. Sign in with this email to join your school.
                 </div>
               )}
               <p className="ssd-eyebrow" style={{ margin: "0 0 8px" }}>Sign in</p>
               <h2 style={{ fontFamily: "var(--ssd-font-display), Georgia, serif", fontSize: 22, fontWeight: 500, color: "var(--ssd-ink)", margin: "0 0 6px" }}>
-                {inviteToken ? "Join your school" : "Welcome back"}
+                {invited ? "Join your school" : "Welcome back"}
               </h2>
               <p style={{ fontSize: 13, color: "var(--ssd-text-muted)", margin: "0 0 20px" }}>
-                {inviteToken ? "Use your school email or Google account." : "Pilot teachers and approved accounts only."}
+                {invited ? "Use the email this invite was sent to." : "Pilot teachers and approved accounts only."}
               </p>
 
               {error && (
