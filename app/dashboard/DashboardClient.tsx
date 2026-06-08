@@ -582,8 +582,15 @@ export default function DashboardClient() {
       // match.
       const { data: existingTeacher } = await supabase
         .from("teachers")
-        .select("id, school_id, full_name, email, categories, preferences, schools(name)")
+        .select("id, school_id, full_name, email, categories, preferences, deactivated_at, schools(name)")
         .maybeSingle();
+
+      // Deactivated teacher: block access mid-session too, not just at login.
+      if (existingTeacher?.deactivated_at) {
+        router.replace("/access-denied");
+        setLoading(false);
+        return;
+      }
 
       let profile: TeacherProfile;
 

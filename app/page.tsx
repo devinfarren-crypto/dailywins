@@ -12,6 +12,9 @@ export default function LoginPage() {
   const [magicBusy, setMagicBusy] = useState(false);
   const [magicSent, setMagicSent] = useState(false);
   const [magicError, setMagicError] = useState("");
+  // Invite token from /?invite=… — carried through sign-in so the chosen auth
+  // route can redeem it (provisioning the invitee as a teacher).
+  const [inviteToken, setInviteToken] = useState("");
 
   useEffect(() => {
     const supabase = createClient();
@@ -21,6 +24,7 @@ export default function LoginPage() {
     // to the code_verifier cookie it stored during signInWithOAuth).
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
+    setInviteToken(params.get("invite")?.trim() ?? "");
 
     if (code) {
       supabase.auth.exchangeCodeForSession(code).then(({ data, error: err }) => {
@@ -84,10 +88,11 @@ export default function LoginPage() {
 
   const handleGoogleSignIn = async () => {
     const supabase = createClient();
+    const invite = inviteToken ? `?invite=${encodeURIComponent(inviteToken)}` : "";
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${window.location.origin}/auth/callback${invite}`,
         queryParams: { prompt: "select_account" },
       },
     });
@@ -110,9 +115,10 @@ export default function LoginPage() {
     setMagicError("");
     setMagicBusy(true);
     const supabase = createClient();
+    const invite = inviteToken ? `?invite=${encodeURIComponent(inviteToken)}` : "";
     const { error: otpError } = await supabase.auth.signInWithOtp({
       email: trimmed,
-      options: { emailRedirectTo: `${window.location.origin}/auth/confirm` },
+      options: { emailRedirectTo: `${window.location.origin}/auth/confirm${invite}` },
     });
     setMagicBusy(false);
     if (otpError) {
@@ -220,12 +226,17 @@ export default function LoginPage() {
               padding: "30px 26px",
               boxShadow: "var(--ssd-shadow)",
             }}>
+              {inviteToken && (
+                <div style={{ background: "var(--ssd-surface-alt)", border: "1px solid var(--ssd-border)", borderLeft: "3px solid var(--ssd-green)", borderRadius: "var(--ssd-radius-sm)", padding: "10px 14px", marginBottom: 16, fontSize: 13, color: "var(--ssd-text)", lineHeight: 1.5 }}>
+                  You&apos;ve been <span style={{ fontWeight: 600 }}>invited to DailyWins</span>. Sign in below to join your school.
+                </div>
+              )}
               <p className="ssd-eyebrow" style={{ margin: "0 0 8px" }}>Sign in</p>
               <h2 style={{ fontFamily: "var(--ssd-font-display), Georgia, serif", fontSize: 22, fontWeight: 500, color: "var(--ssd-ink)", margin: "0 0 6px" }}>
-                Welcome back
+                {inviteToken ? "Join your school" : "Welcome back"}
               </h2>
               <p style={{ fontSize: 13, color: "var(--ssd-text-muted)", margin: "0 0 20px" }}>
-                Pilot teachers and approved accounts only.
+                {inviteToken ? "Use your school email or Google account." : "Pilot teachers and approved accounts only."}
               </p>
 
               {error && (
