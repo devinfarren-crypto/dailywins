@@ -21,9 +21,15 @@ export async function resolvePostAuthRedirect(
 
   const { data: existingTeacher } = await admin
     .from("teachers")
-    .select("id")
+    .select("id, deactivated_at")
     .eq("auth_id", user.id)
     .maybeSingle();
+
+  // A deactivated teacher keeps their data but loses access (deactivate, don't
+  // delete). Block at the login gate; a site_admin/founder can reactivate them.
+  if (existingTeacher?.deactivated_at) {
+    return "/access-denied";
+  }
 
   // A teacher row means the teacher dashboard is their home.
   if (existingTeacher) {

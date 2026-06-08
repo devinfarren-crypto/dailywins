@@ -52,7 +52,7 @@ export default async function AdminTeachersPage() {
 
   let query = admin
     .from("teachers")
-    .select("id, auth_id, full_name, email, school_id, schools(name, district)")
+    .select("id, auth_id, full_name, email, school_id, deactivated_at, schools(name, district)")
     .order("full_name", { ascending: true });
 
   if (!isFounder) {
@@ -76,8 +76,15 @@ export default async function AdminTeachersPage() {
           (t.schools as { name?: string } | null)?.name ?? null,
         district:
           (t.schools as { district?: string } | null)?.district ?? null,
+        deactivated: Boolean(t.deactivated_at),
       }));
   }
 
-  return <TeachersClient teachers={teachers} isFounder={isFounder} />;
+  return (
+    <TeachersClient
+      teachers={teachers}
+      isFounder={isFounder}
+      isSiteAdmin={isSiteAdmin}
+    />
+  );
 }
