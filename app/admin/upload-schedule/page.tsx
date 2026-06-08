@@ -5,6 +5,7 @@ import ScheduleUploader, {
   type SchoolOption,
 } from "@/src/components/ScheduleUploader";
 import SiteAdminNav from "@/src/components/SiteAdminNav";
+import SignOutButton from "@/src/components/SignOutButton";
 import type { Schedules } from "@/src/lib/schedules-schema";
 
 // Reads auth cookies + per-user admin scope, so it must render per-request.
@@ -88,6 +89,9 @@ export default async function UploadSchedulePage() {
 
   return (
     <main style={{ padding: 40, maxWidth: 900, margin: "0 auto" }}>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
+        <SignOutButton />
+      </div>
       {!isFounder ? <SiteAdminNav current="schedules" /> : null}
       {schools.length === 0 ? (
         <div

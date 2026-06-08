@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import SiteAdminNav from "@/src/components/SiteAdminNav";
+import SignOutButton from "@/src/components/SignOutButton";
 
 export interface TeacherRow {
   id: string;
@@ -109,6 +110,9 @@ export default function TeachersClient({
   return (
     <main className="min-h-screen bg-[#f5f5f0] px-6 py-10">
       <section className="mx-auto w-full max-w-4xl">
+        <div className="mb-4 flex justify-end">
+          <SignOutButton />
+        </div>
         {showSiteAdminNav ? <SiteAdminNav current="teachers" /> : null}
         <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>

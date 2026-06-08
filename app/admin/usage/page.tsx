@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { createClient } from "@/src/lib/supabase-server";
 import { createAdminClient } from "@/src/lib/supabase-admin";
 import SiteAdminNav from "@/src/components/SiteAdminNav";
+import SignOutButton from "@/src/components/SignOutButton";
 
 export const metadata: Metadata = { title: "Usage — DailyWins" };
 export const dynamic = "force-dynamic";
@@ -88,10 +89,13 @@ function Shell({ eyebrow, title, subtitle, children }: { eyebrow: string; title:
   return (
     <main style={{ minHeight: "100vh", background: "var(--ssd-paper)", padding: "40px 20px" }}>
       <div style={{ maxWidth: 1000, margin: "0 auto" }}>
-        <header style={{ marginBottom: 24 }}>
-          <Eyebrow>{eyebrow}</Eyebrow>
-          <h1 style={{ fontFamily: DISPLAY, fontSize: 32, fontWeight: 500, color: "var(--ssd-ink)", margin: "0 0 4px" }}>{title}</h1>
-          <p style={{ fontSize: 14, color: "var(--ssd-text-muted)", margin: 0 }}>{subtitle}</p>
+        <header style={{ marginBottom: 24, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+          <div>
+            <Eyebrow>{eyebrow}</Eyebrow>
+            <h1 style={{ fontFamily: DISPLAY, fontSize: 32, fontWeight: 500, color: "var(--ssd-ink)", margin: "0 0 4px" }}>{title}</h1>
+            <p style={{ fontSize: 14, color: "var(--ssd-text-muted)", margin: 0 }}>{subtitle}</p>
+          </div>
+          <SignOutButton />
         </header>
         {children}
         <p style={{ marginTop: 28, fontSize: 12, color: "var(--ssd-text-muted)", lineHeight: 1.5 }}>
