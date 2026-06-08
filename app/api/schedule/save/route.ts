@@ -125,12 +125,34 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    let authorized = adminCheck === true;
+
+    // role_assignments site_admin: the modern source of truth for school admins
+    // (the legacy school_admins table that is_school_admin() reads is being
+    // retired). A site_admin provisioned via role_assignments — with no
+    // school_admins row — must still be able to edit their school's schedule.
+    // has_role() resolves through effective_user_id(), so act-as scopes correctly.
+    if (!authorized) {
+      const { data: siteAdminCheck, error: siteAdminError } =
+        await userClient.rpc("has_role", {
+          p_role: "site_admin",
+          p_school_id: school_id,
+        });
+      if (siteAdminError) {
+        console.error("[schedule/save] has_role(site_admin) failed:", siteAdminError);
+        return NextResponse.json<SaveErrorResponse>(
+          { error: "auth_check_failed", detail: siteAdminError.message },
+          { status: 500 },
+        );
+      }
+      authorized = siteAdminCheck === true;
+    }
+
     // Founder-implicit edit: a founder can manage any school's bell schedule
     // even without an explicit school_admins row (matches their authority
     // elsewhere and unblocks the "founder onboards a new school" flow). Like
     // is_school_admin, has_role() resolves through effective_user_id(), so an
     // active act-as session correctly scopes this to the target's authority.
-    let authorized = adminCheck === true;
     if (!authorized) {
       const { data: founderCheck, error: founderError } = await userClient.rpc(
         "has_role",

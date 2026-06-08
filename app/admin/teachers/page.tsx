@@ -26,39 +26,28 @@ export default async function AdminTeachersPage() {
     .eq("user_id", user.id);
 
   const isFounder = roles?.some((r) => r.role === "founder") ?? false;
-  const isDistrictAdmin = roles?.some((r) => r.role === "district_admin") ?? false;
   const isSiteAdmin = roles?.some((r) => r.role === "site_admin") ?? false;
+  const isDistrictAdmin = roles?.some((r) => r.role === "district_admin") ?? false;
 
-  if (!isFounder && !isDistrictAdmin && !isSiteAdmin) {
+  // Per docs/TIERED_ARCHITECTURE_v1.1, a District Admin "cannot view any
+  // teacher's roster" — they get aggregate stats only. So this roster page is
+  // founder + site_admin; a pure district admin is sent to their usage home.
+  if (!isFounder && !isSiteAdmin) {
+    if (isDistrictAdmin) redirect("/admin/usage");
     redirect("/dashboard");
   }
 
   // Load the in-scope teacher list server-side so the page renders complete.
   // (The /api/admin/teachers route uses the same logic and is what the client
-  // would re-call after refresh.)
+  // would re-call after refresh.) Founders see all; site admins see their
+  // school(s). District scope is intentionally excluded here (see above).
   let teachers: TeacherRow[] = [];
 
   let inScopeSchoolIds: string[] = [];
   if (!isFounder) {
-    const districtIds = (roles ?? [])
-      .filter((r) => r.role === "district_admin" && r.district_id)
-      .map((r) => r.district_id as string);
-    const schoolIds = (roles ?? [])
+    inScopeSchoolIds = (roles ?? [])
       .filter((r) => r.role === "site_admin" && r.school_id)
       .map((r) => r.school_id as string);
-    inScopeSchoolIds = [...schoolIds];
-    if (districtIds.length > 0) {
-      const { data: districtSchools } = await admin
-        .from("schools")
-        .select("id")
-        .in("district_id", districtIds);
-      if (districtSchools) {
-        inScopeSchoolIds = [
-          ...inScopeSchoolIds,
-          ...districtSchools.map((s) => s.id),
-        ];
-      }
-    }
   }
 
   let query = admin

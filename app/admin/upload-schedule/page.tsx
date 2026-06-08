@@ -14,9 +14,10 @@ export const dynamic = "force-dynamic";
  *
  * Loads the schools the signed-in user can manage. Founders see every school
  * (matches the save route's founder-implicit authz); everyone else is scoped to
- * their `school_admins` rows — the same table is_school_admin() checks, so the
- * picker stays consistent with what the save route will accept. Each school is
- * handed over with its current stored schedules to the uploader/editor.
+ * the schools they admin — via `role_assignments` (site_admin, the modern source
+ * of truth) unioned with the legacy `school_admins` table. The save route accepts
+ * the same union, so the picker stays consistent with what it will accept. Each
+ * school is handed over with its current stored schedules to the uploader/editor.
  *
  * Auth: redirects unauthenticated users to the landing page. A signed-in user
  * who admins no schools gets an explanatory empty state. The school_admins +
@@ -50,11 +51,25 @@ export default async function UploadSchedulePage() {
       .select("id, name, schedules")
       .order("name"));
   } else {
-    const { data: adminRows } = await admin
-      .from("school_admins")
-      .select("school_id")
-      .eq("user_id", user.id);
-    const schoolIds = (adminRows ?? []).map((r) => r.school_id as string);
+    // Union the modern source (role_assignments site_admin) with the legacy
+    // school_admins table so both provisioning paths can manage schedules while
+    // school_admins is being retired.
+    const [{ data: legacyRows }, { data: roleRows }] = await Promise.all([
+      admin.from("school_admins").select("school_id").eq("user_id", user.id),
+      admin
+        .from("role_assignments")
+        .select("school_id")
+        .eq("user_id", user.id)
+        .eq("role", "site_admin"),
+    ]);
+    const schoolIds = [
+      ...new Set(
+        [
+          ...(legacyRows ?? []).map((r) => r.school_id as string),
+          ...(roleRows ?? []).map((r) => r.school_id as string),
+        ].filter(Boolean),
+      ),
+    ];
     if (schoolIds.length > 0) {
       ({ data: schoolRows } = await admin
         .from("schools")
@@ -72,6 +87,16 @@ export default async function UploadSchedulePage() {
 
   return (
     <main style={{ padding: 40, maxWidth: 900, margin: "0 auto" }}>
+      {!isFounder ? (
+        <div style={{ marginBottom: 20 }}>
+          <a
+            href="/admin/usage"
+            style={{ fontSize: 13, fontWeight: 600, color: "#1c5c3c", textDecoration: "none" }}
+          >
+            School usage →
+          </a>
+        </div>
+      ) : null}
       {schools.length === 0 ? (
         <div
           style={{
