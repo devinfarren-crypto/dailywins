@@ -65,6 +65,17 @@ export async function resolvePostAuthRedirect(
     return "/admin/upload-schedule";
   }
 
+  // Email-bound teacher invite: a site admin pre-authorized this email address.
+  // Supabase has verified the user controls it, so matching it provisions them as
+  // a teacher — no URL token, works on any device / sign-in method. Takes
+  // precedence over any stale pending access request for the same user.
+  const { data: claim } = await admin.rpc("claim_email_teacher_invite", {
+    p_user_id: user.id,
+  });
+  if (claim?.claimed) {
+    return "/dashboard";
+  }
+
   if (inviteToken) {
     try {
       const { error: inviteError } = await admin.rpc("redeem_invite", {
