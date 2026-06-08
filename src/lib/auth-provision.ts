@@ -25,15 +25,29 @@ export async function resolvePostAuthRedirect(
     .eq("auth_id", user.id)
     .maybeSingle();
 
-  const { data: existingRoleAssignment } = await admin
+  // A teacher row means the teacher dashboard is their home.
+  if (existingTeacher) {
+    return "/dashboard";
+  }
+
+  const { data: roleRows } = await admin
     .from("role_assignments")
     .select("role")
     .eq("user_id", user.id)
-    .in("role", ["teacher", "site_admin", "district_admin", "founder"])
-    .maybeSingle();
+    .in("role", ["teacher", "site_admin", "district_admin", "founder"]);
+  const roles = (roleRows ?? []).map((r) => r.role);
 
-  if (existingTeacher || existingRoleAssignment) {
+  // Holds a 'teacher' role but no teachers row yet → the dashboard's
+  // ensure_teacher_exists path finishes provisioning.
+  if (roles.includes("teacher")) {
     return "/dashboard";
+  }
+
+  // Pure admin (founder / district_admin / site_admin) with no teacher row:
+  // the teacher dashboard would bounce them to /pending via ensure_teacher_exists,
+  // so send them to their real home — the admin console.
+  if (roles.length > 0) {
+    return "/admin/teachers";
   }
 
   if (inviteToken) {

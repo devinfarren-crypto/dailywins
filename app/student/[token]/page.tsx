@@ -6,13 +6,13 @@ import MagicLinkSummary, {
   type StudentRow,
 } from "@/src/components/MagicLinkSummary";
 
-interface ParentView {
+interface StudentView {
   student: StudentRow | null;
   scores: ScoreRow[];
   notes: NoteRow[];
 }
 
-export default async function ParentPage({
+export default async function StudentPage({
   params,
 }: {
   params: Promise<{ token: string }>;
@@ -24,28 +24,22 @@ export default async function ParentPage({
   if (!url || !anon) return <InvalidLinkCard />;
 
   const supabase = createClient(url, anon);
-  const { data, error } = await supabase.rpc("get_parent_view", {
+  const { data, error } = await supabase.rpc("get_student_view", {
     p_raw_token: token,
   });
 
-  if (error || !data)
-    return (
-      <InvalidLinkCard message="It may have expired or been turned off. Ask your child's teacher for a new link." />
-    );
+  if (error || !data) return <InvalidLinkCard message="It may have expired or been turned off. Ask your teacher for a new link." />;
 
-  const view = data as ParentView;
-  if (!view.student)
-    return (
-      <InvalidLinkCard message="It may have expired or been turned off. Ask your child's teacher for a new link." />
-    );
+  const view = data as StudentView;
+  if (!view.student) return <InvalidLinkCard message="It may have expired or been turned off. Ask your teacher for a new link." />;
 
   return (
     <MagicLinkSummary
       student={view.student}
       scores={Array.isArray(view.scores) ? view.scores : []}
       notes={Array.isArray(view.notes) ? view.notes : []}
-      eyebrow="· DailyWins ·"
-      subtitle="Behavior summary"
+      eyebrow="· Your DailyWins ·"
+      subtitle="Your behavior summary"
     />
   );
 }
