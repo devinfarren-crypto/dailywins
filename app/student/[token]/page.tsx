@@ -5,11 +5,13 @@ import MagicLinkSummary, {
   type NoteRow,
   type StudentRow,
 } from "@/src/components/MagicLinkSummary";
+import type { CategoryDef } from "@/src/components/BehaviorCharts";
 
 interface StudentView {
   student: StudentRow | null;
   scores: ScoreRow[];
   notes: NoteRow[];
+  categories?: CategoryDef[];
 }
 
 export default async function StudentPage({
@@ -38,6 +40,7 @@ export default async function StudentPage({
       student={view.student}
       scores={Array.isArray(view.scores) ? view.scores : []}
       notes={Array.isArray(view.notes) ? view.notes : []}
+      categories={Array.isArray(view.categories) ? view.categories : []}
       eyebrow="· Your DailyWins ·"
       subtitle="Your behavior summary"
     />

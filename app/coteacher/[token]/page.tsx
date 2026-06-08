@@ -5,12 +5,14 @@ import MagicLinkSummary, {
   type NoteRow,
   type StudentRow,
 } from "@/src/components/MagicLinkSummary";
+import type { CategoryDef } from "@/src/components/BehaviorCharts";
 
 interface CoteacherView {
   student: StudentRow | null;
   access: string;
   scores: ScoreRow[];
   notes: NoteRow[];
+  categories?: CategoryDef[];
 }
 
 export default async function CoteacherPage({
@@ -60,6 +62,7 @@ export default async function CoteacherPage({
       student={view.student}
       scores={Array.isArray(view.scores) ? view.scores : []}
       notes={Array.isArray(view.notes) ? view.notes : []}
+      categories={Array.isArray(view.categories) ? view.categories : []}
       eyebrow="· DailyWins · Co-teacher ·"
       subtitle="Shared behavior summary"
       banner={banner}

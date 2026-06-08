@@ -1,13 +1,22 @@
 import type { ReactNode } from "react";
+import BehaviorCharts, { type CategoryDef } from "@/src/components/BehaviorCharts";
 
 // Shared read-only behavior summary rendered by the parent / student / co-teacher
-// magic-link pages. Pure presentational (no client hooks) so it renders inside a
-// Server Component. Styled to the Sure Step Education design system.
+// magic-link pages. The server shell (header / notes) is presentational; the
+// behavior section delegates to the BehaviorCharts client component (daily /
+// weekly / monthly charts). Styled to the Sure Step Education design system.
 
 export interface ScoreRow {
   id: string;
+  score_date: string;
   period: number;
-  scores: Record<string, unknown> | null;
+  scores: Record<string, number | null> | null;
+  // Legacy per-category columns (pre-jsonb rows) — used by the chart's fallback.
+  arrival?: number | null;
+  compliance?: number | null;
+  social?: number | null;
+  on_task?: number | null;
+  phone_away?: boolean | null;
 }
 
 export interface NoteRow {
@@ -63,26 +72,11 @@ export function InvalidLinkCard({
   );
 }
 
-function periodTotals(scores: ScoreRow[]): [number, number][] {
-  const totals = new Map<number, number>();
-  for (const row of scores) {
-    if (!row || typeof row.period !== "number") continue;
-    let sum = 0;
-    const s = row.scores;
-    if (s && typeof s === "object") {
-      for (const v of Object.values(s)) {
-        if (typeof v === "number" && Number.isFinite(v)) sum += v;
-      }
-    }
-    totals.set(row.period, (totals.get(row.period) ?? 0) + sum);
-  }
-  return [...totals.entries()].sort((a, b) => a[0] - b[0]);
-}
-
 export default function MagicLinkSummary({
   student,
   scores,
   notes,
+  categories,
   eyebrow = "· DailyWins ·",
   subtitle = "Behavior summary",
   banner,
@@ -90,11 +84,11 @@ export default function MagicLinkSummary({
   student: StudentRow;
   scores: ScoreRow[];
   notes: NoteRow[];
+  categories?: CategoryDef[] | null;
   eyebrow?: string;
   subtitle?: string;
   banner?: ReactNode;
 }) {
-  const periodRows = periodTotals(scores);
   const fullName =
     `${student.first_name ?? ""} ${student.last_name ?? ""}`.trim() || "Student";
 
@@ -130,32 +124,8 @@ export default function MagicLinkSummary({
         {banner}
 
         <section style={{ marginBottom: 24 }}>
-          <h2 style={sectionHeading}>By period</h2>
-          {periodRows.length === 0 ? (
-            <div style={{ ...cardStyle, color: "var(--ssd-text-muted)", fontSize: 14 }}>
-              No scores yet.
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {periodRows.map(([period, total]) => (
-                <div
-                  key={period}
-                  style={{
-                    ...cardStyle,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <div style={{ fontSize: 14, color: "var(--ssd-text)" }}>
-                    <span style={{ color: "var(--ssd-text-muted)", marginRight: 8 }}>Period</span>
-                    <span style={{ fontWeight: 600, color: "var(--ssd-ink)" }}>{period}</span>
-                  </div>
-                  <div style={{ fontSize: 18, fontWeight: 600, color: "var(--ssd-green-deep)" }}>{total}</div>
-                </div>
-              ))}
-            </div>
-          )}
+          <h2 style={sectionHeading}>Behavior over time</h2>
+          <BehaviorCharts scores={scores} categories={categories} />
         </section>
 
         <section>
