@@ -625,8 +625,10 @@ export default function DashboardClient() {
             error?.code === "42501";
 
           if (isPendingAccessError) {
-            router.replace("/pending");
-            setLoading(false);
+            // Route through the role-aware resolver: a genuinely pending teacher
+            // still ends at /pending, but an admin account (no teacher row) goes
+            // to their admin home instead of looping /dashboard↔/pending.
+            window.location.href = "/auth/home";
             return;
           }
 
