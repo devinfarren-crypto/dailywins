@@ -24,7 +24,8 @@ export default function LoginPage() {
     // to the code_verifier cookie it stored during signInWithOAuth).
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
-    setInviteToken(params.get("invite")?.trim() ?? "");
+    const invite = params.get("invite")?.trim() ?? "";
+    setInviteToken(invite);
 
     if (code) {
       supabase.auth.exchangeCodeForSession(code).then(({ data, error: err }) => {
@@ -76,7 +77,15 @@ export default function LoginPage() {
       return;
     }
 
-    // No code — check if user already has a session
+    // No code — check if user already has a session. An invite link is the
+    // exception: even if someone is already signed in (e.g. an admin testing),
+    // show the sign-in form so the invitee can authenticate as the new account
+    // instead of being bounced to the existing session's home (which silently
+    // dropped the invite).
+    if (invite) {
+      setChecking(false);
+      return;
+    }
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
         // Role-aware: an admin account must not be dumped on /dashboard.
