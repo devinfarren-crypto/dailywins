@@ -43,6 +43,10 @@ export interface CategoryDef {
   name: string;
   maxPoints: number;
   noPoints?: boolean;
+  // Needed to score "arrival"-type categories correctly: they store an option
+  // INDEX (pointValues can collide, e.g. [3,0,3]), not the point value.
+  type?: string;
+  pointValues?: number[];
 }
 
 // One behavior_scores row as returned by the magic-link RPCs (migration 038).
@@ -64,7 +68,7 @@ type Grain = "daily" | "weekly" | "monthly";
 // Fallback when a student has no scores yet (RPC returns []). Mirrors the
 // teachers.categories DB default (see DashboardClient DEFAULT_CATEGORIES).
 const DEFAULT_CATEGORIES: CategoryDef[] = [
-  { id: "arrival", name: "Arrival", maxPoints: 3 },
+  { id: "arrival", name: "Arrival", type: "arrival", pointValues: [3, 0, 3], maxPoints: 3 },
   { id: "compliance", name: "Compliance", maxPoints: 3 },
   { id: "social", name: "Social", maxPoints: 3 },
   { id: "onTask", name: "On-Task", maxPoints: 3 },
@@ -91,14 +95,22 @@ function num(v: unknown): number {
   return typeof v === "number" && Number.isFinite(v) ? v : 0;
 }
 
+// An "arrival" category stores the OPTION INDEX (its pointValues can collide,
+// e.g. [3,0,3]), not the point value; every other type stores points directly.
+// Mirrors the dashboard's calculatePeriodPoints so the % is correct.
+function pointsForRaw(cat: CategoryDef, raw: number): number {
+  if (cat.type === "arrival") return cat.pointValues?.[raw] ?? 0;
+  return raw;
+}
+
 // Per-row category points. Mirrors ChartViews.extractScores incl. legacy fallback.
 function extractScores(row: ChartScoreRow, categories: CategoryDef[]): Record<string, number> {
   const result: Record<string, number> = {};
   if (row.scores) {
-    for (const cat of categories) result[cat.id] = num(row.scores[cat.id]);
+    for (const cat of categories) result[cat.id] = pointsForRaw(cat, num(row.scores[cat.id]));
   } else {
     for (const cat of categories) {
-      if (cat.id === "arrival") result[cat.id] = row.arrival ?? 0;
+      if (cat.id === "arrival") result[cat.id] = pointsForRaw(cat, num(row.arrival));
       else if (cat.id === "compliance") result[cat.id] = row.compliance ?? 0;
       else if (cat.id === "social") result[cat.id] = row.social ?? 0;
       else if (cat.id === "onTask") result[cat.id] = row.on_task ?? 0;

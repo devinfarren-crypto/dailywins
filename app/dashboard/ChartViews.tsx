@@ -94,16 +94,26 @@ function shortMonth(m: number): string {
   return ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][m];
 }
 
+// An "arrival" category stores the OPTION INDEX, not its point value (its
+// pointValues can collide — e.g. [3,0,3] — so the index disambiguates). Every
+// other type stores the point value directly. Convert to points here so the
+// charts agree with the dashboard's calculatePeriodPoints (which does the same).
+function pointsForRaw(cat: Category, raw: number | null | undefined): number {
+  if (raw == null || !Number.isFinite(raw)) return 0;
+  if (cat.type === "arrival") return cat.pointValues?.[raw] ?? 0;
+  return raw;
+}
+
 function extractScores(row: DbScoreRow, categories: Category[]): Record<string, number> {
   const result: Record<string, number> = {};
   if (row.scores) {
     for (const cat of categories) {
-      result[cat.id] = row.scores[cat.id] ?? 0;
+      result[cat.id] = pointsForRaw(cat, row.scores[cat.id]);
     }
   } else {
-    // Legacy fallback
+    // Legacy fallback (per-column). The legacy `arrival` column is also an index.
     for (const cat of categories) {
-      if (cat.id === "arrival") result[cat.id] = row.arrival ?? 0;
+      if (cat.id === "arrival") result[cat.id] = pointsForRaw(cat, row.arrival);
       else if (cat.id === "compliance") result[cat.id] = row.compliance ?? 0;
       else if (cat.id === "social") result[cat.id] = row.social ?? 0;
       else if (cat.id === "onTask") result[cat.id] = row.on_task ?? 0;
