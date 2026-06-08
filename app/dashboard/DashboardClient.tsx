@@ -128,37 +128,20 @@ interface TeacherProfile {
   preferences?: Preferences;
 }
 
-type SchoolName = "Cosumnes Oaks High School" | "Pleasant Grove High School";
-
 interface PeriodSlot {
   label: string;
   start: string;
   end: string;
 }
 
-interface BellSchedule {
-  periods: PeriodSlot[];
-}
-
 // ─── Bell Schedules ───────────────────────────────────────────────────────────
-
-// Fallback only. Real schedules live in public.schools.schedules (JSONB) and
-// load via useSchedules(). The DB shape is richer (includes Period 0, typed
-// break entries for 1st/2nd Lunch, and the full Monday/Rally layouts that the
-// hardcoded version below was missing). An empty fallback means: on a cold
-// load before the DB read returns, or on a DB failure, the schedule modal
-// shows no variants instead of stale data that would mislead users.
-const BELL_SCHEDULES: Record<SchoolName, Record<string, BellSchedule>> = {
-  "Cosumnes Oaks High School": {},
-  "Pleasant Grove High School": {},
-};
-
-const SCHOOLS: SchoolName[] = ["Cosumnes Oaks High School", "Pleasant Grove High School"];
-
-const SCHOOL_NAME_TO_ID: Record<string, string> = {
-  "Pleasant Grove High School": "a21b868b-aa1a-46a7-a9b8-de1e05c45247",
-  "Cosumnes Oaks High School": "6a5042af-875d-4722-9591-50b8e648b873",
-};
+//
+// Bell schedules live in public.schools.schedules (JSONB) and load via
+// useSchedules() keyed by the teacher's ASSIGNED school name. There is no
+// hardcoded school list and no fallback: a teacher's school is set by their
+// site admin (via the invite / role assignment), not chosen in the dashboard.
+// Before the DB read returns — or if it fails — the modal shows no variants
+// rather than stale data that would mislead users.
 
 // ─── Score Helpers ────────────────────────────────────────────────────────────
 
@@ -421,20 +404,16 @@ export default function DashboardClient() {
     }
     return initial;
   });
-  const [selectedSchool, setSelectedSchool] = useState<SchoolName | "">(
-    () => (typeof window !== "undefined" ? localStorage.getItem("dailywins_school") as SchoolName | "" : "")
-  );
+  // The teacher's school is set from their assignment (profile.school_name) when
+  // the profile loads — not chosen in the dashboard. See the profile-load effect.
+  const [selectedSchool, setSelectedSchool] = useState<string>("");
   const [selectedSchedule, setSelectedSchedule] = useState<string>("");
   const [lunchPref, setLunchPref] = useState<"1st" | "2nd">(() => {
     if (typeof window === "undefined") return "1st";
     return (localStorage.getItem("dailywins_lunch") as "1st" | "2nd") || "1st";
   });
 
-  const schedulesForSchool = useSchedules(
-    supabase,
-    selectedSchool || null,
-    selectedSchool ? BELL_SCHEDULES[selectedSchool as SchoolName] : {},
-  );
+  const schedulesForSchool = useSchedules(supabase, selectedSchool || null, {});
   const [showSchedule, setShowSchedule] = useState(false);
   const [showAddStudents, setShowAddStudents] = useState(false);
   const [addStudentsText, setAddStudentsText] = useState("");
@@ -462,11 +441,7 @@ export default function DashboardClient() {
   const [isFounder, setIsFounder] = useState(false);
 
   useEffect(() => {
-    if (!selectedSchool) {
-      setIsSiteAdmin(false);
-      return;
-    }
-    const schoolId = SCHOOL_NAME_TO_ID[selectedSchool];
+    const schoolId = teacher?.school_id;
     if (!schoolId) {
       setIsSiteAdmin(false);
       return;
@@ -479,7 +454,7 @@ export default function DashboardClient() {
       setIsSiteAdmin(!error && data === true);
     })();
     return () => { cancelled = true; };
-  }, [selectedSchool]);
+  }, [teacher?.school_id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -657,6 +632,8 @@ export default function DashboardClient() {
       }
 
       setTeacher(profile);
+      // The school is determined by the teacher's assignment, not a picker.
+      setSelectedSchool(profile.school_name || "");
 
       await loadStudents(profile.school_id);
       setLoading(false);
@@ -1176,10 +1153,6 @@ export default function DashboardClient() {
     localStorage.setItem("dailywins_lunch", pref);
   };
 
-  const handleSelectSchool = (school: SchoolName) => {
-    setSelectedSchool(school);
-    localStorage.setItem("dailywins_school", school);
-  };
 
   const handleSignOut = async () => {
     localStorage.removeItem("dailywins_google_token");
@@ -3919,36 +3892,44 @@ export default function DashboardClient() {
               </button>
             </div>
 
-            {/* School Selection */}
+            {/* Your school — read-only. Determined by the teacher's assignment
+                (set by their site admin), not chosen here. */}
             <div style={{ marginBottom: 20 }}>
               <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: COLORS.dark, marginBottom: 8 }}>
-                Select Your School
+                Your School
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {SCHOOLS.map((school) => (
-                  <button
-                    key={school}
-                    onClick={() => handleSelectSchool(school)}
-                    style={{
-                      background: selectedSchool === school ? COLORS.secondary : "#f5f5f0",
-                      color: selectedSchool === school ? "white" : COLORS.dark,
-                      border: selectedSchool === school ? "none" : "1px solid #d0d0d0",
-                      borderRadius: 10,
-                      padding: "14px 18px",
-                      fontSize: 15,
-                      fontWeight: 700,
-                      cursor: "pointer",
-                      textAlign: "left",
-                      transition: "all 0.15s ease",
-                    }}
-                  >
-                    &#127979; {school}
-                    <span style={{ display: "block", fontSize: 11, fontWeight: 500, marginTop: 2, opacity: 0.8 }}>
-                      Elk Grove Unified School District
-                    </span>
-                  </button>
-                ))}
-              </div>
+              {selectedSchool ? (
+                <div
+                  style={{
+                    background: "#f5f5f0",
+                    border: "1px solid #d0d0d0",
+                    borderRadius: 10,
+                    padding: "14px 18px",
+                    fontSize: 15,
+                    fontWeight: 700,
+                    color: COLORS.dark,
+                  }}
+                >
+                  &#127979; {selectedSchool}
+                  <span style={{ display: "block", fontSize: 11, fontWeight: 500, marginTop: 2, color: "#888" }}>
+                    Set by your school admin
+                  </span>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    background: "#fff8f0",
+                    border: "1px solid #f0c890",
+                    borderRadius: 10,
+                    padding: "14px 18px",
+                    fontSize: 13,
+                    color: "#8a6d3b",
+                  }}
+                >
+                  You haven&apos;t been assigned to a school yet. Ask your site admin
+                  or founder to add you.
+                </div>
+              )}
             </div>
 
             {/* Schedule Type Selection */}
@@ -3957,6 +3938,21 @@ export default function DashboardClient() {
                 <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: COLORS.dark, marginBottom: 8 }}>
                   Schedule Type
                 </div>
+                {Object.keys(schedulesForSchool).length === 0 ? (
+                  <div
+                    style={{
+                      background: "#fff8f0",
+                      border: "1px solid #f0c890",
+                      borderRadius: 10,
+                      padding: "12px 16px",
+                      fontSize: 13,
+                      color: "#8a6d3b",
+                    }}
+                  >
+                    No bell schedule has been set for {selectedSchool} yet. Your
+                    site admin uploads it, then it&apos;ll show up here.
+                  </div>
+                ) : (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                   {Object.keys(schedulesForSchool).map((type) => (
                     <button
@@ -3978,6 +3974,7 @@ export default function DashboardClient() {
                     </button>
                   ))}
                 </div>
+                )}
               </div>
             )}
 
