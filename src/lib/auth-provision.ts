@@ -43,11 +43,20 @@ export async function resolvePostAuthRedirect(
     return "/dashboard";
   }
 
-  // Pure admin (founder / district_admin / site_admin) with no teacher row:
-  // the teacher dashboard would bounce them to /pending via ensure_teacher_exists,
-  // so send them to their real home — the admin console.
-  if (roles.length > 0) {
+  // Pure admins (no teacher row) land on their role's home surface — the teacher
+  // dashboard would bounce them to /pending via ensure_teacher_exists. Each tier
+  // has a distinct home (per docs/TIERED_ARCHITECTURE_v1.1):
+  //   founder        → the management/act-as hub (/admin/teachers)
+  //   district_admin → the PII-blind district usage dashboard (/admin/usage)
+  //   site_admin     → bell-schedule management (/admin/upload-schedule)
+  if (roles.includes("founder")) {
     return "/admin/teachers";
+  }
+  if (roles.includes("district_admin")) {
+    return "/admin/usage";
+  }
+  if (roles.includes("site_admin")) {
+    return "/admin/upload-schedule";
   }
 
   if (inviteToken) {
