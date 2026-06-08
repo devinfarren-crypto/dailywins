@@ -80,6 +80,7 @@ export default function MagicLinkSummary({
   eyebrow = "· DailyWins ·",
   subtitle = "Behavior summary",
   banner,
+  writePanel,
 }: {
   student: StudentRow;
   scores: ScoreRow[];
@@ -88,6 +89,7 @@ export default function MagicLinkSummary({
   eyebrow?: string;
   subtitle?: string;
   banner?: ReactNode;
+  writePanel?: ReactNode;
 }) {
   const fullName =
     `${student.first_name ?? ""} ${student.last_name ?? ""}`.trim() || "Student";
@@ -122,6 +124,8 @@ export default function MagicLinkSummary({
         </header>
 
         {banner}
+
+        {writePanel}
 
         <section style={{ marginBottom: 24 }}>
           <h2 style={sectionHeading}>Behavior over time</h2>

@@ -6,6 +6,7 @@ import MagicLinkSummary, {
   type StudentRow,
 } from "@/src/components/MagicLinkSummary";
 import type { CategoryDef } from "@/src/components/BehaviorCharts";
+import CoteacherWritePanel from "@/src/components/CoteacherWritePanel";
 
 interface CoteacherView {
   student: StudentRow | null;
@@ -52,7 +53,7 @@ export default async function CoteacherPage({
     >
       <strong style={{ color: "var(--ssd-ink)" }}>Co-teacher access:</strong>{" "}
       {canWrite
-        ? "you can view this student's summary and contribute shared scores and notes."
+        ? "you can add today's scores and shared notes below; everything else is the student's summary."
         : "you have a read-only view of this student's summary."}
     </div>
   );
@@ -66,6 +67,14 @@ export default async function CoteacherPage({
       eyebrow="· DailyWins · Co-teacher ·"
       subtitle="Shared behavior summary"
       banner={banner}
+      writePanel={
+        canWrite ? (
+          <CoteacherWritePanel
+            token={token}
+            categories={Array.isArray(view.categories) ? view.categories : []}
+          />
+        ) : undefined
+      }
     />
   );
 }
