@@ -85,6 +85,7 @@ export default async function AdminTeachersPage() {
       teachers={teachers}
       isFounder={isFounder}
       isSiteAdmin={isSiteAdmin}
+      showSiteAdminNav={isSiteAdmin && !isFounder}
     />
   );
 }

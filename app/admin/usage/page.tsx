@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import type { Metadata } from "next";
 import { createClient } from "@/src/lib/supabase-server";
 import { createAdminClient } from "@/src/lib/supabase-admin";
+import SiteAdminNav from "@/src/components/SiteAdminNav";
 
 export const metadata: Metadata = { title: "Usage — DailyWins" };
 export const dynamic = "force-dynamic";
@@ -198,11 +198,7 @@ export default async function UsagePage() {
     const schoolName = teachers[0]?.school ?? "Your school";
     return (
       <Shell eyebrow="· School usage ·" title={schoolName} subtitle="Teacher activity at your school">
-        <div style={{ marginBottom: 16 }}>
-          <Link href="/admin/upload-schedule" style={{ fontSize: 13, fontWeight: 600, color: "var(--ssd-green-deep)", textDecoration: "none" }}>
-            ← Bell schedules
-          </Link>
-        </div>
+        <SiteAdminNav current="usage" />
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 28 }}>
           <StatCard label="Teachers" value={totals.teachers ?? 0} />
           <StatCard label="Students tracked" value={totals.students ?? 0} />

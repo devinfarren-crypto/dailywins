@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import SiteAdminNav from "@/src/components/SiteAdminNav";
 
 export interface TeacherRow {
   id: string;
@@ -16,10 +17,12 @@ export default function TeachersClient({
   teachers: initialTeachers,
   isFounder,
   isSiteAdmin,
+  showSiteAdminNav = false,
 }: {
   teachers: TeacherRow[];
   isFounder: boolean;
   isSiteAdmin: boolean;
+  showSiteAdminNav?: boolean;
 }) {
   const [teachers, setTeachers] = useState<TeacherRow[]>(initialTeachers);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -109,6 +112,7 @@ export default function TeachersClient({
   return (
     <main className="min-h-screen bg-[#f5f5f0] px-6 py-10">
       <section className="mx-auto w-full max-w-4xl">
+        {showSiteAdminNav ? <SiteAdminNav current="teachers" /> : null}
         <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-[#2a4d42]">Teachers</h1>
