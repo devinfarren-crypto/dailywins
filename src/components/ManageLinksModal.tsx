@@ -21,6 +21,21 @@ interface MagicLink {
   use_count: number;
 }
 
+type Scope = "parent" | "student" | "co_teacher";
+
+// scope_type → public landing route segment.
+const SCOPE_PATH: Record<Scope, string> = {
+  parent: "parent",
+  student: "student",
+  co_teacher: "coteacher",
+};
+
+const SCOPE_OPTIONS: { value: Scope; label: string }[] = [
+  { value: "parent", label: "Parent / guardian" },
+  { value: "student", label: "Student" },
+  { value: "co_teacher", label: "Co-teacher" },
+];
+
 interface ManageLinksModalProps {
   studentId: string;
   studentName: string;
@@ -35,6 +50,8 @@ export default function ManageLinksModal({ studentId, studentName, open, onClose
   const [newUrl, setNewUrl] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [copied, setCopied] = useState(false);
+  const [scope, setScope] = useState<Scope>("parent");
+  const [coteacherWrite, setCoteacherWrite] = useState(false);
 
   const supabase = createClient();
 
@@ -64,10 +81,11 @@ export default function ManageLinksModal({ studentId, studentName, open, onClose
     setGenerating(true);
     setErrorMsg("");
     setNewUrl("");
+    const access = scope === "co_teacher" && coteacherWrite ? "readwrite" : "read";
     const { data, error } = await supabase.rpc("generate_magic_link", {
-      p_scope_type: "parent",
+      p_scope_type: scope,
       p_student_id: studentId,
-      p_access: "read",
+      p_access: access,
     });
     if (error) {
       setErrorMsg("Could not generate link: " + error.message);
@@ -75,7 +93,7 @@ export default function ManageLinksModal({ studentId, studentName, open, onClose
       return;
     }
     const token = data as string;
-    setNewUrl(`${window.location.origin}/parent/${token}`);
+    setNewUrl(`${window.location.origin}/${SCOPE_PATH[scope]}/${token}`);
     setGenerating(false);
     loadLinks();
   };
@@ -136,19 +154,47 @@ export default function ManageLinksModal({ studentId, studentName, open, onClose
         </div>
 
         <p style={{ fontSize: 13, color: COLORS.body, marginTop: 0 }}>
-          A parent link gives a read-only view of this student&apos;s progress. Private notes are never shown. Every view is logged. You can revoke a link anytime.
+          A link gives a read-only view of this student&apos;s progress (a co-teacher link can optionally allow contributions). Private notes are never shown. Every view is logged. You can revoke a link anytime.
         </p>
 
-        <button
-          onClick={handleGenerate}
-          disabled={generating || !studentId}
-          style={{
-            background: COLORS.primary, color: "white", border: "none", borderRadius: 6,
-            padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: generating ? "default" : "pointer", marginBottom: 12,
-          }}
-        >
-          {generating ? "Generating…" : "+ Generate parent link"}
-        </button>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 12 }}>
+          <select
+            value={scope}
+            onChange={(e) => setScope(e.target.value as Scope)}
+            style={{
+              fontSize: 13, padding: "8px 10px", borderRadius: 6, border: "1px solid #d0d0d0",
+              background: "white", color: COLORS.dark, fontWeight: 600,
+            }}
+          >
+            {SCOPE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+
+          {scope === "co_teacher" && (
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: COLORS.body }}>
+              <input
+                type="checkbox"
+                checked={coteacherWrite}
+                onChange={(e) => setCoteacherWrite(e.target.checked)}
+              />
+              Allow contributions (read &amp; write)
+            </label>
+          )}
+
+          <button
+            onClick={handleGenerate}
+            disabled={generating || !studentId}
+            style={{
+              background: COLORS.primary, color: "white", border: "none", borderRadius: 6,
+              padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: generating ? "default" : "pointer",
+            }}
+          >
+            {generating
+              ? "Generating…"
+              : `+ Generate ${SCOPE_OPTIONS.find((o) => o.value === scope)?.label.toLowerCase()} link`}
+          </button>
+        </div>
 
         {newUrl && (
           <div style={{ background: COLORS.cream, borderRadius: 6, padding: 10, marginBottom: 14 }}>
@@ -189,7 +235,10 @@ export default function ManageLinksModal({ studentId, studentName, open, onClose
                   border: "1px solid #eee", borderRadius: 6, padding: "8px 10px",
                 }}>
                   <div style={{ fontSize: 12, color: COLORS.body }}>
-                    <span style={{ fontWeight: 600, textTransform: "capitalize" }}>{l.scope_type}</span>
+                    <span style={{ fontWeight: 600 }}>
+                      {SCOPE_OPTIONS.find((o) => o.value === l.scope_type)?.label ?? l.scope_type}
+                    </span>
+                    {l.scope_type === "co_teacher" && l.access === "readwrite" ? " (read & write)" : ""}
                     {" · "}{l.use_count} view{l.use_count === 1 ? "" : "s"}
                     {" · "}<span style={{ color: status === "Active" ? COLORS.primary : COLORS.hint }}>{status}</span>
                   </div>

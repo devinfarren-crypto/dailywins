@@ -18,6 +18,26 @@ type SchoolOption = {
   district: string;
 };
 
+type DistrictOption = {
+  id: string;
+  name: string;
+};
+
+type GrantRole = "teacher" | "site_admin" | "district_admin";
+
+type ApprovePayload = {
+  role: GrantRole;
+  existing_school_id?: string;
+  new_school?: { name: string; district: string };
+  district_id?: string;
+};
+
+const ROLE_OPTIONS: { value: GrantRole; label: string; hint: string }[] = [
+  { value: "teacher", label: "Teacher", hint: "Tracks behavior in the dashboard. Scoped to one school." },
+  { value: "site_admin", label: "Site Admin", hint: "Manages teachers & schedules at one school. Can act-as its teachers." },
+  { value: "district_admin", label: "District Admin", hint: "Oversees every school in a district. Can act-as its teachers." },
+];
+
 type Filter = "pending" | "all";
 
 const NEW_SCHOOL = "__new__";
@@ -301,39 +321,43 @@ function ApproveModal({
   busy: boolean;
   onClose: () => void;
   onError: (message: string) => void;
-  onSubmit: (
-    payload:
-      | { existing_school_id: string }
-      | { new_school: { name: string; district: string } }
-  ) => Promise<void>;
+  onSubmit: (payload: ApprovePayload) => Promise<void>;
 }) {
+  const [role, setRole] = useState<GrantRole>("teacher");
   const [schools, setSchools] = useState<SchoolOption[] | null>(null);
   const [loadingSchools, setLoadingSchools] = useState(true);
   const [selection, setSelection] = useState<string>("");
   const [newName, setNewName] = useState(request.school_name ?? "");
   const [newDistrict, setNewDistrict] = useState("");
+  const [districts, setDistricts] = useState<DistrictOption[] | null>(null);
+  const [districtSelection, setDistrictSelection] = useState<string>("");
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/admin/schools", {
-          credentials: "same-origin",
-          cache: "no-store",
-        });
-        const body = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          throw new Error(body.error ?? "Unable to load schools");
+        const [schoolRes, districtRes] = await Promise.all([
+          fetch("/api/admin/schools", { credentials: "same-origin", cache: "no-store" }),
+          fetch("/api/admin/districts", { credentials: "same-origin", cache: "no-store" }),
+        ]);
+        const schoolBody = await schoolRes.json().catch(() => ({}));
+        if (!schoolRes.ok) {
+          throw new Error(schoolBody.error ?? "Unable to load schools");
         }
+        const districtBody = await districtRes.json().catch(() => ({}));
         if (cancelled) return;
-        const list = (body.schools ?? []) as SchoolOption[];
-        setSchools(list);
-        setSelection(list.length > 0 ? list[0].id : NEW_SCHOOL);
+        const schoolList = (schoolBody.schools ?? []) as SchoolOption[];
+        setSchools(schoolList);
+        setSelection(schoolList.length > 0 ? schoolList[0].id : NEW_SCHOOL);
+        const districtList = (districtBody.districts ?? []) as DistrictOption[];
+        setDistricts(districtList);
+        setDistrictSelection(districtList.length > 0 ? districtList[0].id : "");
       } catch (err) {
         if (cancelled) return;
         onError(err instanceof Error ? err.message : "Unable to load schools");
         setSchools([]);
         setSelection(NEW_SCHOOL);
+        setDistricts([]);
       } finally {
         if (!cancelled) setLoadingSchools(false);
       }
@@ -344,22 +368,25 @@ function ApproveModal({
   }, [onError]);
 
   const isNew = selection === NEW_SCHOOL;
-  const canSubmit = isNew
-    ? newName.trim().length > 0 && newDistrict.trim().length > 0
-    : selection.length > 0;
+  const isDistrictAdmin = role === "district_admin";
+  const canSubmit = isDistrictAdmin
+    ? districtSelection.length > 0
+    : isNew
+      ? newName.trim().length > 0 && newDistrict.trim().length > 0
+      : selection.length > 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit || busy) return;
-    if (isNew) {
+    if (isDistrictAdmin) {
+      await onSubmit({ role, district_id: districtSelection });
+    } else if (isNew) {
       await onSubmit({
-        new_school: {
-          name: newName.trim(),
-          district: newDistrict.trim(),
-        },
+        role,
+        new_school: { name: newName.trim(), district: newDistrict.trim() },
       });
     } else {
-      await onSubmit({ existing_school_id: selection });
+      await onSubmit({ role, existing_school_id: selection });
     }
   };
 
@@ -388,53 +415,98 @@ function ApproveModal({
 
         <div className="mt-5 space-y-3">
           <label className="block text-sm font-semibold text-[#2a4d42]">
-            School
+            Role
           </label>
           <select
-            value={selection}
-            onChange={(e) => setSelection(e.target.value)}
-            disabled={loadingSchools || busy}
+            value={role}
+            onChange={(e) => setRole(e.target.value as GrantRole)}
+            disabled={busy}
             className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-[#3a7c6a] focus:outline-none focus:ring-2 focus:ring-[#3a7c6a]/20 disabled:opacity-60"
           >
-            {loadingSchools ? <option>Loading schools…</option> : null}
-            {schools?.map((school) => (
-              <option key={school.id} value={school.id}>
-                {school.name} — {school.district}
+            {ROLE_OPTIONS.map((r) => (
+              <option key={r.value} value={r.value}>
+                {r.label}
               </option>
             ))}
-            <option value={NEW_SCHOOL}>+ Create a new school…</option>
           </select>
+          <p className="text-xs text-[#8a9690]">
+            {ROLE_OPTIONS.find((r) => r.value === role)?.hint}
+          </p>
 
-          {isNew ? (
-            <div className="space-y-2 rounded-xl border border-gray-200 bg-[#faf7f0] p-3">
-              <div>
-                <label className="block text-xs font-semibold text-[#2a4d42]">
-                  School name
-                </label>
-                <input
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  disabled={busy}
-                  required
-                  className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-[#3a7c6a] focus:outline-none focus:ring-2 focus:ring-[#3a7c6a]/20"
-                  placeholder="Pacific Grove High School"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-[#2a4d42]">
-                  District
-                </label>
-                <input
-                  value={newDistrict}
-                  onChange={(e) => setNewDistrict(e.target.value)}
-                  disabled={busy}
-                  required
-                  className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-[#3a7c6a] focus:outline-none focus:ring-2 focus:ring-[#3a7c6a]/20"
-                  placeholder="Pacific Grove Unified"
-                />
-              </div>
-            </div>
-          ) : null}
+          {isDistrictAdmin ? (
+            <>
+              <label className="block text-sm font-semibold text-[#2a4d42]">
+                District
+              </label>
+              <select
+                value={districtSelection}
+                onChange={(e) => setDistrictSelection(e.target.value)}
+                disabled={loadingSchools || busy}
+                className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-[#3a7c6a] focus:outline-none focus:ring-2 focus:ring-[#3a7c6a]/20 disabled:opacity-60"
+              >
+                {loadingSchools ? <option>Loading districts…</option> : null}
+                {districts?.length === 0 && !loadingSchools ? (
+                  <option value="">No districts found</option>
+                ) : null}
+                {districts?.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </>
+          ) : (
+            <>
+              <label className="block text-sm font-semibold text-[#2a4d42]">
+                School
+              </label>
+              <select
+                value={selection}
+                onChange={(e) => setSelection(e.target.value)}
+                disabled={loadingSchools || busy}
+                className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-[#3a7c6a] focus:outline-none focus:ring-2 focus:ring-[#3a7c6a]/20 disabled:opacity-60"
+              >
+                {loadingSchools ? <option>Loading schools…</option> : null}
+                {schools?.map((school) => (
+                  <option key={school.id} value={school.id}>
+                    {school.name} — {school.district}
+                  </option>
+                ))}
+                <option value={NEW_SCHOOL}>+ Create a new school…</option>
+              </select>
+
+              {isNew ? (
+                <div className="space-y-2 rounded-xl border border-gray-200 bg-[#faf7f0] p-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#2a4d42]">
+                      School name
+                    </label>
+                    <input
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      disabled={busy}
+                      required
+                      className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-[#3a7c6a] focus:outline-none focus:ring-2 focus:ring-[#3a7c6a]/20"
+                      placeholder="Pacific Grove High School"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#2a4d42]">
+                      District
+                    </label>
+                    <input
+                      value={newDistrict}
+                      onChange={(e) => setNewDistrict(e.target.value)}
+                      disabled={busy}
+                      required
+                      className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-[#3a7c6a] focus:outline-none focus:ring-2 focus:ring-[#3a7c6a]/20"
+                      placeholder="Pacific Grove Unified"
+                    />
+                  </div>
+                </div>
+              ) : null}
+            </>
+          )}
         </div>
 
         <div className="mt-6 flex justify-end gap-2">

@@ -4,9 +4,13 @@ import { createClient } from "@/src/lib/supabase-server";
 import { createAdminClient } from "@/src/lib/supabase-admin";
 import { writeAuditLog } from "@/src/lib/audit-log";
 
+// role defaults to "teacher" so existing callers and the common case keep
+// working unchanged. teacher/site_admin are school-scoped; district_admin is
+// district-scoped (no school).
 const ApproveSchema = z
   .object({
     request_id: z.string().uuid(),
+    role: z.enum(["teacher", "site_admin", "district_admin"]).default("teacher"),
     existing_school_id: z.string().uuid().optional(),
     new_school: z
       .object({
@@ -14,10 +18,17 @@ const ApproveSchema = z
         district: z.string().trim().min(1, "District is required"),
       })
       .optional(),
+    district_id: z.string().uuid().optional(),
   })
   .refine(
-    (v) => Boolean(v.existing_school_id) !== Boolean(v.new_school),
-    { message: "Provide either existing_school_id or new_school, not both" }
+    (v) =>
+      v.role === "district_admin"
+        ? Boolean(v.district_id) && !v.existing_school_id && !v.new_school
+        : Boolean(v.existing_school_id) !== Boolean(v.new_school),
+    {
+      message:
+        "Teacher / site admin need a school; district admin needs a district",
+    }
   );
 
 export async function POST(request: Request) {
@@ -52,42 +63,59 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
-  const { request_id, existing_school_id, new_school } = parsed.data;
+  const { request_id, role, existing_school_id, new_school, district_id } =
+    parsed.data;
 
-  // schools.INSERT has no RLS policy — must use service role to create a new school.
-  let schoolId = existing_school_id;
-  if (!schoolId && new_school) {
-    const admin = createAdminClient();
-    const { data: created, error: schoolError } = await admin
-      .from("schools")
-      .insert({ name: new_school.name, district: new_school.district })
-      .select("id")
-      .single();
-    if (schoolError || !created) {
-      console.error("Failed to create school", schoolError);
-      return NextResponse.json(
-        { error: schoolError?.message ?? "Unable to create school" },
-        { status: 500 }
-      );
+  // Resolve scope. district_admin is district-scoped; teacher/site_admin are
+  // school-scoped (and may create a new school inline).
+  let schoolId: string | undefined = undefined;
+  if (role !== "district_admin") {
+    schoolId = existing_school_id;
+    // schools.INSERT has no RLS policy — must use service role to create one.
+    if (!schoolId && new_school) {
+      const admin = createAdminClient();
+      const { data: created, error: schoolError } = await admin
+        .from("schools")
+        .insert({ name: new_school.name, district: new_school.district })
+        .select("id")
+        .single();
+      if (schoolError || !created) {
+        console.error("Failed to create school", schoolError);
+        return NextResponse.json(
+          { error: schoolError?.message ?? "Unable to create school" },
+          { status: 500 }
+        );
+      }
+      schoolId = created.id;
     }
-    schoolId = created.id;
-  }
-
-  if (!schoolId) {
-    return NextResponse.json({ error: "School is required" }, { status: 400 });
+    if (!schoolId) {
+      return NextResponse.json({ error: "School is required" }, { status: 400 });
+    }
   }
 
   // Call RPC via the user's session so internal has_role('founder') + auth.uid()
   // (used for reviewed_by / created_by) resolve to the founder, not the service role.
-  const { data: teacherId, error: rpcError } = await supabase.rpc(
-    "approve_access_request",
-    { p_request_id: request_id, p_school_id: schoolId }
+  const { data: result, error: rpcError } = await supabase.rpc(
+    "approve_access_request_as_role",
+    {
+      p_request_id: request_id,
+      p_role: role,
+      p_school_id: schoolId ?? null,
+      p_district_id: role === "district_admin" ? district_id ?? null : null,
+    }
   );
 
   if (rpcError) {
-    console.error("approve_access_request failed", rpcError);
+    console.error("approve_access_request_as_role failed", rpcError);
     return NextResponse.json({ error: rpcError.message }, { status: 400 });
   }
+
+  const provision = (result ?? {}) as {
+    role?: string;
+    teacher_id?: string | null;
+    school_id?: string | null;
+    district_id?: string | null;
+  };
 
   const admin = createAdminClient();
   await writeAuditLog(admin, {
@@ -96,15 +124,19 @@ export async function POST(request: Request) {
     target_table: "access_requests",
     target_id: request_id,
     after: {
-      teacher_id: teacherId,
-      school_id: schoolId,
+      role,
+      teacher_id: provision.teacher_id ?? null,
+      school_id: schoolId ?? null,
+      district_id: role === "district_admin" ? district_id ?? null : null,
       created_new_school: Boolean(new_school),
     },
   });
 
   return NextResponse.json({
     ok: true,
-    teacher_id: teacherId,
-    school_id: schoolId,
+    role,
+    teacher_id: provision.teacher_id ?? null,
+    school_id: schoolId ?? null,
+    district_id: role === "district_admin" ? district_id ?? null : null,
   });
 }
