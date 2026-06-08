@@ -1,9 +1,9 @@
 # DailyWins Roadmap
 
-Last updated: June 4, 2026
+Last updated: June 8, 2026
 
 ## Status
-Phases **4 (audit log), 5 (act-as), and 6 (Site Admin schedule editor)** are shipped and live-verified. The "vendor cannot see student data, by database design" story is structurally true — RLS at the DB layer, audit triggers on PII + admin/config tables, PII-blind Operator/District-Admin tiers — and is now documented on `/privacy`. **Email is live (Resend)** and **magic links now work cross-device, both templates** — the tester-growth blocker is fully cleared. The three Phase 4/5/6 follow-ups (founder-implicit schedule edit, act-as audit attribution, inactivity-based act-as expiry) shipped 6/04 (`659a73a`). Pilot is approval-scoped to a handful of teachers; the `devintest*` clutter is cleaned out. **Prod migration head: `032`.**
+Phases **4 (audit log), 5 (act-as), and 6 (Site Admin schedule editor)** are shipped and live-verified. The "vendor cannot see student data, by database design" story is structurally true — RLS at the DB layer, audit triggers on PII + admin/config tables, PII-blind Operator/District-Admin tiers — and is now documented on `/privacy`. **Email is live (Resend)** and **magic links now work cross-device, both templates**. As of 6/08 the **Sure Step Education design system** is live across landing + dashboard (Fraunces / Public Sans / IBM Plex Mono, paper/ink palette, green accent, status scale; "Classic DailyWins" theme preserved), and the **all-perspectives** work shipped: a founder on-ramp to grant site_admin / district_admin roles (migration 033), a pure-admin landing fix, and student + co-teacher magic-link views — so all six vantage points (founder, teacher, site admin, district admin, parent, student) are now walkable. Pilot is approval-scoped; `devintest*` clutter is cleaned out. **Prod migration head: `033`.**
 
 ## Open — sorted by what blocks EGUSD (July 13) or tester growth
 - **Demo script for EGUSD** — Devin is building it in a separate project. The compliance walkthrough: approve-under-audit → act-as picker → coral banner → audit-log artifact → break-glass as the strongest visual proof. Highest-leverage remaining July 13 item; Claude can draft a DW clickpath on request.
@@ -23,6 +23,8 @@ Phases **4 (audit log), 5 (act-as), and 6 (Site Admin schedule editor)** are shi
 - Compliance *folder* (DPA templates: CSDPA / National DPA) — TODO; `/privacy` says we're ready to sign one.
 
 ## Recently shipped (newest first)
+- **6/08 — All perspectives walkable: admin on-ramp + student/co-teacher links (`fe3c2a9`).** migration 033 `approve_access_request_as_role` lets a founder provision an approved request as teacher / site_admin / district_admin with the right scope; `/api/admin/approve` + approval modal gained a role+scope picker; new `/api/admin/districts`. Pure admins (role, no teachers row) now land on `/admin/teachers` instead of bouncing to `/pending`. New `/student/[token]` + `/coteacher/[token]` pages (shared `MagicLinkSummary`; parent refactored onto it); `ManageLinksModal` generates parent/student/co-teacher links. Build + typecheck green; migration applied to prod (user-authorized). Test-account walk on deployed prod still pending (Devin's +alias step).
+- **6/08 — Sure Step Education design system (`966160b`).** Fraunces/Public Sans/IBM Plex Mono via next/font; full token set in Tailwind v4 `@theme`; landing + dashboard reskinned by repointing the `COLORS` constants + `default` theme to design tokens (standing zones now use the §2 status scale). "Classic DailyWins" theme preserved; Public Sans + Fraunces added to the font switcher.
 - **6/04 — Phase 4/5/6 follow-ups (`659a73a`).** (1) Founder-implicit schedule edit: a founder manages any school's bell schedule without a `school_admins` row — `/admin/upload-schedule` loads all schools for founders, the save route falls back to `has_role('founder')`; both resolve via `effective_user_id()` so act-as scopes to the target. (2) Act-as attribution: `schedule.update` audit now stamps `acting_as_user_id` + `break_glass` via `getCurrentActAsSession()`. (3) Inactivity-based act-as expiry: regular sessions slide `expires_at` forward on activity (1 write / 5 min throttle); break-glass stays hard-capped. Build + typecheck green; live-verification under act-as still pending (see Follow-ups).
 - **6/04 — "Magic Link" email template flipped (Devin).** The last open auth item; existing-user cross-device re-request links now work. Magic-link saga fully closed.
 - **6/04 — Test-account cleanup.** Deleted ~9 `devintest*@proton.me` accounts (9 `auth.users` + 3 `access_requests`; one test teacher/role cascaded, 0 behavior rows). Snapshot at `.snapshots/2026-06-04-…json` (gitignored). 6 real users / 3 founders intact.
@@ -53,6 +55,6 @@ Phases **4 (audit log), 5 (act-as), and 6 (Site Admin schedule editor)** are shi
 - RPC responses are not interchangeable with raw row SELECTs even on the same data — watch for shape mismatches.
 
 ## Infrastructure
-- **Prod:** Supabase `kvbpfvazddlmoxobqfev` (us-east-1). Vercel, one project, three domains. **Migration head: `032`.** Supabase MCP pinned to prod via an `sbp_…` PAT in `~/.claude.json` (no dev branches; staging is a separate, MCP-unreachable project).
+- **Prod:** Supabase `kvbpfvazddlmoxobqfev` (us-east-1). Vercel, one project, three domains. **Migration head: `033`.** Supabase MCP pinned to prod via an `sbp_…` PAT in `~/.claude.json` (no dev branches; staging is a separate, MCP-unreachable project).
 - **Staging:** Supabase `oqhhpdaijscqdkpsxowq` (us-east-2). Pause manually to save the t4g.nano cost; restoring takes a few minutes.
 - **Git:** `main` is the only active branch.

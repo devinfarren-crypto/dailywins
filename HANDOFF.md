@@ -1,6 +1,6 @@
 # Session Handoff
 
-**Handoff passphrase: `cobalt-otter-meadow-52`**
+**Handoff passphrase: `marigold-heron-quartz-63`**
 
 > Cross-machine continuity check: on another computer, `git pull`, open this
 > project in Claude Code, and ask *"what's the handoff passphrase?"* If Claude
@@ -9,74 +9,75 @@
 > `~/.claude/.../memory/` files do **not** — everything you need is here and in
 > [ROADMAP.md](ROADMAP.md) / [CLAUDE.md](CLAUDE.md).)
 
-Last handoff: 2026-06-04
+Last handoff: 2026-06-08
 
 ## Where things stand
-`main` is clean and in sync with `origin/main`. **Prod migration head: `032`**
-(no migrations this session — app code + a prod data cleanup only). The three
-queued Phase 4/5/6 follow-ups shipped to prod in one merge (`659a73a`,
-Vercel-deployed; branch deleted):
+`main` is clean and in sync with `origin/main`. **Prod migration head: `033`**
+(migration 033 applied to prod this session, user-authorized). Two big features
+shipped to prod this session, each its own merge (Vercel-deployed):
 
-- **Founder-implicit schedule edit (P6).** A founder can now manage any
-  school's bell schedule without an explicit `school_admins` row.
-  `/admin/upload-schedule` loads every school for founders; the save route
-  ([app/api/schedule/save/route.ts](app/api/schedule/save/route.ts)) falls back
-  to `has_role('founder')` when `is_school_admin()` fails. Both resolve through
-  `effective_user_id()`, so an active act-as session still scopes to the target.
-  Unblocks the "founder onboards a 3rd school" story.
+**1. Sure Step Education design system (`966160b`).** Adopted the cross-surface
+design system (`sure-step-design-system.md`) — editorial serif **Fraunces** +
+accessible **Public Sans** + **IBM Plex Mono** eyebrows, warm paper/ink palette,
+single green signature accent, amber highlight, coral reserved for status.
+- [app/layout.tsx](app/layout.tsx): next/font trio as `--ssd-font-*` vars (the
+  leftover create-next-app Geist is gone); ink `theme-color`.
+- [app/globals.css](app/globals.css): full token set mapped into Tailwind v4
+  `@theme`; `.ssd-eyebrow` / `.ssd-nav`; green focus ring + reduced-motion (§10).
+- Landing/login restyled. Dashboard: repointed the `COLORS` constants + the
+  `default` theme to design tokens (cascades the ~126 direct usages); the
+  standing zones (`red/gold/green/blue`) now map onto the §2 **status scale**.
+  Original palette preserved as a selectable **"Classic DailyWins"** theme;
+  Public Sans + Fraunces added to the font switcher (Public Sans default).
 
-- **Act-as attribution on the `schedule.update` audit (P4 parity).** The
-  app-layer audit now stamps `acting_as_user_id` + `break_glass` via
-  `getCurrentActAsSession()`, matching the DB triggers. Previously a schedule
-  edit made under act-as lost the impersonation trail.
+**2. All-perspectives: admin on-ramp + student/co-teacher links (`fe3c2a9`).**
+Closes the gaps that made some roles un-walkable. Prereq discovery: ~126 dashboard
+elements read hardcoded `COLORS` (not the theme); only founder+teacher+parent were
+truly walkable; **no site_admin / district_admin accounts existed**, and student/
+co-teacher had backend funcs but no routes.
+- **migration 033 `approve_access_request_as_role(request, role, school?, district?)`**
+  — founder can now provision an approved request as teacher / site_admin /
+  district_admin with the right scope. 023's teacher-only RPC left intact.
+- `/api/admin/approve` accepts role+scope (defaults to teacher → unchanged
+  behavior); new `/api/admin/districts`; approval modal gained a role + scope picker.
+- **Admin landing fix** ([src/lib/auth-provision.ts](src/lib/auth-provision.ts)):
+  a pure admin (role, no teachers row) lands on `/admin/teachers` instead of
+  bouncing to `/pending` via the dashboard's `ensure_teacher_exists`. Also fixes
+  the latent bug for the no-teacher-row founder account.
+- **Student + co-teacher views**: new `/student/[token]` + `/coteacher/[token]`
+  on a shared [MagicLinkSummary](src/components/MagicLinkSummary.tsx) (parent page
+  refactored onto it). [ManageLinksModal](src/components/ManageLinksModal.tsx) now
+  generates parent / student / co-teacher links (co-teacher read-write toggle).
 
-- **Inactivity-based act-as expiry.** `getCurrentActAsSession()`
-  ([src/lib/act-as-current.ts](src/lib/act-as-current.ts)) now slides a regular
-  session's `expires_at` forward on activity (throttled to one write / 5 min)
-  so a long support call isn't cut off at a hard 60 min from start. Break-glass
-  stays hard-capped for safety and is never extended.
+Topology confirmed for testing: 2 districts (Elk Grove Unified = PGHS+COHS,
+Sacramento = Sac HS), PGHS is the richest target (12 students, Devin as teacher).
 
-Two housekeeping wins closed the magic-link saga and the test-account clutter:
+⚠️ **Open verification:** Devin walked the perspectives locally (dev server →
+prod DB) and approved it for ship; a fresh end-to-end pass on the *deployed* prod
+app (create the 3 +alias test accounts → approve each role → log in) is the clean
+confirmation. Test accounts were NOT created yet — that's Devin's browser step
+(magic-link to `devinfarren+dw…@gmail.com` aliases). The older act-as
+schedule-edit live-verify (founder path / attribution / sliding expiry) also
+still stands as a discrete check.
 
-- **"Magic Link" email template flipped (Devin, this session).** The last
-  open auth item. Existing-user cross-device re-request links now work — the
-  magic-link gap is fully closed (both Confirm-signup and Magic Link templates
-  point at `/auth/confirm?token_hash=…`).
+EGUSD July 13 prep remains the business headline (separate Demo Project). The
+`/privacy` sign-off items and compliance/DPA folder still stand. **This chat's
+scope is the DailyWins product + walking every perspective — not the demo/business.**
 
-- **~9 `devintest*@proton.me` test accounts deleted** (scoped prod delete,
-  snapshot at `.snapshots/2026-06-04-devintest-accounts-predelete.json`, which
-  is gitignored). Removed 9 `auth.users` + 3 `access_requests`; the lone test
-  teacher/role (devintest2, 0 behavior rows) cascaded. Verified: 0 residue, 6
-  real users remain, 3 founders intact.
-
-⚠️ **Live-verification gap:** build + typecheck pass on the three code changes,
-but the act-as items (#2 founder path, #3 attribution, #4 sliding expiry) only
-fully exercise *under an active act-as session* — not yet walked end-to-end in
-prod. The clean test: start an act-as session → edit a schedule → confirm the
-audit row carries `acting_as_user_id` and that `expires_at` slides on activity.
-
-EGUSD July 13 prep is the headline remaining work — Devin is building the demo
-in a separate "Demo Project" (DW + Transition Ready + privacy + §1090
-free-pilot framing). The `/privacy` sign-off items (data-residency region;
-counsel eyeball on PII-blindness + Anthropic wording) and the compliance/DPA
-folder also still stand.
-
-## What's queued next (from ROADMAP "Open" + recommended order)
-1. **EGUSD demo script** — Devin is building it in a separate project; it's the
-   highest-leverage July 13 item. Claude can draft a DW demo clickpath on
-   request (approve-under-audit → act-as → coral banner → audit-log → break-glass).
-2. **General audit gap for direct admin/MCP SQL** — the 029 trigger no-ops on
-   service-role context (`auth.uid()` NULL). 032 + this session closed it for
-   *schedule* edits app-side; arbitrary admin SQL still wants a session-variable
-   "intended actor" so the trigger can attribute to a real user.
-3. **Decide:** whether the `school_schedules` table (~10h) still earns its cost
-   (the JSONB-on-`schools` column + the editor already solved the practical
-   problem).
-4. **Cleanup (one-way door — snapshot first):** drop vestigial `allowed_emails`.
-5. **`/privacy` sign-off + compliance folder:** confirm data-residency region
-   (prod is us-east-1), counsel eyeball on PII-blindness + Anthropic wording,
-   assemble DPA templates (CSDPA / National DPA).
-6. **Operational:** demo-mode wipe+reseed for date-freshness before a dry-run.
+## What's queued next (product-focused; from ROADMAP "Open")
+1. **Create the +alias test accounts & walk all six perspectives on deployed prod**
+   — teacher@PGHS, site_admin@PGHS, district_admin@Elk Grove Unified; plus
+   parent + student links from the dashboard. Confirms the on-ramp end-to-end.
+2. **Co-teacher write path UI** — backend `coteacher_write_score/note` exist and
+   the read view ships; the in-page write affordance (readwrite links) is not
+   built. Optional polish.
+3. **General audit gap for direct admin/MCP SQL** — 029 trigger no-ops on
+   service-role context; wants a session-variable "intended actor."
+4. **Decide:** whether the `school_schedules` table (~10h) still earns its cost.
+5. **Cleanup (one-way door — snapshot first):** drop vestigial `allowed_emails`.
+6. **Design-system follow-through (optional):** button solid/ghost hierarchy,
+   Recharts palette ([ChartViews.tsx](app/dashboard/ChartViews.tsx)), modals,
+   retire emoji/confetti per the design doc; standardize "DailyWins" vs "Daily Wins".
 
 ## Working guardrails (current)
 - **Reversibility gate:** reversible work proceeds (incl. backed-up prod writes);
@@ -89,7 +90,7 @@ folder also still stand.
 
 ## Infrastructure
 - **Prod:** Supabase `kvbpfvazddlmoxobqfev` (us-east-1). Vercel one project,
-  three domains. Migration head: **`032`**. Supabase MCP pinned to prod via an
+  three domains. Migration head: **`033`**. Supabase MCP pinned to prod via an
   `sbp_…` PAT in `~/.claude.json` (no dev branches; staging is a separate,
   MCP-unreachable project).
 - **Staging:** Supabase `oqhhpdaijscqdkpsxowq` (us-east-2). Pause manually to
