@@ -4,6 +4,7 @@ import { createAdminClient } from "@/src/lib/supabase-admin";
 import ScheduleUploader, {
   type SchoolOption,
 } from "@/src/components/ScheduleUploader";
+import SiteAdminNav from "@/src/components/SiteAdminNav";
 import type { Schedules } from "@/src/lib/schedules-schema";
 
 // Reads auth cookies + per-user admin scope, so it must render per-request.
@@ -87,16 +88,7 @@ export default async function UploadSchedulePage() {
 
   return (
     <main style={{ padding: 40, maxWidth: 900, margin: "0 auto" }}>
-      {!isFounder ? (
-        <div style={{ marginBottom: 20 }}>
-          <a
-            href="/admin/usage"
-            style={{ fontSize: 13, fontWeight: 600, color: "#1c5c3c", textDecoration: "none" }}
-          >
-            School usage →
-          </a>
-        </div>
-      ) : null}
+      {!isFounder ? <SiteAdminNav current="schedules" /> : null}
       {schools.length === 0 ? (
         <div
           style={{
