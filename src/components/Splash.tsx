@@ -6,7 +6,7 @@
 //
 // Fonts come from the global --ssd-font-* CSS vars (set by next/font in
 // layout.tsx), so DM Serif Display / DM Mono render on every page.
-export default function Splash({ label = "DailyWins" }: { label?: string }) {
+export default function Splash({ label = "DailyWins", fading = false }: { label?: string; fading?: boolean }) {
   return (
     <div
       style={{
@@ -18,11 +18,14 @@ export default function Splash({ label = "DailyWins" }: { label?: string }) {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        animation: "ssSplashIn 0.4s ease both",
+        // Dissolve out (MD §5): fade + slight scale-up over 0.6s.
+        opacity: fading ? 0 : 1,
+        transform: fading ? "scale(1.05)" : "scale(1)",
+        transition: "opacity 0.6s ease, transform 0.6s ease",
+        pointerEvents: fading ? "none" : "auto",
       }}
     >
       <style>{`
-        @keyframes ssSplashIn { from { opacity: 0 } to { opacity: 1 } }
         @keyframes ssBarGrow { from { transform: scaleY(0) } to { transform: scaleY(1) } }
         @keyframes ssDraw { to { stroke-dashoffset: 0 } }
         @keyframes ssFadeUp { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }

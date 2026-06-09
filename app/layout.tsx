@@ -3,6 +3,7 @@ import { DM_Serif_Display, DM_Sans, DM_Mono } from "next/font/google";
 import Link from "next/link";
 import PWAProvider from "@/src/components/PWAProvider";
 import ActAsBanner from "@/src/components/ActAsBanner";
+import SplashGate from "@/src/components/SplashGate";
 import "./globals.css";
 
 // Sure Step Education company aesthetic — three-voice type (canonical default):
@@ -51,12 +52,14 @@ export default function RootLayout({
       >
         <PWAProvider>
           <ActAsBanner />
-          {children}
-          <footer className="w-full py-4 text-center text-xs text-gray-400">
-            <Link href="/privacy" className="hover:text-gray-600 transition-colors">
-              Privacy Policy
-            </Link>
-          </footer>
+          <SplashGate>
+            {children}
+            <footer className="w-full py-4 text-center text-xs text-gray-400">
+              <Link href="/privacy" className="hover:text-gray-600 transition-colors">
+                Privacy Policy
+              </Link>
+            </footer>
+          </SplashGate>
         </PWAProvider>
       </body>
     </html>
