@@ -470,7 +470,6 @@ export default function DashboardClient() {
     return [50, 70, 90];
   });
   const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(null);
-  const [exportingDrive, setExportingDrive] = useState(false);
   const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "done" | "error">("idle");
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draggingRef = useRef<number | null>(null);
@@ -1646,146 +1645,6 @@ export default function DashboardClient() {
     doc.save(`DailyWins_Weekly_${selectedStudent || "report"}_${days[0]}.pdf`);
   };
 
-  // ─── Export to Google Drive ─────────────────────────────────────────────────
-
-  const exportToDrive = async () => {
-    if (!selectedStudent) {
-      alert("Please select a student first.");
-      return;
-    }
-
-    // Auto-refresh token if needed
-    const { getValidGoogleToken: getToken } = await import("./sheetsSync");
-    const { token: validToken, error: tokenErr } = await getToken();
-    if (!validToken) {
-      alert(tokenErr ?? "Google Drive access not available. Please sign out and sign in again.");
-      return;
-    }
-
-    setExportingDrive(true);
-
-    try {
-      // Calculate the current week (Mon–Fri)
-      const dateObj = new Date(selectedDate + "T12:00:00");
-      const dayOfWeek = dateObj.getDay();
-      const monday = new Date(dateObj);
-      monday.setDate(dateObj.getDate() - ((dayOfWeek + 6) % 7));
-      const days = Array.from({ length: 5 }, (_, i) => {
-        const d = new Date(monday);
-        d.setDate(monday.getDate() + i);
-        return formatDate(d);
-      });
-      const dayLabels = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
-
-      // Build spreadsheet data
-      const sheetTitle = `DailyWins - ${selectedStudent} - Week of ${days[0]}`;
-
-      // Header rows
-      const headerRow1 = ["DailyWins Weekly Report"];
-      const headerRow2 = [`Student: ${selectedStudent}`];
-      const headerRow3 = [`Week: ${days[0]} to ${days[4]}`];
-      const blankRow: string[] = [];
-
-      // Table header: Period | Mon | Tue | Wed | Thu | Fri
-      const tableHeader = ["Period", ...dayLabels];
-
-      // Data rows: for each trackable period, show points per day
-      // We only have today's data; other days show "—"
-      const dataRows = trackablePeriods.map((slot) => {
-        const ps = scores[slot.label] ?? makeEmptyPeriodScores(categories);
-        const todayPts = calculatePeriodPoints(ps, categories);
-        const row: string[] = [slot.label];
-        for (let d = 0; d < 5; d++) {
-          row.push(days[d] === selectedDate ? String(todayPts) : "");
-        }
-        return row;
-      });
-
-      // Total row
-      const { earned: e, possible: p, pct: pc } = calculateProgress(scores, categories, periodAbsent);
-      const totalRow = ["TOTAL"];
-      for (let d = 0; d < 5; d++) {
-        totalRow.push(days[d] === selectedDate ? `${e}/${p} (${pc}%)` : "");
-      }
-      dataRows.push(totalRow);
-
-      // Detail row for today: per-category breakdown
-      const detailBlank: string[] = [];
-      const detailHeader = ["Period", ...categories.map((c) => c.name), "Pts"];
-      const detailRows = trackablePeriods.map((slot) => {
-        const ps = scores[slot.label] ?? makeEmptyPeriodScores(categories);
-        const row: string[] = [slot.label];
-        for (const cat of categories) {
-          row.push(getOptionLabel(cat, ps[cat.id]));
-        }
-        row.push(String(calculatePeriodPoints(ps, categories)));
-        return row;
-      });
-
-      // Combine all rows
-      const allRows = [
-        headerRow1,
-        headerRow2,
-        headerRow3,
-        blankRow,
-        tableHeader,
-        ...dataRows,
-        detailBlank,
-        [`Detail for ${selectedDate}:`],
-        detailHeader,
-        ...detailRows,
-      ];
-
-      // Create the Google Sheet via Sheets API
-      const createResponse = await fetch("https://sheets.googleapis.com/v4/spreadsheets", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${validToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          properties: { title: sheetTitle },
-          sheets: [{
-            properties: { title: "Weekly Data" },
-            data: [{
-              startRow: 0,
-              startColumn: 0,
-              rowData: allRows.map((row) => ({
-                values: row.map((cell) => ({
-                  userEnteredValue: { stringValue: cell },
-                })),
-              })),
-            }],
-          }],
-        }),
-      });
-
-      if (!createResponse.ok) {
-        const errBody = await createResponse.text();
-        console.error("Drive export failed:", createResponse.status, errBody);
-        if (createResponse.status === 401 || createResponse.status === 403) {
-          // Token expired — clear it so next login gets a fresh one
-          localStorage.removeItem("dailywins_google_token");
-          setGoogleAccessToken(null);
-          alert("Google Drive permission expired. Please sign out and sign back in to refresh permissions.");
-        } else {
-          alert(`Failed to create Google Sheet (${createResponse.status}). Check console for details.`);
-        }
-        return;
-      }
-
-      const sheet = await createResponse.json();
-      const sheetUrl = sheet.spreadsheetUrl as string;
-
-      // Open the new sheet in a new tab
-      window.open(sheetUrl, "_blank");
-    } catch (err) {
-      console.error("Export to Drive error:", err);
-      alert("Failed to export to Google Drive. Please try again.");
-    } finally {
-      setExportingDrive(false);
-    }
-  };
 
   // ─── Derived Progress Values ────────────────────────────────────────────────
 
@@ -3146,33 +3005,6 @@ export default function DashboardClient() {
             }}
           >
             &#128202; Weekly PDF
-          </button>
-          <button
-            disabled
-            style={{
-              background: "#ccc",
-              color: "#888",
-              border: "none",
-              borderRadius: 10,
-              padding: "8px 16px",
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: "not-allowed",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              opacity: 0.6,
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 87.3 78" style={{ flexShrink: 0, opacity: 0.4 }}>
-              <path d="M6.6 66.85L29.3 78l57.4-33.15L64 33.7z" fill="#0066DA" />
-              <path d="M29.3 0L6.6 11.15 29.3 78l22.7-11.15z" fill="#00AC47" />
-              <path d="M86.7 44.85L64 33.7 29.3 78l22.7-11.15z" fill="#EA4335" />
-              <path d="M29.3 0l34.7 33.7L86.7 44.85 52 11.15z" fill="#00832D" />
-              <path d="M29.3 0L6.6 11.15l57.4 22.55L86.7 44.85z" fill="#2684FC" />
-              <path d="M6.6 11.15v55.7L29.3 78V0z" fill="#FFBA00" />
-            </svg>
-            Export to Drive
           </button>
         </div>
         <div style={{ display: "flex", justifyContent: "center", paddingTop: 12, paddingBottom: 8 }}>
