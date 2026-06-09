@@ -270,17 +270,6 @@ function quickFillDefault(cat: Category): number {
   return cat.maxPoints;
 }
 
-/** Quick fill default label for a category */
-function quickFillLabel(cat: Category): string {
-  const defaultVal = quickFillDefault(cat);
-  if (cat.type === "arrival") {
-    return cat.options[defaultVal] ?? String(defaultVal);
-  }
-  const idx = getOptionIndexForPoints(cat, defaultVal);
-  if (idx >= 0) return cat.options[idx];
-  return String(defaultVal);
-}
-
 function makeEmptyPeriodScores(categories: Category[]): PeriodScores {
   const ps: PeriodScores = {};
   for (const cat of categories) {
@@ -1200,15 +1189,15 @@ export default function DashboardClient() {
     });
   };
 
-  const quickFillColumn = (categoryId: string) => {
-    const cat = categories.find((c) => c.id === categoryId);
-    if (!cat) return;
-    const defaultVal = quickFillDefault(cat);
+  // Fill one PERIOD (a row) with the standard student defaults — triggered by
+  // clicking the period title / its ⚡. Horizontal counterpart to quickFillAll.
+  const quickFillPeriod = (periodLabel: string) => {
     setScores((prev) => {
-      const updated = { ...prev };
-      for (const p of trackablePeriods) {
-        updated[p.label] = { ...updated[p.label], [categoryId]: defaultVal };
+      const ps: PeriodScores = { ...(prev[periodLabel] ?? {}) };
+      for (const cat of categories) {
+        ps[cat.id] = quickFillDefault(cat);
       }
+      const updated = { ...prev, [periodLabel]: ps };
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => saveScoresToDb(updated), 500);
       return updated;
@@ -2536,23 +2525,7 @@ export default function DashboardClient() {
                     </div>
                   </td>
                   {categories.map((cat) => (
-                    <td key={cat.id} style={{ padding: "4px 4px", textAlign: "center" }}>
-                      <button
-                        onClick={() => quickFillColumn(cat.id)}
-                        style={{
-                          background: cat.type === "scale" ? COLORS.accent : COLORS.secondary,
-                          color: "white",
-                          border: "none",
-                          borderRadius: 6,
-                          padding: "4px 8px",
-                          fontSize: 11,
-                          fontWeight: 700,
-                          cursor: "pointer",
-                        }}
-                      >
-                        All &rarr; {quickFillLabel(cat)}
-                      </button>
-                    </td>
+                    <td key={cat.id} style={{ padding: "4px 4px" }}></td>
                   ))}
                   <td style={{ padding: "4px 4px", textAlign: "center", fontSize: 10, color: "#999" }}>&mdash;</td>
                   <td style={{ padding: "4px 4px" }}></td>
@@ -2600,7 +2573,28 @@ export default function DashboardClient() {
                             {isUnexcused ? "UA" : isExcused ? "EA" : "\u2713"}
                           </button>
                           <div>
-                            <div style={{ textDecoration: isExcused ? "line-through" : "none" }}>{slot.label}</div>
+                            <button
+                              type="button"
+                              onClick={() => quickFillPeriod(slot.label)}
+                              disabled={isAbsentPeriod}
+                              title="Fill this period with standard scores"
+                              style={{
+                                background: "none",
+                                border: "none",
+                                padding: 0,
+                                font: "inherit",
+                                fontWeight: 700,
+                                color: C.dark,
+                                cursor: isAbsentPeriod ? "default" : "pointer",
+                                textDecoration: isExcused ? "line-through" : "none",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 4,
+                              }}
+                            >
+                              {slot.label}
+                              {!isAbsentPeriod && <span style={{ fontSize: 11 }}>&#9889;</span>}
+                            </button>
                             {slot.start && (
                               <div style={{ fontSize: 10, fontWeight: 500, color: "#999", marginTop: 1 }}>
                                 {slot.start} &ndash; {slot.end}
@@ -3244,9 +3238,7 @@ export default function DashboardClient() {
         </div>
         <div style={{ display: "flex", justifyContent: "center", paddingTop: 12, paddingBottom: 8 }}>
           <a
-            href="https://docs.google.com/document/d/1Xpl7-53_w-qX7IpZXQKmu6ZJ6W8O8atYv7c1JmLbs0M/edit?usp=sharing"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="mailto:support@surestepeducation.com?subject=DailyWins%20feedback"
             style={{
               background: "#7C3AED",
               color: "white",
@@ -3262,7 +3254,7 @@ export default function DashboardClient() {
               textDecoration: "none",
             }}
           >
-            💬 Feedback to Devin
+            ✉️ Email support
           </a>
         </div>
       </main>
