@@ -1533,8 +1533,8 @@ export default function DashboardClient() {
     const pageW = doc.internal.pageSize.getWidth();
     const pageH = doc.internal.pageSize.getHeight();
 
-    // Time buckets + fetch range. Week \u2192 one bucket per weekday; Month \u2192 one
-    // bucket per week (Mon\u2013Fri) so the monthly line stays readable.
+    // Time buckets + fetch range. Week \u2192 one bucket per weekday (Mon\u2013Fri);
+    // Month \u2192 one bucket per calendar month across the months that have data.
     const base = new Date(selectedDate + "T12:00:00");
     const buckets: { label: string; start: string; end: string }[] = [];
     let rangeStart: string;
@@ -1554,22 +1554,14 @@ export default function DashboardClient() {
       rangeEnd = buckets[4].end;
       rangeLabel = `Week of ${rangeStart}`;
     } else {
-      const mStart = new Date(base.getFullYear(), base.getMonth(), 1, 12);
-      const mEnd = new Date(base.getFullYear(), base.getMonth() + 1, 0, 12);
-      rangeStart = formatDate(mStart);
-      rangeEnd = formatDate(mEnd);
-      const wk = new Date(mStart);
-      wk.setDate(mStart.getDate() - ((mStart.getDay() + 6) % 7));
-      while (wk <= mEnd) {
-        const wkStart = new Date(wk);
-        const wkFri = new Date(wk);
-        wkFri.setDate(wk.getDate() + 4);
-        if (wkFri >= mStart) {
-          buckets.push({ label: `${wkStart.getMonth() + 1}/${wkStart.getDate()}`, start: formatDate(wkStart), end: formatDate(wkFri) });
-        }
-        wk.setDate(wk.getDate() + 7);
-      }
-      rangeLabel = base.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+      // Multi-month view: fetch a wide ~12-month window ending with the selected
+      // month. The per-month buckets are built AFTER the fetch (below) so we only
+      // plot months from the first one that actually has data.
+      const end = new Date(base.getFullYear(), base.getMonth() + 1, 0, 12);
+      const wideStart = new Date(base.getFullYear(), base.getMonth() - 11, 1, 12);
+      rangeStart = formatDate(wideStart);
+      rangeEnd = formatDate(end);
+      rangeLabel = "";
     }
 
     const { data: scoreRows } = await supabase
@@ -1580,6 +1572,36 @@ export default function DashboardClient() {
       .gte("score_date", rangeStart)
       .lte("score_date", rangeEnd);
     const data = scoreRows ?? [];
+
+    // Month mode: one bucket per calendar month, from the first month that has
+    // data (capped to ~12 months back) through the selected month. Months with no
+    // data become gaps in the line.
+    if (mode === "month") {
+      const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const lastMonth = new Date(base.getFullYear(), base.getMonth(), 1, 12);
+      const minAllowed = new Date(base.getFullYear(), base.getMonth() - 11, 1, 12);
+      let firstMonth = lastMonth;
+      if (data.length > 0) {
+        let minSd = data[0].score_date as string;
+        for (const r of data) if ((r.score_date as string) < minSd) minSd = r.score_date as string;
+        const md = new Date(minSd + "T12:00:00");
+        firstMonth = new Date(md.getFullYear(), md.getMonth(), 1, 12);
+        if (firstMonth < minAllowed) firstMonth = minAllowed;
+      }
+      const crossYear = firstMonth.getFullYear() !== lastMonth.getFullYear();
+      const cur = new Date(firstMonth);
+      while (cur <= lastMonth) {
+        const mS = new Date(cur.getFullYear(), cur.getMonth(), 1, 12);
+        const mE = new Date(cur.getFullYear(), cur.getMonth() + 1, 0, 12);
+        const lbl = SHORT_MONTHS[cur.getMonth()] + (crossYear ? ` '${String(cur.getFullYear()).slice(2)}` : "");
+        buckets.push({ label: lbl, start: formatDate(mS), end: formatDate(mE) });
+        cur.setMonth(cur.getMonth() + 1);
+      }
+      rangeLabel =
+        buckets.length > 1
+          ? `${SHORT_MONTHS[firstMonth.getMonth()]} ${firstMonth.getFullYear()} – ${SHORT_MONTHS[lastMonth.getMonth()]} ${lastMonth.getFullYear()}`
+          : base.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    }
 
     // Points for one cell of a category (arrival stores an option index).
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
