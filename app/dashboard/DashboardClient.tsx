@@ -9,6 +9,7 @@ import type { User } from "@supabase/supabase-js";
 import dynamic from "next/dynamic";
 import { syncToGoogleSheets, getValidGoogleToken } from "./sheetsSync";
 import ManageLinksModal from "@/src/components/ManageLinksModal";
+import Splash from "@/src/components/Splash";
 import { fireAuditEvent } from "@/src/lib/audit-event-client";
 
 const ChartViews = dynamic(() => import("./ChartViews"), { ssr: false });
@@ -1757,26 +1758,7 @@ export default function DashboardClient() {
   // ─── Loading State ──────────────────────────────────────────────────────────
 
   if (loading) {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", alignItems: "center", justifyContent: "center", background: "#f5f5f0" }}>
-        <div style={{ background: "white", borderRadius: 16, padding: 32, textAlign: "center", boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}>
-          <div style={{
-            background: COLORS.primary,
-            width: 48,
-            height: 48,
-            borderRadius: 12,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "white",
-            fontWeight: 800,
-            fontSize: 18,
-            margin: "0 auto 16px",
-          }}>DW</div>
-          <div style={{ color: COLORS.dark, fontSize: 16, fontWeight: 600 }}>Loading DailyWins...</div>
-        </div>
-      </div>
-    );
+    return <Splash />;
   }
 
   if (!user) return null;

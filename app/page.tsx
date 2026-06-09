@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/src/lib/supabase";
+import Splash from "@/src/components/Splash";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -133,21 +134,7 @@ export default function LoginPage() {
   };
 
   if (checking) {
-    return (
-      <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center", background: "var(--ssd-paper)" }}>
-        <div style={{ background: "var(--ssd-surface)", borderRadius: "var(--ssd-radius)", border: "1px solid var(--ssd-border)", padding: 32, textAlign: "center", boxShadow: "var(--ssd-shadow)" }}>
-          <div style={{
-            background: "var(--ssd-ink)",
-            width: 44, height: 44, borderRadius: "var(--ssd-radius-sm)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: "white", fontWeight: 600, fontSize: 16,
-            margin: "0 auto 14px",
-          }}>DW</div>
-          <div className="ssd-eyebrow" style={{ marginBottom: 2 }}>Signing in</div>
-          <div style={{ color: "var(--ssd-text-muted)", fontSize: 14 }}>One moment…</div>
-        </div>
-      </div>
-    );
+    return <Splash />;
   }
 
   return (

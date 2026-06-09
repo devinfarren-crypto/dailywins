@@ -2,32 +2,14 @@
 
 import { Component, type ReactNode, type ErrorInfo } from "react";
 import dynamic from "next/dynamic";
+import Splash from "@/src/components/Splash";
 
 // Dynamically import the heavy dashboard component with ssr: false.
 // This ensures browser-only libraries (Recharts, canvas APIs) never
 // run during server-side rendering, preventing silent module crashes.
 const DashboardClient = dynamic(() => import("./DashboardClient"), {
   ssr: false,
-  loading: () => (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", alignItems: "center", justifyContent: "center", background: "#f5f5f0" }}>
-      <div style={{ background: "white", borderRadius: 16, padding: 32, textAlign: "center", boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}>
-        <div style={{
-          background: "#e07850",
-          width: 48,
-          height: 48,
-          borderRadius: 12,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "white",
-          fontWeight: 800,
-          fontSize: 18,
-          margin: "0 auto 16px",
-        }}>DW</div>
-        <div style={{ color: "#2c3e50", fontSize: 16, fontWeight: 600 }}>Loading DailyWins...</div>
-      </div>
-    </div>
-  ),
+  loading: () => <Splash />,
 });
 
 // Error boundary catches any runtime errors in the dashboard
