@@ -97,7 +97,6 @@ interface Preferences {
   font?: string;
   starIcon?: string;
   confetti?: boolean;
-  compact?: boolean;
   // Period 0 (zero-period prep block before school) is hidden by default —
   // teachers almost never collect behavior data before school. Toggle on per
   // teacher if they actually score a 0-period class.
@@ -486,7 +485,6 @@ export default function DashboardClient() {
   const activeFont = "'Inter', sans-serif";
   const starIcon = prefs.starIcon ?? "⭐";
   const confettiEnabled = prefs.confetti !== false;
-  const compactMode = prefs.compact === true;
 
   useEffect(() => {
     const keys = Object.keys(schedulesForSchool);
@@ -2352,7 +2350,7 @@ export default function DashboardClient() {
                         opacity: isExcused ? 0.5 : 1,
                       }}
                     >
-                      <td style={{ padding: compactMode ? "2px 8px" : "4px 10px", fontWeight: 700, color: C.dark, fontSize: 13 }}>
+                      <td style={{ padding: "4px 10px", fontWeight: 700, color: C.dark, fontSize: 13 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <button
                             onClick={() => cycleAbsent(slot.label)}
@@ -2407,7 +2405,7 @@ export default function DashboardClient() {
                       </td>
 
                       {categories.map((cat) => (
-                        <td key={cat.id} style={{ padding: compactMode ? "1px 3px" : "3px 4px", textAlign: "center", pointerEvents: isAbsentPeriod ? "none" : "auto" }}>
+                        <td key={cat.id} style={{ padding: "3px 4px", textAlign: "center", pointerEvents: isAbsentPeriod ? "none" : "auto" }}>
                           {isAbsentPeriod ? (
                             <span style={{ fontSize: 11, color: isUnexcused ? COLORS.red : "#bbb", fontWeight: 700 }}>
                               {isUnexcused ? "0" : "\u2014"}
@@ -2418,7 +2416,7 @@ export default function DashboardClient() {
 
                       {/* Period Points */}
                       <td style={{
-                        padding: compactMode ? "1px 3px" : "3px 6px",
+                        padding: "3px 6px",
                         textAlign: "center",
                         fontWeight: 800,
                         fontSize: 14,
@@ -4151,41 +4149,6 @@ export default function DashboardClient() {
                   position: "absolute",
                   top: 2,
                   left: prefs.confetti !== false ? 22 : 2,
-                  transition: "left 0.2s",
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-                }} />
-              </div>
-            </div>
-
-            {/* Compact Mode Toggle */}
-            <div style={{ marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: C.dark }}>
-                  Compact Mode
-                </div>
-                <div style={{ fontSize: 11, color: "#888" }}>Reduce row height in the scoring grid</div>
-              </div>
-              <div
-                onClick={() => savePreferences({ ...prefs, compact: !prefs.compact })}
-                style={{
-                  width: 44,
-                  height: 24,
-                  borderRadius: 12,
-                  background: prefs.compact ? C.secondary : "#ccc",
-                  position: "relative",
-                  transition: "background 0.2s",
-                  cursor: "pointer",
-                  flexShrink: 0,
-                }}
-              >
-                <div style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: "50%",
-                  background: "white",
-                  position: "absolute",
-                  top: 2,
-                  left: prefs.compact ? 22 : 2,
                   transition: "left 0.2s",
                   boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
                 }} />
