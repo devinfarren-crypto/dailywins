@@ -419,12 +419,10 @@ export default function DashboardClient() {
   const [noteHistoryLoading, setNoteHistoryLoading] = useState(false);
   const [noteHistorySearch, setNoteHistorySearch] = useState("");
   const [showConfetti, setShowConfetti] = useState(false);
-  const [showParentView, setShowParentView] = useState(false);
   const [activeView, setActiveView] = useState<"entry" | "weekly" | "monthly" | "annual">("entry");
   const [mobilePeriodIdx, setMobilePeriodIdx] = useState(0);
   const isMobile = useIsMobile(768);
   const [showCategories, setShowCategories] = useState(false);
-  const [showStaffSync, setShowStaffSync] = useState(false);
   const [showCustomize, setShowCustomize] = useState(false);
   const [isSiteAdmin, setIsSiteAdmin] = useState(false);
   const [isFounder, setIsFounder] = useState(false);
@@ -2266,47 +2264,6 @@ export default function DashboardClient() {
             &#128336; Schedule
           </button>
 
-          {/* School Team Button */}
-          <button
-            onClick={() => setShowStaffSync(true)}
-            style={{
-              background: COLORS.blue,
-              color: "white",
-              border: "none",
-              borderRadius: 8,
-              padding: "0 12px",
-              fontSize: 12,
-              fontWeight: 700,
-              cursor: "pointer",
-              height: 32,
-            }}
-          >
-            &#9729;&#65039; School Team
-          </button>
-
-          {/* Student Sync Button */}
-          {hasStudents && (
-            <button
-              disabled
-              style={{
-                background: "#ccc",
-                color: "#888",
-                border: "none",
-                borderRadius: 6,
-                padding: "0 10px",
-                fontSize: 11,
-                fontWeight: 700,
-                cursor: "not-allowed",
-                height: 32,
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-              }}
-            >
-              {"\u21BB Student Sync"}
-            </button>
-          )}
-
           {/* Customize Button */}
           <button
             onClick={() => setShowCustomize(true)}
@@ -3191,24 +3148,6 @@ export default function DashboardClient() {
             &#128202; Weekly PDF
           </button>
           <button
-            onClick={() => setShowParentView(true)}
-            style={{
-              background: COLORS.secondary,
-              color: "white",
-              border: "none",
-              borderRadius: 10,
-              padding: "8px 16px",
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
-            &#127968; Parent View
-          </button>
-          <button
             disabled
             style={{
               background: "#ccc",
@@ -3724,129 +3663,6 @@ export default function DashboardClient() {
         </div>
       )}
 
-      {/* ─── Parent View Modal ───────────────────────────────────────────────── */}
-      {showParentView && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-          }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowParentView(false); }}
-        >
-          <div style={{
-            background: "white",
-            borderRadius: 16,
-            padding: 28,
-            width: "90%",
-            maxWidth: 560,
-            maxHeight: "85vh",
-            overflowY: "auto",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
-          }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: COLORS.dark }}>
-                &#127968; Parent View
-              </h2>
-              <button
-                onClick={() => setShowParentView(false)}
-                style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#999" }}
-              >
-                &#10005;
-              </button>
-            </div>
-
-            <div style={{ background: "#f8f8f5", borderRadius: 12, padding: 20, marginBottom: 16 }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.dark, marginBottom: 4 }}>
-                {selectedStudent || "No student selected"}
-              </div>
-              <div style={{ fontSize: 13, color: "#888" }}>{selectedDate}</div>
-            </div>
-
-            {/* Progress summary */}
-            <div style={{
-              background: zoneColor(pct),
-              borderRadius: 12,
-              padding: "16px 20px",
-              marginBottom: 16,
-              color: "white",
-              textAlign: "center",
-            }}>
-              <div style={{ fontSize: 28, fontWeight: 800 }}>{pct}%</div>
-              <div style={{ fontSize: 13, fontWeight: 600, opacity: 0.9 }}>{earned} / {possible} points</div>
-            </div>
-
-            {/* Read-only scores table */}
-            <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ background: COLORS.dark }}>
-                  <th style={{ padding: "8px 10px", textAlign: "left", color: "white", fontSize: 11, fontWeight: 700 }}>Period</th>
-                  {categories.map((cat) => (
-                    <th key={cat.id} style={{ padding: "8px 6px", textAlign: "center", color: "white", fontSize: 11, fontWeight: 700 }}>
-                      {cat.name}
-                    </th>
-                  ))}
-                  <th style={{ padding: "8px 6px", textAlign: "center", color: "white", fontSize: 11, fontWeight: 700 }}>Pts</th>
-                </tr>
-              </thead>
-              <tbody>
-                {trackablePeriods.map((slot, i) => {
-                  const ps = scores[slot.label] ?? makeEmptyPeriodScores(categories);
-                  const pts = calculatePeriodPoints(ps, categories);
-                  const ptsHighThreshold = Math.round(maxPerPeriod * 0.8);
-                  const ptsMidThreshold = Math.round(maxPerPeriod * 0.53);
-                  return (
-                    <tr key={slot.label + i} style={{ background: i % 2 === 0 ? "#fafaf7" : "white", borderTop: "1px solid #eee" }}>
-                      <td style={{ padding: "8px 10px", fontWeight: 600, color: COLORS.dark }}>{slot.label}</td>
-                      {categories.map((cat) => (
-                        <td key={cat.id} style={{ padding: "8px 6px", textAlign: "center", color: "#555" }}>
-                          {getOptionLabel(cat, ps[cat.id])}
-                        </td>
-                      ))}
-                      <td style={{ padding: "8px 6px", textAlign: "center", fontWeight: 700, color: pts >= ptsHighThreshold ? COLORS.secondary : pts >= ptsMidThreshold ? COLORS.accent : COLORS.primary }}>{pts}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-
-            {/* Shared notes organized by period */}
-            {notes.filter((n) => n.shared).length > 0 && (
-              <div style={{ marginTop: 16 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: COLORS.dark, marginBottom: 8 }}>
-                  Teacher Notes
-                </div>
-                {trackablePeriods.map((slot) => {
-                  const periodShared = notes.filter((n) => n.shared && n.period === slot.label);
-                  if (periodShared.length === 0) return null;
-                  return (
-                    <div key={slot.label} style={{ marginBottom: 8 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: "#999", marginBottom: 3 }}>{slot.label}</div>
-                      {periodShared.map((note) => (
-                        <div key={note.id} style={{ background: "#f8f8f5", borderRadius: 8, padding: "8px 12px", marginBottom: 4, borderLeft: `3px solid ${COLORS.secondary}` }}>
-                          <p style={{ margin: 0, fontSize: 13, color: COLORS.dark }}>{note.text}</p>
-                          <span style={{ fontSize: 10, color: "#999" }}>{note.timestamp}</span>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })}
-                {/* Legacy notes without period */}
-                {notes.filter((n) => n.shared && n.period === null).map((note) => (
-                  <div key={note.id} style={{ background: "#f8f8f5", borderRadius: 8, padding: "8px 12px", marginBottom: 4, borderLeft: `3px solid ${COLORS.secondary}` }}>
-                    <p style={{ margin: 0, fontSize: 13, color: COLORS.dark }}>{note.text}</p>
-                    <span style={{ fontSize: 10, color: "#999" }}>{note.timestamp}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* ─── Schedule Modal ──────────────────────────────────────────────────── */}
       {showSchedule && (
@@ -4893,66 +4709,6 @@ export default function DashboardClient() {
         </div>
       )}
 
-      {/* ─── School Team Modal ──────────────────────────────────────────────────── */}
-      {showStaffSync && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-          }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowStaffSync(false); }}
-        >
-          <div style={{
-            background: "white",
-            borderRadius: 16,
-            padding: 32,
-            width: "90%",
-            maxWidth: 440,
-            textAlign: "center",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
-          }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>&#9729;&#65039;</div>
-            <h2 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 700, color: COLORS.dark }}>
-              School Team
-            </h2>
-            <div style={{
-              background: COLORS.blue,
-              color: "white",
-              borderRadius: 8,
-              padding: "6px 14px",
-              fontSize: 12,
-              fontWeight: 700,
-              display: "inline-block",
-              marginBottom: 16,
-            }}>
-              Coming Soon
-            </div>
-            <p style={{ color: "#666", fontSize: 14, lineHeight: 1.6, margin: "0 0 20px" }}>
-              Cloud sync between teachers is being developed. This will allow staff at your school to share student behavior data, coordinate on interventions, and view cross-period reports — all in real time.
-            </p>
-            <button
-              onClick={() => setShowStaffSync(false)}
-              style={{
-                background: COLORS.blue,
-                color: "white",
-                border: "none",
-                borderRadius: 8,
-                padding: "10px 28px",
-                fontSize: 14,
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              Got it
-            </button>
-          </div>
-        </div>
-      )}
     </div>
     </>
   );
