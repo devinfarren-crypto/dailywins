@@ -63,70 +63,78 @@ function emojiPngDataUrl(emoji: string, px = 96): string {
   }
 }
 
-// Draw a small black-&-white-safe line chart into a PDF: one labeled line (no
-// color needed), light gridlines at 0/50/100%, point markers + value labels, and
-// the bucket labels along the x-axis. Null points break the line (gap = no data).
+// Draw one goal's progress as a compact vertical-bar chart inside a bordered
+// card — clean enough for an IEP/meeting and legible in black & white (bar HEIGHT
+// + a printed % carry the meaning; color is a bonus). A faint band marks the
+// 80–100% "on-target" zone. Null buckets are skipped (no data).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function drawLineChart(doc: any, x: number, y: number, w: number, h: number, title: string, points: { label: string; pct: number | null }[]) {
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.setTextColor(40, 40, 40);
-  doc.text(title, x, y + 3);
-  doc.setFont("helvetica", "normal");
+function drawGoalChart(doc: any, x: number, y: number, w: number, h: number, title: string, points: { label: string; pct: number | null }[], avgPct: number | null) {
+  // Card
+  doc.setDrawColor(222, 226, 230);
+  doc.setFillColor(255, 255, 255);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(x, y, w, h, 2.2, 2.2, "FD");
 
-  const padL = 8;
-  const padT = 6;
-  const padB = 7;
+  // Title + average badge
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9.5);
+  doc.setTextColor(44, 62, 80);
+  doc.text(title, x + 4, y + 6.5);
+  doc.setFont("helvetica", "normal");
+  if (avgPct != null) {
+    doc.setFontSize(7.5);
+    doc.setTextColor(120, 120, 120);
+    doc.text(`avg ${avgPct}%`, x + w - 4, y + 6.5, { align: "right" });
+  }
+
+  // Plot area
+  const padL = 9;
   const padR = 4;
+  const padT = 11;
+  const padB = 7.5;
   const px = x + padL;
   const py = y + padT;
   const pw = w - padL - padR;
   const ph = h - padT - padB;
 
-  // Gridlines + y labels (0 / 50 / 100%)
+  // On-target band (top 20%) — faint
+  doc.setFillColor(235, 243, 239);
+  doc.rect(px, py, pw, ph * 0.2, "F");
+
+  // Gridlines + y labels at 0/50/100
   doc.setFontSize(6);
   for (const g of [0, 50, 100]) {
     const gy = py + ph * (1 - g / 100);
-    doc.setDrawColor(225);
+    doc.setDrawColor(232, 234, 236);
     doc.setLineWidth(0.15);
     doc.line(px, gy, px + pw, gy);
-    doc.setTextColor(150, 150, 150);
-    doc.text(String(g), x + padL - 7, gy + 1.5);
+    doc.setTextColor(165, 170, 175);
+    doc.text(String(g), x + padL - 7, gy + 1.4);
   }
-  // Axes
-  doc.setDrawColor(160);
-  doc.setLineWidth(0.2);
-  doc.line(px, py, px, py + ph);
-  doc.line(px, py + ph, px + pw, py + ph);
 
+  // Bars
   const n = points.length;
-  const stepX = n > 1 ? pw / (n - 1) : 0;
-
-  // Line (skip nulls → gaps)
-  doc.setDrawColor(20);
-  doc.setLineWidth(0.5);
-  let prev: { cx: number; cy: number } | null = null;
+  const slot = n > 0 ? pw / n : pw;
+  const barW = Math.max(2, Math.min(8, slot * 0.62));
   points.forEach((p, i) => {
-    if (p.pct == null) { prev = null; return; }
-    const cx = px + stepX * i;
-    const cy = py + ph * (1 - p.pct / 100);
-    if (prev) doc.line(prev.cx, prev.cy, cx, cy);
-    prev = { cx, cy };
-  });
-
-  // Markers + value + x labels
-  doc.setFontSize(6);
-  points.forEach((p, i) => {
-    const cx = px + stepX * i;
+    const cx = px + slot * i + slot / 2;
+    doc.setFontSize(5.6);
     doc.setTextColor(150, 150, 150);
-    doc.text(p.label, cx - 3, py + ph + 4);
+    doc.text(p.label, cx, py + ph + 4, { align: "center" });
     if (p.pct == null) return;
-    const cy = py + ph * (1 - p.pct / 100);
-    doc.setFillColor(20);
-    doc.circle(cx, cy, 0.8, "F");
-    doc.setTextColor(60, 60, 60);
-    doc.text(String(p.pct), cx - 2.5, cy - 1.8);
+    const bh = Math.max(0.3, ph * (p.pct / 100));
+    const by = py + ph - bh;
+    doc.setFillColor(58, 124, 106);
+    doc.rect(cx - barW / 2, by, barW, bh, "F");
+    doc.setFontSize(6);
+    doc.setTextColor(70, 70, 70);
+    doc.text(String(p.pct), cx, by - 1.3, { align: "center" });
   });
+
+  // Baseline
+  doc.setDrawColor(120, 120, 120);
+  doc.setLineWidth(0.3);
+  doc.line(px, py + ph, px + pw, py + ph);
 }
 
 const PERIODS = [
@@ -1522,7 +1530,7 @@ export default function DashboardClient() {
 
   // Weekly / Monthly progress report: one small line chart per goal (category) \u2014
   // % of target met over time \u2014 so a team can review progress goal-by-goal.
-  // Black-&-white safe: each chart is a single labeled line (see drawLineChart).
+  // Black-&-white safe: each goal is a vertical-bar card (see drawGoalChart).
   const generateTrendPDF = async (mode: "week" | "month") => {
     if (!teacher || !selectedStudentId) {
       alert("Select a student first.");
@@ -1541,18 +1549,17 @@ export default function DashboardClient() {
     let rangeEnd: string;
     let rangeLabel: string;
     if (mode === "week") {
-      const mon = new Date(base);
-      mon.setDate(base.getDate() - ((base.getDay() + 6) % 7));
-      const names = ["Mon", "Tue", "Wed", "Thu", "Fri"];
-      for (let i = 0; i < 5; i++) {
-        const d = new Date(mon);
-        d.setDate(mon.getDate() + i);
-        const ds = formatDate(d);
-        buckets.push({ label: names[i], start: ds, end: ds });
-      }
-      rangeStart = buckets[0].start;
-      rangeEnd = buckets[4].end;
-      rangeLabel = `Week of ${rangeStart}`;
+      // Multi-week view: fetch ~8 weeks ending with the selected week. Per-week
+      // buckets are built AFTER the fetch (below), from the first week with data.
+      const selMon = new Date(base);
+      selMon.setDate(base.getDate() - ((base.getDay() + 6) % 7));
+      const selFri = new Date(selMon);
+      selFri.setDate(selMon.getDate() + 4);
+      const wideMon = new Date(selMon);
+      wideMon.setDate(selMon.getDate() - 7 * 7);
+      rangeStart = formatDate(wideMon);
+      rangeEnd = formatDate(selFri);
+      rangeLabel = "";
     } else {
       // Multi-month view: fetch a wide ~12-month window ending with the selected
       // month. The per-month buckets are built AFTER the fetch (below) so we only
@@ -1572,6 +1579,33 @@ export default function DashboardClient() {
       .gte("score_date", rangeStart)
       .lte("score_date", rangeEnd);
     const data = scoreRows ?? [];
+
+    // Week mode: one bucket per week (Mon–Fri), from the first week with data
+    // (capped to ~8 weeks back) through the selected week.
+    if (mode === "week") {
+      const selMon = new Date(base);
+      selMon.setDate(base.getDate() - ((base.getDay() + 6) % 7));
+      const minAllowedMon = new Date(selMon);
+      minAllowedMon.setDate(selMon.getDate() - 7 * 7);
+      let firstMon = selMon;
+      if (data.length > 0) {
+        let minSd = data[0].score_date as string;
+        for (const r of data) if ((r.score_date as string) < minSd) minSd = r.score_date as string;
+        const md = new Date(minSd + "T12:00:00");
+        const mdMon = new Date(md);
+        mdMon.setDate(md.getDate() - ((md.getDay() + 6) % 7));
+        firstMon = mdMon < minAllowedMon ? minAllowedMon : mdMon;
+      }
+      const cur = new Date(firstMon);
+      while (cur <= selMon) {
+        const wkMon = new Date(cur);
+        const wkFri = new Date(cur);
+        wkFri.setDate(cur.getDate() + 4);
+        buckets.push({ label: `${wkMon.getMonth() + 1}/${wkMon.getDate()}`, start: formatDate(wkMon), end: formatDate(wkFri) });
+        cur.setDate(cur.getDate() + 7);
+      }
+      rangeLabel = buckets.length > 1 ? `Weeks of ${buckets[0].label} – ${buckets[buckets.length - 1].label}` : `Week of ${buckets[0]?.start ?? rangeStart}`;
+    }
 
     // Month mode: one bucket per calendar month, from the first month that has
     // data (capped to ~12 months back) through the selected month. Months with no
@@ -1639,27 +1673,30 @@ export default function DashboardClient() {
       return { cat, pts };
     });
 
-    // Header
-    doc.setFontSize(18);
-    doc.setTextColor(44, 62, 80);
-    doc.text(`DailyWins \u2014 ${mode === "week" ? "Weekly" : "Monthly"} Progress`, 14, 20);
+    // Header band
+    doc.setFillColor(44, 62, 80);
+    doc.rect(0, 0, pageW, 26, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(15);
+    doc.text(`${mode === "week" ? "Weekly" : "Monthly"} Progress Report`, 14, 12);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text(`${selectedStudent || "Student"}   \u00b7   ${rangeLabel}`, 14, 19.5);
     const icon = emojiPngDataUrl(starIcon);
-    if (icon) doc.addImage(icon, "PNG", pageW - 24, 10, 12, 12);
-    doc.setFontSize(12);
-    doc.text(`Student: ${selectedStudent || "N/A"}`, 14, 32);
-    doc.text(rangeLabel, 14, 40);
-    doc.setFontSize(9);
+    if (icon) doc.addImage(icon, "PNG", pageW - 24, 7, 12, 12);
     doc.setTextColor(120, 120, 120);
-    doc.text("Each goal shows % of target met over time \u2014 for team review of progress per goal.", 14, 47);
+    doc.setFontSize(8);
+    doc.text("% of target met over time, per goal \u2014 shaded band marks the 80\u2013100% on-target zone.", 14, 32);
 
-    // Small-multiples line charts: one per goal.
+    // Goal charts (vertical-bar cards), two per row.
     const cols = 2;
-    const chartW = 88;
-    const chartH = 46;
-    const gapX = 6;
-    const gapY = 8;
+    const chartW = 91;
+    const chartH = 50;
+    const gapX = 5;
+    const gapY = 6;
     const startX = 14;
-    let curY = 54;
+    let curY = 38;
     for (let i = 0; i < series.length; i += cols) {
       if (curY + chartH > pageH - 16) {
         doc.addPage();
@@ -1667,7 +1704,9 @@ export default function DashboardClient() {
       }
       for (let c = 0; c < cols && i + c < series.length; c++) {
         const s = series[i + c];
-        drawLineChart(doc, startX + c * (chartW + gapX), curY, chartW, chartH, s.cat.name, s.pts);
+        const valid = s.pts.filter((p) => p.pct != null).map((p) => p.pct as number);
+        const avg = valid.length ? Math.round(valid.reduce((a, b) => a + b, 0) / valid.length) : null;
+        drawGoalChart(doc, startX + c * (chartW + gapX), curY, chartW, chartH, s.cat.name, s.pts, avg);
       }
       curY += chartH + gapY;
     }
