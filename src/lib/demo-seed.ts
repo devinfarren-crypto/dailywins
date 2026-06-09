@@ -12,7 +12,7 @@ const DEMO_STUDENTS = [
   { name: "[DEMO] Tyler B.", profile: "steady" },
 ] as const;
 
-const PERIODS = [1, 2, 3, 4, 5, 6] as const;
+const PERIODS = [1, 2, 3, 4, 5, 6, 7] as const;
 const NUM_WEEKDAYS = 40;
 const SKIP_RATE = 0.05;
 
