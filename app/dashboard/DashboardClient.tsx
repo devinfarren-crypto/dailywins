@@ -20,10 +20,10 @@ const ChartViews = dynamic(() => import("./ChartViews"), { ssr: false });
 // ink navy; red/gold/green/blue map onto the §2 status scale so the standing
 // zones (support → working → track → exceptional) match the brand exactly.
 const COLORS = {
-  primary: "#1c5c3c",   // green-deep — primary CTAs (was coral #e07850)
-  secondary: "#2e8b5e", // green — signature accent (was teal #3a7c6a)
-  accent: "#e3a23c",    // amber — warm highlight (was gold #f0b647)
-  dark: "#16263d",      // ink navy — headers, headings, dark text (was #2c3e50)
+  primary: "#0F6E56",   // forest — primary CTAs (company aesthetic)
+  secondary: "#1D9E75", // teal — signature accent
+  accent: "#EF9F27",    // amber — warm highlight
+  dark: "#1a1a2e",      // navy — headers, headings, dark text
   red: "#dd6b4d",       // status-support — "Needs Support"
   gold: "#e3a23c",      // status-working — "Working On It"
   green: "#4fa07e",     // status-track — "On Track"
@@ -31,7 +31,7 @@ const COLORS = {
 };
 
 const THEMES: Record<string, { name: string; header: string; primary: string; secondary: string; accent: string; bg: string; swatch: string[] }> = {
-  default: { name: "Sure Step", header: "#16263d", primary: "#1c5c3c", secondary: "#2e8b5e", accent: "#e3a23c", bg: "#f7f3ec", swatch: ["#16263d", "#2e8b5e", "#e3a23c"] },
+  default: { name: "Sure Step", header: "#1a1a2e", primary: "#0F6E56", secondary: "#1D9E75", accent: "#EF9F27", bg: "#F7F5F0", swatch: ["#1a1a2e", "#1D9E75", "#EF9F27"] },
   classic: { name: "DailyWins", header: "#2c3e50", primary: "#e07850", secondary: "#3a7c6a", accent: "#f0b647", bg: "#f5f5f0", swatch: ["#2c3e50", "#e07850", "#3a7c6a"] },
   steelBlue: { name: "Steel Blue", header: "#34495e", primary: "#2980b9", secondary: "#27ae60", accent: "#f39c12", bg: "#eef3f7", swatch: ["#34495e", "#2980b9", "#27ae60"] },
   sage: { name: "Sage Green", header: "#2d5a3d", primary: "#8e6b47", secondary: "#5d8a68", accent: "#d4a76a", bg: "#eff5f1", swatch: ["#2d5a3d", "#5d8a68", "#8e6b47"] },
@@ -40,7 +40,7 @@ const THEMES: Record<string, { name: string; header: string; primary: string; se
 };
 
 // Display serif for headings — design system's editorial voice (§5).
-const DISPLAY_FONT = "'Fraunces', Georgia, serif";
+const DISPLAY_FONT = "'DM Serif Display', Georgia, serif";
 
 const STAR_ICONS = ["⭐", "🏆", "🎯"];
 
@@ -124,7 +124,7 @@ function drawGoalChart(doc: any, x: number, y: number, w: number, h: number, tit
     if (p.pct == null) return;
     const bh = Math.max(0.3, ph * (p.pct / 100));
     const by = py + ph - bh;
-    doc.setFillColor(58, 124, 106);
+    doc.setFillColor(29, 158, 117);
     doc.rect(cx - barW / 2, by, barW, bh, "F");
     doc.setFontSize(6);
     doc.setTextColor(70, 70, 70);
@@ -567,7 +567,7 @@ export default function DashboardClient() {
     secondary: activeTheme.secondary,
     accent: activeTheme.accent,
   };
-  const activeFont = "'Inter', sans-serif";
+  const activeFont = "'DM Sans', system-ui, sans-serif";
   const starIcon = prefs.starIcon ?? "⭐";
   const confettiEnabled = prefs.confetti !== false;
 
@@ -1673,8 +1673,8 @@ export default function DashboardClient() {
       return { cat, pts };
     });
 
-    // Header band
-    doc.setFillColor(44, 62, 80);
+    // Header band (company navy)
+    doc.setFillColor(26, 26, 46);
     doc.rect(0, 0, pageW, 26, "F");
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
@@ -1997,8 +1997,8 @@ export default function DashboardClient() {
 
   return (
     <>
-      {/* Google Fonts: design-system trio (Public Sans, Fraunces, IBM Plex Mono) + Inter (the app font) */}
-      <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+      {/* Google Fonts: company aesthetic trio — DM Serif Display, DM Sans, DM Mono */}
+      <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
     <div style={{ minHeight: "100vh", background: activeTheme.bg, fontFamily: activeFont }}>
       <ConfettiCanvas active={showConfetti && confettiEnabled} />
 

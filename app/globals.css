@@ -1,27 +1,28 @@
 @import "tailwindcss";
 
 /* ──────────────────────────────────────────────────────────────────────────
-   Sure Step Education — Design System tokens
-   See sure-step-design-system.md. Editorial, warm, accessible (SPED-first).
+   Sure Step Education — Company Aesthetic tokens
+   See Sure_Step_Education_Aesthetic.md (canonical, anchored to surestepeducation.com).
+   The --ssd-* role names are kept so existing surfaces inherit the new values.
    ────────────────────────────────────────────────────────────────────────── */
 :root {
-  /* brand */
-  --ssd-ink: #16263d;
-  --ssd-ink-soft: #26456a;
-  --ssd-green: #2e8b5e;
-  --ssd-green-deep: #1c5c3c;
-  --ssd-amber: #e3a23c;
-  --ssd-amber-deep: #8a5a12;
+  /* brand (navy structure · forest CTA · teal signature accent · amber warmth) */
+  --ssd-ink: #1a1a2e;        /* navy */
+  --ssd-ink-soft: #2a2b48;   /* navy-soft */
+  --ssd-green: #1D9E75;      /* teal — signature accent */
+  --ssd-green-deep: #0F6E56; /* forest — primary CTAs */
+  --ssd-amber: #EF9F27;      /* amber */
+  --ssd-amber-deep: #b5740f;
 
   /* neutrals */
-  --ssd-paper: #f7f3ec;
+  --ssd-paper: #F7F5F0;      /* cream */
   --ssd-surface: #ffffff;
-  --ssd-surface-alt: #f1f3f1;
-  --ssd-border: #e4e7e3;
-  --ssd-text: #2b2b29;
-  --ssd-text-muted: #6b6e69;
+  --ssd-surface-alt: #EFEBE0; /* cream-deep */
+  --ssd-border: #d9d4c5;      /* rule */
+  --ssd-text: #1a1a2e;        /* ink */
+  --ssd-text-muted: #7a7a8e;  /* ink-3 */
 
-  /* status (DailyWins) */
+  /* status scale (shared, low → high — unchanged: it anchored this scale) */
   --ssd-status-support: #dd6b4d;
   --ssd-status-working: #e3a23c;
   --ssd-status-track: #4fa07e;
@@ -31,8 +32,8 @@
   --ssd-radius-sm: 8px;
   --ssd-radius: 12px;
   --ssd-radius-pill: 999px;
-  --ssd-shadow: 0 1px 2px rgba(22, 38, 61, 0.06), 0 6px 16px rgba(22, 38, 61, 0.07);
-  --ssd-shadow-sm: 0 1px 2px rgba(22, 38, 61, 0.06);
+  --ssd-shadow: 0 1px 2px rgba(26, 38, 61, 0.06), 0 6px 16px rgba(26, 38, 61, 0.07);
+  --ssd-shadow-sm: 0 1px 2px rgba(26, 38, 61, 0.06);
 
   /* legacy aliases kept so existing surfaces don't break */
   --background: #ffffff;

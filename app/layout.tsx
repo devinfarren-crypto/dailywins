@@ -1,25 +1,26 @@
 import type { Metadata } from "next";
-import { Fraunces, Public_Sans, IBM_Plex_Mono } from "next/font/google";
+import { DM_Serif_Display, DM_Sans, DM_Mono } from "next/font/google";
 import Link from "next/link";
 import PWAProvider from "@/src/components/PWAProvider";
 import ActAsBanner from "@/src/components/ActAsBanner";
 import "./globals.css";
 
-// Sure Step Education design system — three-voice type:
-// display serif (Fraunces), accessible body sans (Public Sans), mono eyebrows (IBM Plex Mono).
-const display = Fraunces({
+// Sure Step Education company aesthetic — three-voice type (canonical default):
+// display serif (DM Serif Display), body sans (DM Sans), mono eyebrows (DM Mono).
+// See Sure_Step_Education_Aesthetic.md.
+const display = DM_Serif_Display({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: "400",
   variable: "--ssd-font-display",
 });
 
-const body = Public_Sans({
+const body = DM_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
   variable: "--ssd-font-body",
 });
 
-const mono = IBM_Plex_Mono({
+const mono = DM_Mono({
   subsets: ["latin"],
   weight: ["400", "500"],
   variable: "--ssd-font-mono",
@@ -39,7 +40,7 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#16263d" />
+        <meta name="theme-color" content="#1a1a2e" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="DailyWins" />
