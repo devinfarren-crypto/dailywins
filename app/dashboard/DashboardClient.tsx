@@ -63,6 +63,29 @@ function emojiPngDataUrl(emoji: string, px = 96): string {
   }
 }
 
+// Draw a black-&-white-safe mini bar into a PDF table cell: an outlined track,
+// a solid fill whose LENGTH encodes the value (so it reads with no color), and
+// the printed value to its right.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function drawCellBar(doc: any, cx: number, cy: number, cw: number, ch: number, meta: { frac: number; label: string; hasVal: boolean }) {
+  const padX = 1.8;
+  const numW = 6;
+  const barH = 2.4;
+  const x = cx + padX;
+  const w = Math.max(2, cw - padX * 2 - numW);
+  const y = cy + ch / 2 - barH / 2;
+  doc.setDrawColor(150);
+  doc.setLineWidth(0.2);
+  doc.rect(x, y, w, barH);
+  if (meta.hasVal && meta.frac > 0) {
+    doc.setFillColor(60);
+    doc.rect(x, y, w * meta.frac, barH, "F");
+  }
+  doc.setFontSize(8);
+  doc.setTextColor(60);
+  doc.text(meta.label, x + w + 1.2, cy + ch / 2 + 1.1);
+}
+
 const PERIODS = [
   "Period 1",
   "Period 2",
@@ -236,14 +259,6 @@ function getPointValue(cat: Category, optionIndex: number): number {
 function getOptionIndexForPoints(cat: Category, points: number): number {
   if (!cat.pointValues) return points;
   return cat.pointValues.indexOf(points);
-}
-
-/** Get the option label for a stored point value */
-function getOptionLabel(cat: Category, points: number | null): string {
-  if (points === null) return "\u2014";
-  const idx = getOptionIndexForPoints(cat, points);
-  if (idx >= 0) return cat.options[idx];
-  return String(points);
 }
 
 /** Get color for an arrival-type button based on option index */
@@ -1479,20 +1494,39 @@ export default function DashboardClient() {
     doc.text(`Date: ${selectedDate}`, 14, 40);
     doc.text(`Daily Score: ${e} / ${p} pts (${pc}%)`, 14, 48);
 
+    const CAT_COL_START = 2; // after Period, Time
+    const PTS_COL = CAT_COL_START + categories.length;
+    const maxPerPeriod = calculateMaxPoints(categories);
+
     const headerRow = ["Period", "Time", ...categories.map((c) => c.name), "Pts"];
 
-    const rows = trackablePeriods.map((slot) => {
+    // Per-cell bar metadata. Bars encode value as LENGTH (not color) so they read
+    // in black & white; the number is printed alongside. (See drawCellBar.)
+    const barData = trackablePeriods.map((slot) => {
       const ps = scores[slot.label] ?? makeEmptyPeriodScores(categories);
-      const row: string[] = [
-        slot.label,
-        slot.start ? `${slot.start}\u2013${slot.end}` : "",
-      ];
-      for (const cat of categories) {
-        row.push(getOptionLabel(cat, ps[cat.id]));
-      }
-      row.push(String(calculatePeriodPoints(ps, categories)));
-      return row;
+      const cats = categories.map((cat) => {
+        const raw = ps[cat.id];
+        const hasVal = raw != null;
+        const pts = !hasVal ? 0 : cat.type === "arrival" ? getPointValue(cat, raw as number) : (raw as number);
+        const max = cat.maxPoints || 0;
+        return { frac: max > 0 ? Math.max(0, Math.min(1, pts / max)) : 0, label: hasVal ? String(pts) : "\u2014", hasVal };
+      });
+      const periodPts = calculatePeriodPoints(ps, categories);
+      const total = { frac: maxPerPeriod > 0 ? Math.max(0, Math.min(1, periodPts / maxPerPeriod)) : 0, label: String(periodPts), hasVal: true };
+      return { cats, total };
     });
+
+    // Category + total cells are drawn as bars in didDrawCell, so their text is blank.
+    const rows = trackablePeriods.map((slot) => [
+      slot.label,
+      slot.start ? `${slot.start}\u2013${slot.end}` : "",
+      ...categories.map(() => ""),
+      "",
+    ]);
+
+    const catColStyles: Record<number, { cellWidth: number; halign: "left" }> = {};
+    for (let c = 0; c < categories.length; c++) catColStyles[CAT_COL_START + c] = { cellWidth: 20, halign: "left" };
+    catColStyles[PTS_COL] = { cellWidth: 16, halign: "left" };
 
     autoTable(doc, {
       startY: 56,
@@ -1500,8 +1534,21 @@ export default function DashboardClient() {
       body: rows,
       theme: "grid",
       headStyles: { fillColor: [44, 62, 80], fontSize: 9 },
-      bodyStyles: { fontSize: 9 },
-      columnStyles: { 0: { fontStyle: "bold" } },
+      bodyStyles: { fontSize: 9, minCellHeight: 7 },
+      columnStyles: { 0: { fontStyle: "bold" }, ...catColStyles },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      didDrawCell: (data: any) => {
+        if (data.section !== "body") return;
+        const col = data.column.index as number;
+        const meta =
+          col >= CAT_COL_START && col < PTS_COL
+            ? barData[data.row.index]?.cats[col - CAT_COL_START]
+            : col === PTS_COL
+            ? barData[data.row.index]?.total
+            : null;
+        if (!meta) return;
+        drawCellBar(doc, data.cell.x, data.cell.y, data.cell.width, data.cell.height, meta);
+      },
     });
 
     // Add shared notes organized by period
@@ -1571,30 +1618,34 @@ export default function DashboardClient() {
 
     doc.text(`Week of: ${days[0]} to ${days[4]}`, 14, 40);
 
-    const rows = trackablePeriods.map((slot) => {
+    const maxPerPeriod = calculateMaxPoints(categories);
+    const { earned: e, possible: p, pct: pc } = calculateProgress(scores, categories, periodAbsent);
+
+    // Per-cell bar metadata. Only today's column has data; other days show "\u2014"
+    // (the dashboard only loads the selected day). Bars encode value as length.
+    const blankCell = { frac: 0, label: "\u2014", hasVal: false };
+    const weekBars = trackablePeriods.map((slot) => {
       const ps = scores[slot.label] ?? makeEmptyPeriodScores(categories);
       const todayPts = calculatePeriodPoints(ps, categories);
-      const row: string[] = [slot.label];
-      for (let d = 0; d < 5; d++) {
-        if (days[d] === selectedDate) {
-          row.push(String(todayPts));
-        } else {
-          row.push("\u2014");
-        }
-      }
-      return row;
+      return days.map((day) =>
+        day === selectedDate
+          ? { frac: maxPerPeriod > 0 ? Math.min(1, todayPts / maxPerPeriod) : 0, label: String(todayPts), hasVal: true }
+          : blankCell,
+      );
     });
+    const totalBars = days.map((day) =>
+      day === selectedDate
+        ? { frac: p > 0 ? Math.min(1, e / p) : 0, label: `${pc}%`, hasVal: true }
+        : blankCell,
+    );
 
-    const { earned: e, possible: p, pct: pc } = calculateProgress(scores, categories, periodAbsent);
-    const totalRow = ["TOTAL"];
-    for (let d = 0; d < 5; d++) {
-      if (days[d] === selectedDate) {
-        totalRow.push(`${e}/${p} (${pc}%)`);
-      } else {
-        totalRow.push("\u2014");
-      }
-    }
-    rows.push(totalRow);
+    // Day cells are drawn as bars in didDrawCell; their text is blank.
+    const rows = trackablePeriods.map((slot) => [slot.label, "", "", "", "", ""]);
+    rows.push(["TOTAL", "", "", "", "", ""]);
+    const TOTAL_ROW = trackablePeriods.length;
+
+    const dayColStyles: Record<number, { cellWidth: number; halign: "left" }> = {};
+    for (let d = 1; d <= 5; d++) dayColStyles[d] = { cellWidth: 45, halign: "left" };
 
     autoTable(doc, {
       startY: 48,
@@ -1602,8 +1653,18 @@ export default function DashboardClient() {
       body: rows,
       theme: "grid",
       headStyles: { fillColor: [44, 62, 80], fontSize: 9 },
-      bodyStyles: { fontSize: 9 },
-      columnStyles: { 0: { fontStyle: "bold" } },
+      bodyStyles: { fontSize: 9, minCellHeight: 7 },
+      columnStyles: { 0: { fontStyle: "bold" }, ...dayColStyles },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      didDrawCell: (data: any) => {
+        if (data.section !== "body") return;
+        const col = data.column.index as number;
+        if (col < 1 || col > 5) return;
+        const ri = data.row.index as number;
+        const meta = ri === TOTAL_ROW ? totalBars[col - 1] : weekBars[ri]?.[col - 1];
+        if (!meta) return;
+        drawCellBar(doc, data.cell.x, data.cell.y, data.cell.width, data.cell.height, meta);
+      },
     });
 
     // Fetch shared notes for the week
