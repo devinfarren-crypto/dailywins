@@ -63,27 +63,70 @@ function emojiPngDataUrl(emoji: string, px = 96): string {
   }
 }
 
-// Draw a black-&-white-safe mini bar into a PDF table cell: an outlined track,
-// a solid fill whose LENGTH encodes the value (so it reads with no color), and
-// the printed value to its right.
+// Draw a small black-&-white-safe line chart into a PDF: one labeled line (no
+// color needed), light gridlines at 0/50/100%, point markers + value labels, and
+// the bucket labels along the x-axis. Null points break the line (gap = no data).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function drawCellBar(doc: any, cx: number, cy: number, cw: number, ch: number, meta: { frac: number; label: string; hasVal: boolean }) {
-  const padX = 1.8;
-  const numW = 6;
-  const barH = 2.4;
-  const x = cx + padX;
-  const w = Math.max(2, cw - padX * 2 - numW);
-  const y = cy + ch / 2 - barH / 2;
-  doc.setDrawColor(150);
-  doc.setLineWidth(0.2);
-  doc.rect(x, y, w, barH);
-  if (meta.hasVal && meta.frac > 0) {
-    doc.setFillColor(60);
-    doc.rect(x, y, w * meta.frac, barH, "F");
+function drawLineChart(doc: any, x: number, y: number, w: number, h: number, title: string, points: { label: string; pct: number | null }[]) {
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(40, 40, 40);
+  doc.text(title, x, y + 3);
+  doc.setFont("helvetica", "normal");
+
+  const padL = 8;
+  const padT = 6;
+  const padB = 7;
+  const padR = 4;
+  const px = x + padL;
+  const py = y + padT;
+  const pw = w - padL - padR;
+  const ph = h - padT - padB;
+
+  // Gridlines + y labels (0 / 50 / 100%)
+  doc.setFontSize(6);
+  for (const g of [0, 50, 100]) {
+    const gy = py + ph * (1 - g / 100);
+    doc.setDrawColor(225);
+    doc.setLineWidth(0.15);
+    doc.line(px, gy, px + pw, gy);
+    doc.setTextColor(150, 150, 150);
+    doc.text(String(g), x + padL - 7, gy + 1.5);
   }
-  doc.setFontSize(8);
-  doc.setTextColor(60);
-  doc.text(meta.label, x + w + 1.2, cy + ch / 2 + 1.1);
+  // Axes
+  doc.setDrawColor(160);
+  doc.setLineWidth(0.2);
+  doc.line(px, py, px, py + ph);
+  doc.line(px, py + ph, px + pw, py + ph);
+
+  const n = points.length;
+  const stepX = n > 1 ? pw / (n - 1) : 0;
+
+  // Line (skip nulls → gaps)
+  doc.setDrawColor(20);
+  doc.setLineWidth(0.5);
+  let prev: { cx: number; cy: number } | null = null;
+  points.forEach((p, i) => {
+    if (p.pct == null) { prev = null; return; }
+    const cx = px + stepX * i;
+    const cy = py + ph * (1 - p.pct / 100);
+    if (prev) doc.line(prev.cx, prev.cy, cx, cy);
+    prev = { cx, cy };
+  });
+
+  // Markers + value + x labels
+  doc.setFontSize(6);
+  points.forEach((p, i) => {
+    const cx = px + stepX * i;
+    doc.setTextColor(150, 150, 150);
+    doc.text(p.label, cx - 3, py + ph + 4);
+    if (p.pct == null) return;
+    const cy = py + ph * (1 - p.pct / 100);
+    doc.setFillColor(20);
+    doc.circle(cx, cy, 0.8, "F");
+    doc.setTextColor(60, 60, 60);
+    doc.text(String(p.pct), cx - 2.5, cy - 1.8);
+  });
 }
 
 const PERIODS = [
@@ -1477,241 +1520,173 @@ export default function DashboardClient() {
 
   // ─── PDF Generation ─────────────────────────────────────────────────────────
 
-  const generateDailyPDF = async () => {
+  // Weekly / Monthly progress report: one small line chart per goal (category) \u2014
+  // % of target met over time \u2014 so a team can review progress goal-by-goal.
+  // Black-&-white safe: each chart is a single labeled line (see drawLineChart).
+  const generateTrendPDF = async (mode: "week" | "month") => {
+    if (!teacher || !selectedStudentId) {
+      alert("Select a student first.");
+      return;
+    }
     const { default: jsPDF } = await import("jspdf");
-    const { default: autoTable } = await import("jspdf-autotable");
     const doc = new jsPDF();
-    const { earned: e, possible: p, pct: pc } = calculateProgress(scores, categories, periodAbsent);
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
 
-    doc.setFontSize(18);
-    doc.setTextColor(44, 62, 80);
-    doc.text("DailyWins \u2014 Daily Report", 14, 20);
-    const dailyIcon = emojiPngDataUrl(starIcon);
-    if (dailyIcon) doc.addImage(dailyIcon, "PNG", doc.internal.pageSize.getWidth() - 24, 10, 12, 12);
-
-    doc.setFontSize(12);
-    doc.text(`Student: ${selectedStudent || "N/A"}`, 14, 32);
-    doc.text(`Date: ${selectedDate}`, 14, 40);
-    doc.text(`Daily Score: ${e} / ${p} pts (${pc}%)`, 14, 48);
-
-    const CAT_COL_START = 2; // after Period, Time
-    const PTS_COL = CAT_COL_START + categories.length;
-    const maxPerPeriod = calculateMaxPoints(categories);
-
-    const headerRow = ["Period", "Time", ...categories.map((c) => c.name), "Pts"];
-
-    // Per-cell bar metadata. Bars encode value as LENGTH (not color) so they read
-    // in black & white; the number is printed alongside. (See drawCellBar.)
-    const barData = trackablePeriods.map((slot) => {
-      const ps = scores[slot.label] ?? makeEmptyPeriodScores(categories);
-      const cats = categories.map((cat) => {
-        const raw = ps[cat.id];
-        const hasVal = raw != null;
-        const pts = !hasVal ? 0 : cat.type === "arrival" ? getPointValue(cat, raw as number) : (raw as number);
-        const max = cat.maxPoints || 0;
-        return { frac: max > 0 ? Math.max(0, Math.min(1, pts / max)) : 0, label: hasVal ? String(pts) : "\u2014", hasVal };
-      });
-      const periodPts = calculatePeriodPoints(ps, categories);
-      const total = { frac: maxPerPeriod > 0 ? Math.max(0, Math.min(1, periodPts / maxPerPeriod)) : 0, label: String(periodPts), hasVal: true };
-      return { cats, total };
-    });
-
-    // Category + total cells are drawn as bars in didDrawCell, so their text is blank.
-    const rows = trackablePeriods.map((slot) => [
-      slot.label,
-      slot.start ? `${slot.start}\u2013${slot.end}` : "",
-      ...categories.map(() => ""),
-      "",
-    ]);
-
-    const catColStyles: Record<number, { cellWidth: number; halign: "left" }> = {};
-    for (let c = 0; c < categories.length; c++) catColStyles[CAT_COL_START + c] = { cellWidth: 20, halign: "left" };
-    catColStyles[PTS_COL] = { cellWidth: 16, halign: "left" };
-
-    autoTable(doc, {
-      startY: 56,
-      head: [headerRow],
-      body: rows,
-      theme: "grid",
-      headStyles: { fillColor: [44, 62, 80], fontSize: 9 },
-      bodyStyles: { fontSize: 9, minCellHeight: 7 },
-      columnStyles: { 0: { fontStyle: "bold" }, ...catColStyles },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      didDrawCell: (data: any) => {
-        if (data.section !== "body") return;
-        const col = data.column.index as number;
-        const meta =
-          col >= CAT_COL_START && col < PTS_COL
-            ? barData[data.row.index]?.cats[col - CAT_COL_START]
-            : col === PTS_COL
-            ? barData[data.row.index]?.total
-            : null;
-        if (!meta) return;
-        drawCellBar(doc, data.cell.x, data.cell.y, data.cell.width, data.cell.height, meta);
-      },
-    });
-
-    // Add shared notes organized by period
-    const sharedNotes = notes.filter((n) => n.shared);
-    if (sharedNotes.length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const finalY = (doc as any).lastAutoTable?.finalY ?? 120;
-      doc.setFontSize(14);
-      doc.setTextColor(44, 62, 80);
-      doc.text("Teacher Notes", 14, finalY + 12);
-      let noteY = finalY + 20;
-      for (const slot of trackablePeriods) {
-        const periodNotes = sharedNotes.filter((n) => n.period === slot.label);
-        if (periodNotes.length === 0) continue;
-        doc.setFontSize(10);
-        doc.setTextColor(100, 100, 100);
-        doc.text(slot.label, 14, noteY);
-        noteY += 5;
-        doc.setFontSize(9);
-        doc.setTextColor(44, 62, 80);
-        for (const note of periodNotes) {
-          const lines = doc.splitTextToSize(`\u2022 ${note.text}`, 170);
-          doc.text(lines, 18, noteY);
-          noteY += lines.length * 4.5;
+    // Time buckets + fetch range. Week \u2192 one bucket per weekday; Month \u2192 one
+    // bucket per week (Mon\u2013Fri) so the monthly line stays readable.
+    const base = new Date(selectedDate + "T12:00:00");
+    const buckets: { label: string; start: string; end: string }[] = [];
+    let rangeStart: string;
+    let rangeEnd: string;
+    let rangeLabel: string;
+    if (mode === "week") {
+      const mon = new Date(base);
+      mon.setDate(base.getDate() - ((base.getDay() + 6) % 7));
+      const names = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+      for (let i = 0; i < 5; i++) {
+        const d = new Date(mon);
+        d.setDate(mon.getDate() + i);
+        const ds = formatDate(d);
+        buckets.push({ label: names[i], start: ds, end: ds });
+      }
+      rangeStart = buckets[0].start;
+      rangeEnd = buckets[4].end;
+      rangeLabel = `Week of ${rangeStart}`;
+    } else {
+      const mStart = new Date(base.getFullYear(), base.getMonth(), 1, 12);
+      const mEnd = new Date(base.getFullYear(), base.getMonth() + 1, 0, 12);
+      rangeStart = formatDate(mStart);
+      rangeEnd = formatDate(mEnd);
+      const wk = new Date(mStart);
+      wk.setDate(mStart.getDate() - ((mStart.getDay() + 6) % 7));
+      while (wk <= mEnd) {
+        const wkStart = new Date(wk);
+        const wkFri = new Date(wk);
+        wkFri.setDate(wk.getDate() + 4);
+        if (wkFri >= mStart) {
+          buckets.push({ label: `${wkStart.getMonth() + 1}/${wkStart.getDate()}`, start: formatDate(wkStart), end: formatDate(wkFri) });
         }
-        noteY += 2;
+        wk.setDate(wk.getDate() + 7);
       }
-      // Legacy notes without period
-      const legacyNotes = sharedNotes.filter((n) => n.period === null);
-      for (const note of legacyNotes) {
-        doc.setFontSize(9);
-        doc.setTextColor(44, 62, 80);
-        const lines = doc.splitTextToSize(`\u2022 ${note.text}`, 170);
-        doc.text(lines, 18, noteY);
-        noteY += lines.length * 4.5;
-      }
+      rangeLabel = base.toLocaleDateString(undefined, { month: "long", year: "numeric" });
     }
 
-    doc.save(`DailyWins_${selectedStudent || "report"}_${selectedDate}.pdf`);
-  };
+    const { data: scoreRows } = await supabase
+      .from("behavior_scores")
+      .select("score_date,scores,arrival,compliance,social,on_task,phone_away")
+      .eq("student_id", selectedStudentId)
+      .eq("teacher_id", teacher.teacher_id)
+      .gte("score_date", rangeStart)
+      .lte("score_date", rangeEnd);
+    const data = scoreRows ?? [];
 
-  const generateWeeklyPDF = async () => {
-    const { default: jsPDF } = await import("jspdf");
-    const { default: autoTable } = await import("jspdf-autotable");
-    const doc = new jsPDF({ orientation: "landscape" });
+    // Points for one cell of a category (arrival stores an option index).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cellPoints = (row: any, cat: Category): number | null => {
+      const s = row.scores as Record<string, number | null> | null;
+      let raw: number | null | undefined = s ? s[cat.id] : undefined;
+      if (raw == null && !s) {
+        if (cat.id === "arrival") raw = row.arrival;
+        else if (cat.id === "compliance") raw = row.compliance;
+        else if (cat.id === "social") raw = row.social;
+        else if (cat.id === "onTask") raw = row.on_task;
+        else if (cat.id === "phoneAway") raw = row.phone_away == null ? null : row.phone_away ? cat.maxPoints : 0;
+      }
+      if (raw == null) return null;
+      return cat.type === "arrival" ? getPointValue(cat, raw as number) : (raw as number);
+    };
 
+    // Per-goal series: % of target met for each bucket (null = no data \u2192 gap).
+    const series = categories.map((cat) => {
+      const pts = buckets.map((b) => {
+        let sum = 0;
+        let cnt = 0;
+        for (const r of data) {
+          const sd = r.score_date as string;
+          if (sd < b.start || sd > b.end) continue;
+          const p = cellPoints(r, cat);
+          if (p == null) continue;
+          const max = cat.maxPoints || 0;
+          if (max <= 0) continue;
+          sum += p / max;
+          cnt += 1;
+        }
+        return { label: b.label, pct: cnt > 0 ? Math.round((sum / cnt) * 100) : null };
+      });
+      return { cat, pts };
+    });
+
+    // Header
     doc.setFontSize(18);
     doc.setTextColor(44, 62, 80);
-    doc.text("DailyWins \u2014 Weekly Report", 14, 20);
-    const weeklyIcon = emojiPngDataUrl(starIcon);
-    if (weeklyIcon) doc.addImage(weeklyIcon, "PNG", doc.internal.pageSize.getWidth() - 24, 10, 12, 12);
-
+    doc.text(`DailyWins \u2014 ${mode === "week" ? "Weekly" : "Monthly"} Progress`, 14, 20);
+    const icon = emojiPngDataUrl(starIcon);
+    if (icon) doc.addImage(icon, "PNG", pageW - 24, 10, 12, 12);
     doc.setFontSize(12);
     doc.text(`Student: ${selectedStudent || "N/A"}`, 14, 32);
+    doc.text(rangeLabel, 14, 40);
+    doc.setFontSize(9);
+    doc.setTextColor(120, 120, 120);
+    doc.text("Each goal shows % of target met over time \u2014 for team review of progress per goal.", 14, 47);
 
-    const dateObj = new Date(selectedDate + "T12:00:00");
-    const dayOfWeek = dateObj.getDay();
-    const monday = new Date(dateObj);
-    monday.setDate(dateObj.getDate() - ((dayOfWeek + 6) % 7));
+    // Small-multiples line charts: one per goal.
+    const cols = 2;
+    const chartW = 88;
+    const chartH = 46;
+    const gapX = 6;
+    const gapY = 8;
+    const startX = 14;
+    let curY = 54;
+    for (let i = 0; i < series.length; i += cols) {
+      if (curY + chartH > pageH - 16) {
+        doc.addPage();
+        curY = 16;
+      }
+      for (let c = 0; c < cols && i + c < series.length; c++) {
+        const s = series[i + c];
+        drawLineChart(doc, startX + c * (chartW + gapX), curY, chartW, chartH, s.cat.name, s.pts);
+      }
+      curY += chartH + gapY;
+    }
 
-    const days = Array.from({ length: 5 }, (_, i) => {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
-      return formatDate(d);
-    });
-    const dayLabels = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
-
-    doc.text(`Week of: ${days[0]} to ${days[4]}`, 14, 40);
-
-    const maxPerPeriod = calculateMaxPoints(categories);
-    const { earned: e, possible: p, pct: pc } = calculateProgress(scores, categories, periodAbsent);
-
-    // Per-cell bar metadata. Only today's column has data; other days show "\u2014"
-    // (the dashboard only loads the selected day). Bars encode value as length.
-    const blankCell = { frac: 0, label: "\u2014", hasVal: false };
-    const weekBars = trackablePeriods.map((slot) => {
-      const ps = scores[slot.label] ?? makeEmptyPeriodScores(categories);
-      const todayPts = calculatePeriodPoints(ps, categories);
-      return days.map((day) =>
-        day === selectedDate
-          ? { frac: maxPerPeriod > 0 ? Math.min(1, todayPts / maxPerPeriod) : 0, label: String(todayPts), hasVal: true }
-          : blankCell,
-      );
-    });
-    const totalBars = days.map((day) =>
-      day === selectedDate
-        ? { frac: p > 0 ? Math.min(1, e / p) : 0, label: `${pc}%`, hasVal: true }
-        : blankCell,
-    );
-
-    // Day cells are drawn as bars in didDrawCell; their text is blank.
-    const rows = trackablePeriods.map((slot) => [slot.label, "", "", "", "", ""]);
-    rows.push(["TOTAL", "", "", "", "", ""]);
-    const TOTAL_ROW = trackablePeriods.length;
-
-    const dayColStyles: Record<number, { cellWidth: number; halign: "left" }> = {};
-    for (let d = 1; d <= 5; d++) dayColStyles[d] = { cellWidth: 45, halign: "left" };
-
-    autoTable(doc, {
-      startY: 48,
-      head: [["Period", ...dayLabels]],
-      body: rows,
-      theme: "grid",
-      headStyles: { fillColor: [44, 62, 80], fontSize: 9 },
-      bodyStyles: { fontSize: 9, minCellHeight: 7 },
-      columnStyles: { 0: { fontStyle: "bold" }, ...dayColStyles },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      didDrawCell: (data: any) => {
-        if (data.section !== "body") return;
-        const col = data.column.index as number;
-        if (col < 1 || col > 5) return;
-        const ri = data.row.index as number;
-        const meta = ri === TOTAL_ROW ? totalBars[col - 1] : weekBars[ri]?.[col - 1];
-        if (!meta) return;
-        drawCellBar(doc, data.cell.x, data.cell.y, data.cell.width, data.cell.height, meta);
-      },
-    });
-
-    // Fetch shared notes for the week
-    const { data: weekNotes } = await supabase
+    // Shared notes over the range
+    const { data: noteRows } = await supabase
       .from("notes")
-      .select("note_date,content,period,is_private,created_at")
+      .select("note_date,content,period,is_private")
       .eq("student_id", selectedStudentId)
       .eq("is_private", false)
-      .gte("note_date", days[0])
-      .lte("note_date", days[4])
-      .order("created_at", { ascending: true });
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let noteY = ((doc as any).lastAutoTable?.finalY ?? 160) + 12;
-
-    if (weekNotes && weekNotes.length > 0) {
+      .gte("note_date", rangeStart)
+      .lte("note_date", rangeEnd)
+      .order("note_date", { ascending: true });
+    const sharedNotes = noteRows ?? [];
+    if (sharedNotes.length > 0) {
+      if (curY + 16 > pageH - 16) { doc.addPage(); curY = 16; } else { curY += 4; }
       doc.setFontSize(14);
       doc.setTextColor(44, 62, 80);
-      doc.text("Notes", 14, noteY);
-      noteY += 8;
-
-      // Group notes by day
-      for (let d = 0; d < 5; d++) {
-        const dayNotes = weekNotes.filter((n: { note_date: string }) => n.note_date === days[d]);
-        if (dayNotes.length === 0) continue;
-        doc.setFontSize(10);
-        doc.setTextColor(58, 124, 106);
-        doc.text(`${dayLabels[d]} ${days[d]}:`, 14, noteY);
-        noteY += 5;
+      doc.text("Teacher Notes", 14, curY);
+      curY += 7;
+      for (const n of sharedNotes) {
+        if (curY > pageH - 16) { doc.addPage(); curY = 16; }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const nn = n as any;
         doc.setFontSize(9);
+        doc.setTextColor(120, 120, 120);
+        doc.text(`${nn.note_date}${nn.period ? " \u00b7 " + nn.period : ""}`, 14, curY);
+        curY += 4.5;
         doc.setTextColor(44, 62, 80);
-        for (const n of dayNotes) {
-          const prefix = (n as { period: string | null }).period || "General";
-          const lines = doc.splitTextToSize(`${prefix}: \u201C${(n as { content: string }).content}\u201D`, 250);
-          doc.text(lines, 20, noteY);
-          noteY += lines.length * 4.5;
-        }
-        noteY += 2;
+        const lines = doc.splitTextToSize(`\u2022 ${nn.content}`, 180);
+        doc.text(lines, 18, curY);
+        curY += lines.length * 4.5 + 1.5;
       }
-    } else {
-      doc.setFontSize(9);
-      doc.setTextColor(150, 150, 150);
-      doc.text("Note: Only today's data is shown. Other days will populate as data is saved.", 14, noteY);
     }
 
-    doc.save(`DailyWins_Weekly_${selectedStudent || "report"}_${days[0]}.pdf`);
+    doc.save(`DailyWins_${mode === "week" ? "Weekly" : "Monthly"}_${selectedStudent || "report"}_${rangeStart}.pdf`);
   };
+
+  const generateWeeklyPDF = () => generateTrendPDF("week");
+  const generateMonthlyPDF = () => generateTrendPDF("month");
+
 
 
   // ─── Derived Progress Values ────────────────────────────────────────────────
@@ -3039,24 +3014,6 @@ export default function DashboardClient() {
         {/* Action Buttons */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10, justifyContent: "center" }}>
           <button
-            onClick={generateDailyPDF}
-            style={{
-              background: COLORS.dark,
-              color: "white",
-              border: "none",
-              borderRadius: 10,
-              padding: "8px 16px",
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
-            &#128196; Daily PDF
-          </button>
-          <button
             onClick={generateWeeklyPDF}
             style={{
               background: COLORS.dark,
@@ -3073,6 +3030,24 @@ export default function DashboardClient() {
             }}
           >
             &#128202; Weekly PDF
+          </button>
+          <button
+            onClick={generateMonthlyPDF}
+            style={{
+              background: COLORS.dark,
+              color: "white",
+              border: "none",
+              borderRadius: 10,
+              padding: "8px 16px",
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            &#128197; Monthly PDF
           </button>
         </div>
         <div style={{ display: "flex", justifyContent: "center", paddingTop: 12, paddingBottom: 8 }}>
