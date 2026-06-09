@@ -42,7 +42,26 @@ const THEMES: Record<string, { name: string; header: string; primary: string; se
 // Display serif for headings — design system's editorial voice (§5).
 const DISPLAY_FONT = "'Fraunces', Georgia, serif";
 
-const STAR_ICONS = ["⭐", "🏆", "🎯", "💪", "🔥", "✨", "🌟", "💎"];
+const STAR_ICONS = ["⭐", "🏆", "🎯"];
+
+// Render an emoji to a PNG data URL so it can be embedded in a jsPDF — jsPDF's
+// core fonts can't draw emoji as text. Returns "" if canvas isn't available.
+function emojiPngDataUrl(emoji: string, px = 96): string {
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = px;
+    canvas.height = px;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return "";
+    ctx.font = `${Math.floor(px * 0.8)}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(emoji, px / 2, px / 2);
+    return canvas.toDataURL("image/png");
+  } catch {
+    return "";
+  }
+}
 
 const PERIODS = [
   "Period 1",
@@ -1452,6 +1471,8 @@ export default function DashboardClient() {
     doc.setFontSize(18);
     doc.setTextColor(44, 62, 80);
     doc.text("DailyWins \u2014 Daily Report", 14, 20);
+    const dailyIcon = emojiPngDataUrl(starIcon);
+    if (dailyIcon) doc.addImage(dailyIcon, "PNG", doc.internal.pageSize.getWidth() - 24, 10, 12, 12);
 
     doc.setFontSize(12);
     doc.text(`Student: ${selectedStudent || "N/A"}`, 14, 32);
@@ -1530,6 +1551,8 @@ export default function DashboardClient() {
     doc.setFontSize(18);
     doc.setTextColor(44, 62, 80);
     doc.text("DailyWins \u2014 Weekly Report", 14, 20);
+    const weeklyIcon = emojiPngDataUrl(starIcon);
+    if (weeklyIcon) doc.addImage(weeklyIcon, "PNG", doc.internal.pageSize.getWidth() - 24, 10, 12, 12);
 
     doc.setFontSize(12);
     doc.text(`Student: ${selectedStudent || "N/A"}`, 14, 32);

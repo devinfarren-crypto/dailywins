@@ -14,6 +14,7 @@ interface CoteacherView {
   scores: ScoreRow[];
   notes: NoteRow[];
   categories?: CategoryDef[];
+  progress_icon?: string;
 }
 
 export default async function CoteacherPage({
@@ -64,6 +65,7 @@ export default async function CoteacherPage({
       scores={Array.isArray(view.scores) ? view.scores : []}
       notes={Array.isArray(view.notes) ? view.notes : []}
       categories={Array.isArray(view.categories) ? view.categories : []}
+      progressIcon={view.progress_icon}
       eyebrow="· DailyWins · Co-teacher ·"
       subtitle="Shared behavior summary"
       banner={banner}

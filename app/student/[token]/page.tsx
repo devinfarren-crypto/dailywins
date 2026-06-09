@@ -12,6 +12,7 @@ interface StudentView {
   scores: ScoreRow[];
   notes: NoteRow[];
   categories?: CategoryDef[];
+  progress_icon?: string;
 }
 
 export default async function StudentPage({
@@ -41,6 +42,7 @@ export default async function StudentPage({
       scores={Array.isArray(view.scores) ? view.scores : []}
       notes={Array.isArray(view.notes) ? view.notes : []}
       categories={Array.isArray(view.categories) ? view.categories : []}
+      progressIcon={view.progress_icon}
       eyebrow="· Your DailyWins ·"
       subtitle="Your behavior summary"
     />

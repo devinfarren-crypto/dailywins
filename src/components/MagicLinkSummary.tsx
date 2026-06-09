@@ -81,6 +81,7 @@ export default function MagicLinkSummary({
   subtitle = "Behavior summary",
   banner,
   writePanel,
+  progressIcon,
 }: {
   student: StudentRow;
   scores: ScoreRow[];
@@ -90,6 +91,7 @@ export default function MagicLinkSummary({
   subtitle?: string;
   banner?: ReactNode;
   writePanel?: ReactNode;
+  progressIcon?: string;
 }) {
   const fullName =
     `${student.first_name ?? ""} ${student.last_name ?? ""}`.trim() || "Student";
@@ -118,6 +120,7 @@ export default function MagicLinkSummary({
             {eyebrow}
           </div>
           <h1 style={{ fontFamily: DISPLAY, margin: "0 0 4px", fontSize: 30, fontWeight: 500, color: "var(--ssd-ink)" }}>
+            {progressIcon ? <span style={{ marginRight: 8 }}>{progressIcon}</span> : null}
             {fullName}
           </h1>
           <div style={{ fontSize: 14, color: "var(--ssd-text-muted)" }}>{subtitle}</div>

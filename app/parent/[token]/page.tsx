@@ -12,6 +12,7 @@ interface ParentView {
   scores: ScoreRow[];
   notes: NoteRow[];
   categories?: CategoryDef[];
+  progress_icon?: string;
 }
 
 export default async function ParentPage({
@@ -47,6 +48,7 @@ export default async function ParentPage({
       scores={Array.isArray(view.scores) ? view.scores : []}
       notes={Array.isArray(view.notes) ? view.notes : []}
       categories={Array.isArray(view.categories) ? view.categories : []}
+      progressIcon={view.progress_icon}
       eyebrow="· DailyWins ·"
       subtitle="Behavior summary"
     />
