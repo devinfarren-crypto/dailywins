@@ -32,14 +32,11 @@ const COLORS = {
 
 const THEMES: Record<string, { name: string; header: string; primary: string; secondary: string; accent: string; bg: string; swatch: string[] }> = {
   default: { name: "Sure Step", header: "#16263d", primary: "#1c5c3c", secondary: "#2e8b5e", accent: "#e3a23c", bg: "#f7f3ec", swatch: ["#16263d", "#2e8b5e", "#e3a23c"] },
-  classic: { name: "Classic DailyWins", header: "#2c3e50", primary: "#e07850", secondary: "#3a7c6a", accent: "#f0b647", bg: "#f5f5f0", swatch: ["#2c3e50", "#e07850", "#3a7c6a"] },
+  classic: { name: "DailyWins", header: "#2c3e50", primary: "#e07850", secondary: "#3a7c6a", accent: "#f0b647", bg: "#f5f5f0", swatch: ["#2c3e50", "#e07850", "#3a7c6a"] },
   steelBlue: { name: "Steel Blue", header: "#34495e", primary: "#2980b9", secondary: "#27ae60", accent: "#f39c12", bg: "#eef3f7", swatch: ["#34495e", "#2980b9", "#27ae60"] },
-  warmSlate: { name: "Warm Slate", header: "#4a4a4a", primary: "#c0392b", secondary: "#16a085", accent: "#e67e22", bg: "#f5f0ee", swatch: ["#4a4a4a", "#c0392b", "#16a085"] },
   sage: { name: "Sage Green", header: "#2d5a3d", primary: "#8e6b47", secondary: "#5d8a68", accent: "#d4a76a", bg: "#eff5f1", swatch: ["#2d5a3d", "#5d8a68", "#8e6b47"] },
   lavender: { name: "Lavender", header: "#4a3b6b", primary: "#8e5ea2", secondary: "#5b8a72", accent: "#d4a05a", bg: "#f3f0f7", swatch: ["#4a3b6b", "#8e5ea2", "#5b8a72"] },
-  midnight: { name: "Midnight", header: "#1a1a2e", primary: "#e94560", secondary: "#0f3460", accent: "#f0a500", bg: "#f0f0f4", swatch: ["#1a1a2e", "#e94560", "#0f3460"] },
-  sunset: { name: "Sunset", header: "#2c2c54", primary: "#ff6348", secondary: "#33d9b2", accent: "#ffb142", bg: "#f7f2ee", swatch: ["#2c2c54", "#ff6348", "#33d9b2"] },
-  rose: { name: "Rose", header: "#3d3d3d", primary: "#e84393", secondary: "#00b894", accent: "#fdcb6e", bg: "#f7f0f4", swatch: ["#3d3d3d", "#e84393", "#00b894"] },
+  rose: { name: "Rose", header: "#523a85", primary: "#e84393", secondary: "#00b894", accent: "#fdcb6e", bg: "#f7f0f4", swatch: ["#523a85", "#e84393", "#00b894"] },
 };
 
 const FONTS = [
