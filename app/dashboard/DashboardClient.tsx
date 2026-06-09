@@ -39,17 +39,6 @@ const THEMES: Record<string, { name: string; header: string; primary: string; se
   rose: { name: "Rose", header: "#523a85", primary: "#e84393", secondary: "#00b894", accent: "#fdcb6e", bg: "#f7f0f4", swatch: ["#523a85", "#e84393", "#00b894"] },
 };
 
-const FONTS = [
-  { id: "publicsans", name: "Public Sans", value: "'Public Sans', system-ui, sans-serif" },
-  { id: "fraunces", name: "Fraunces", value: "'Fraunces', Georgia, serif" },
-  { id: "nunito", name: "Nunito", value: "'Nunito', sans-serif" },
-  { id: "inter", name: "Inter", value: "'Inter', sans-serif" },
-  { id: "baloo", name: "Baloo 2", value: "'Baloo 2', cursive" },
-  { id: "fredoka", name: "Fredoka", value: "'Fredoka', sans-serif" },
-  { id: "patrick", name: "Patrick Hand", value: "'Patrick Hand', cursive" },
-  { id: "quicksand", name: "Quicksand", value: "'Quicksand', sans-serif" },
-];
-
 // Display serif for headings — design system's editorial voice (§5).
 const DISPLAY_FONT = "'Fraunces', Georgia, serif";
 
@@ -494,7 +483,7 @@ export default function DashboardClient() {
     secondary: activeTheme.secondary,
     accent: activeTheme.accent,
   };
-  const activeFont = FONTS.find((f) => f.id === (prefs.font ?? "publicsans"))?.value ?? FONTS[0].value;
+  const activeFont = "'Inter', sans-serif";
   const starIcon = prefs.starIcon ?? "⭐";
   const confettiEnabled = prefs.confetti !== false;
   const compactMode = prefs.compact === true;
@@ -1890,8 +1879,8 @@ export default function DashboardClient() {
 
   return (
     <>
-      {/* Google Fonts for theme options (design-system trio first: Public Sans, Fraunces, IBM Plex Mono) */}
-      <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=Nunito:wght@400;600;700;800&family=Inter:wght@400;600;700;800&family=Baloo+2:wght@400;600;700;800&family=Fredoka:wght@400;600;700&family=Patrick+Hand&family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet" />
+      {/* Google Fonts: design-system trio (Public Sans, Fraunces, IBM Plex Mono) + Inter (the app font) */}
+      <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
     <div style={{ minHeight: "100vh", background: activeTheme.bg, fontFamily: activeFont }}>
       <ConfettiCanvas active={showConfetti && confettiEnabled} />
 
@@ -4102,34 +4091,6 @@ export default function DashboardClient() {
                     </div>
                     <span style={{ fontSize: 12, fontWeight: 600, color: "#333" }}>{theme.name}</span>
                     {(prefs.theme ?? "default") === key && <span style={{ marginLeft: "auto", fontSize: 14 }}>&#10003;</span>}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Font */}
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: C.dark, marginBottom: 8 }}>
-                Font
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {FONTS.map((font) => (
-                  <button
-                    key={font.id}
-                    onClick={() => savePreferences({ ...prefs, font: font.id })}
-                    style={{
-                      background: (prefs.font ?? "nunito") === font.id ? C.dark : "#f0f0f0",
-                      color: (prefs.font ?? "nunito") === font.id ? "white" : "#333",
-                      border: "none",
-                      borderRadius: 8,
-                      padding: "8px 16px",
-                      fontSize: 13,
-                      fontWeight: 600,
-                      fontFamily: font.value,
-                      cursor: "pointer",
-                    }}
-                  >
-                    {font.name}
                   </button>
                 ))}
               </div>
