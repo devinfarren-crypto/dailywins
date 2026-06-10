@@ -130,3 +130,39 @@ export async function listAuditRowsByUser(
   }
   return enrichWithEmails(admin, (data ?? []) as RawAuditRow[]);
 }
+
+// Trigger-written rows on these tables carry full row snapshots in before/after
+// — student PII. District/site admins are PII-blind (migration 035), so the
+// scoped view excludes them entirely; only the founder view may include them.
+const PII_TABLES = new Set(["behavior_scores", "notes", "students"]);
+
+/**
+ * Scoped audit read for district/site admins: rows where the actor (or the
+ * acted-as user) is someone in the admin's domain, with PII-table rows
+ * excluded. The caller resolves the domain to a set of auth user ids.
+ */
+export async function listScopedAuditRows(
+  admin: SupabaseClient,
+  userIds: string[],
+  limit = 200
+): Promise<EnrichedAuditRow[]> {
+  if (userIds.length === 0) return [];
+  const inList = `(${userIds.join(",")})`;
+  const { data, error } = await admin
+    .from("audit_log")
+    .select(
+      "id, created_at, action, actor_user_id, acting_as_user_id, target_table, target_id, break_glass, reason, before, after"
+    )
+    .or(`actor_user_id.in.${inList},acting_as_user_id.in.${inList}`)
+    .order("created_at", { ascending: false })
+    .limit(limit * 2); // headroom — PII-table rows are dropped below
+
+  if (error) {
+    console.error("listScopedAuditRows failed", error);
+    return [];
+  }
+  const scoped = ((data ?? []) as RawAuditRow[])
+    .filter((r) => !r.target_table || !PII_TABLES.has(r.target_table))
+    .slice(0, limit);
+  return enrichWithEmails(admin, scoped);
+}

@@ -2,8 +2,14 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/src/lib/supabase-server";
 import { createAdminClient } from "@/src/lib/supabase-admin";
-import { listAllAuditRows } from "@/src/lib/audit-log-query";
+import {
+  listAllAuditRows,
+  listScopedAuditRows,
+  type EnrichedAuditRow,
+} from "@/src/lib/audit-log-query";
 import AuditRowList from "@/src/components/AuditRowList";
+import SiteAdminNav from "@/src/components/SiteAdminNav";
+import SignOutButton from "@/src/components/SignOutButton";
 
 export const metadata: Metadata = {
   title: "Audit log — DailyWins",
@@ -19,28 +25,95 @@ export default async function AdminAuditLogPage() {
 
   if (!user) redirect("/");
 
-  const { data: isFounder } = await supabase.rpc("has_role", {
-    p_role: "founder",
-  });
-  if (!isFounder) redirect("/dashboard");
-
   const admin = createAdminClient();
-  const rows = await listAllAuditRows(admin, 200);
+  const { data: roleRows } = await admin
+    .from("role_assignments")
+    .select("role, school_id, district_id")
+    .eq("user_id", user.id);
+  const roles = (roleRows ?? []).map((r) => r.role);
+  const isFounder = roles.includes("founder");
+
+  let rows: EnrichedAuditRow[];
+  let subtitle: string;
+  let showSiteNav = false;
+  let scopedNote = false;
+
+  if (isFounder) {
+    rows = await listAllAuditRows(admin, 200);
+    subtitle =
+      "All administrative actions across the platform. Newest first; up to the last 200 events.";
+  } else {
+    // Scoped read: district admins see their district, site admins their
+    // school. Domain = the auth users tied to those schools (teachers + role
+    // holders); rows match when the actor or acted-as user is in the domain.
+    const districtIds = (roleRows ?? [])
+      .filter((r) => r.role === "district_admin" && r.district_id)
+      .map((r) => r.district_id as string);
+    const schoolIds = new Set(
+      (roleRows ?? [])
+        .filter((r) => r.role === "site_admin" && r.school_id)
+        .map((r) => r.school_id as string)
+    );
+    if (districtIds.length > 0) {
+      const { data: schools } = await admin
+        .from("schools")
+        .select("id")
+        .in("district_id", districtIds);
+      for (const s of schools ?? []) schoolIds.add(s.id);
+    }
+    if (schoolIds.size === 0) redirect("/auth/home");
+
+    const ids = Array.from(schoolIds);
+    const userIds = new Set<string>([user.id]);
+    const { data: teachers } = await admin
+      .from("teachers")
+      .select("auth_id")
+      .in("school_id", ids);
+    for (const t of teachers ?? []) if (t.auth_id) userIds.add(t.auth_id);
+
+    let raQuery = admin.from("role_assignments").select("user_id");
+    if (districtIds.length > 0) {
+      raQuery = raQuery.or(
+        `school_id.in.(${ids.join(",")}),district_id.in.(${districtIds.join(",")})`
+      );
+    } else {
+      raQuery = raQuery.in("school_id", ids);
+    }
+    const { data: roleHolders } = await raQuery;
+    for (const r of roleHolders ?? []) if (r.user_id) userIds.add(r.user_id);
+
+    rows = await listScopedAuditRows(admin, Array.from(userIds), 200);
+    subtitle =
+      districtIds.length > 0
+        ? "Administrative actions across your district's schools. Newest first; up to the last 200 events."
+        : "Administrative actions at your school. Newest first; up to the last 200 events.";
+    showSiteNav = roles.includes("site_admin") && districtIds.length === 0;
+    scopedNote = true;
+  }
 
   return (
-    <main className="min-h-screen bg-[#f5f5f0] px-6 py-10">
+    <main className="min-h-screen bg-[var(--ssd-paper)] px-6 py-10">
       <section className="mx-auto w-full max-w-5xl">
-        <header className="mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold text-[#2a4d42]">
-            Audit log
-          </h1>
-          <p className="mt-1 text-sm text-[#8a9690]">
-            All administrative actions across the platform. Newest first; up to
-            the last 200 events.
-          </p>
+        <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-[var(--ssd-green-deep)]">
+              Audit log
+            </h1>
+            <p className="mt-1 text-sm text-[var(--ssd-text-muted)]">{subtitle}</p>
+          </div>
+          {!isFounder ? <SignOutButton /> : null}
         </header>
 
+        {showSiteNav ? <SiteAdminNav current="audit" /> : null}
+
         <AuditRowList rows={rows} />
+
+        {scopedNote ? (
+          <p className="mt-7 text-xs leading-relaxed text-[var(--ssd-text-muted)]">
+            This view covers administrative and configuration actions in your domain. Entries that
+            touch individual student records are never shown to administrators — by database design.
+          </p>
+        ) : null}
       </section>
     </main>
   );
