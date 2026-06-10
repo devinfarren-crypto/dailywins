@@ -322,36 +322,41 @@ export default function PrivacyPage() {
                 school-administration purposes.
               </li>
               <li>
-                <strong>District Administrators and the Operator (Sure Step
-                Education)</strong> administer the system but,{" "}
+                <strong>District Administrators</strong> act on behalf of the
+                LEA, and{" "}
                 <strong>
-                  through their day-to-day role-based access in the application,
-                  cannot view individual student behavior records or teacher
-                  notes
+                  the LEA owns every record created on the Service it has
+                  purchased
+                </strong>
+                . A District Administrator can therefore review the complete
+                record for their own district &mdash; including all teacher
+                notes, shared and private &mdash; through the district records
+                tools (the notes archive). Because these records may be
+                produced in records requests or legal proceedings, each use of
+                the records tools is documented in the audit log (who, when,
+                and the stated purpose), preserving a clean chain of access
+                for the district&rsquo;s own files. Day-to-day district
+                dashboards otherwise show aggregate usage, keeping casual
+                exposure of student data to a minimum.
+              </li>
+              <li>
+                <strong>The Operator (Sure Step Education)</strong> administers
+                the system but,{" "}
+                <strong>
+                  through its role-based access in the application, cannot view
+                  individual student behavior records or teacher notes
                 </strong>
                 . The database&rsquo;s Row-Level Security policies do not grant
-                these roles ambient read access to pupil records; their routine
-                access is limited to the operational and aggregate information
-                needed to run the Service. The sole exception is the
-                reason-gated, fully audited district records access described
-                below.
+                the Operator ambient read access to pupil records; its access
+                is limited to the operational and aggregate information needed
+                to run the Service.
               </li>
             </ul>
             <p>
-              Three limited exceptions exist and are handled transparently:
+              Two limited exceptions to the Operator&rsquo;s blindness exist
+              and are handled transparently:
             </p>
             <ul>
-              <li>
-                <strong>District records access (notes archive).</strong> The
-                LEA owns its educational records, and teacher notes may be
-                subject to records requests or legal discovery. A District
-                Administrator may therefore retrieve the complete note record
-                for their own district through a dedicated records function.
-                This access is not ambient browsing: it requires a stated
-                reason, and every use is permanently written to the audit log
-                (who, when, and the reason given) before any records are
-                returned.
-              </li>
               <li>
                 <strong>Supervised &ldquo;act-as&rdquo; support sessions.</strong>{" "}
                 An administrator may, when necessary to provide support or
