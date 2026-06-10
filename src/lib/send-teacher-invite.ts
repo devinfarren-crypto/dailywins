@@ -40,7 +40,7 @@ export async function sendTeacherInvite(input: {
         `Get started: ${link}`,
         "",
         direct
-          ? `That link signs you in directly (valid 24 hours). If it expires, go to ${fallback} and sign in with this email address (${input.to}).`
+          ? `That link signs you in directly (valid 24 hours, one use). If it expires, go to ${fallback} and sign in with this email address (${input.to}).`
           : `Sign in with this email address (${input.to}) and you'll go straight to your classroom dashboard.`,
       ].join("\n"),
       html: `

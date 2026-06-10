@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 import { z } from "zod";
 import { createClient } from "@/src/lib/supabase-server";
 import { createAdminClient } from "@/src/lib/supabase-admin";
@@ -94,8 +95,11 @@ export async function POST(request: Request) {
   // Mint a one-click sign-in link so the whole invite is a SINGLE email.
   // generateLink does NOT send Supabase's own email — we embed the link in
   // ours. 'invite' creates the auth user for a brand-new email; existing
-  // accounts get a 'magiclink' instead. If both fail we fall back to the
-  // prefilled landing-page link (two-step, but still works).
+  // accounts get a 'magiclink' instead. The token is stored server-side and
+  // the email carries a SHORT branded link (/welcome/<code>) instead of the
+  // raw token URL — prettier, and the /welcome interstitial keeps mail
+  // scanners from burning the one-time token. If minting fails we fall back
+  // to the prefilled landing-page link (two-step, but still works).
   let signInUrl: string | null = null;
   try {
     let linkRes = await admin.auth.admin.generateLink({ type: "invite", email });
@@ -105,7 +109,18 @@ export async function POST(request: Request) {
     const props = linkRes.data?.properties;
     if (!linkRes.error && props?.hashed_token) {
       const otpType = props.verification_type ?? "magiclink";
-      signInUrl = `${origin}/auth/confirm?token_hash=${encodeURIComponent(props.hashed_token)}&type=${encodeURIComponent(otpType)}`;
+      const code = randomBytes(9).toString("base64url");
+      const { error: linkRowError } = await admin.from("invite_signin_links").insert({
+        code,
+        token_hash: props.hashed_token,
+        otp_type: otpType,
+        email,
+      });
+      if (!linkRowError) {
+        signInUrl = `${origin}/welcome/${code}`;
+      } else {
+        console.error("invite_signin_links insert failed", linkRowError.message);
+      }
     } else if (linkRes.error) {
       console.error("generateLink failed", linkRes.error.message);
     }
