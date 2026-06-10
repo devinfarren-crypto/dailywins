@@ -12,7 +12,9 @@ import { sendApprovalEmail } from "@/src/lib/send-approval-email";
 const ApproveSchema = z
   .object({
     request_id: z.string().uuid(),
-    role: z.enum(["teacher", "site_admin", "district_admin"]).default("teacher"),
+    role: z
+      .enum(["teacher", "site_admin", "district_admin", "nps_director"])
+      .default("teacher"),
     existing_school_id: z.string().uuid().optional(),
     new_school: z
       .object({
@@ -21,15 +23,21 @@ const ApproveSchema = z
       })
       .optional(),
     district_id: z.string().uuid().optional(),
+    // nps_director: stands up org + school + director roles in one step
+    new_nps: z
+      .object({ name: z.string().trim().min(2, "Organization name is required") })
+      .optional(),
   })
   .refine(
     (v) =>
-      v.role === "district_admin"
-        ? Boolean(v.district_id) && !v.existing_school_id && !v.new_school
-        : Boolean(v.existing_school_id) !== Boolean(v.new_school),
+      v.role === "nps_director"
+        ? Boolean(v.new_nps) && !v.existing_school_id && !v.new_school && !v.district_id
+        : v.role === "district_admin"
+          ? Boolean(v.district_id) && !v.existing_school_id && !v.new_school
+          : Boolean(v.existing_school_id) !== Boolean(v.new_school),
     {
       message:
-        "Teacher / site admin need a school; district admin needs a district",
+        "Teacher / site admin need a school; district admin needs a district; NPS director needs an organization name",
     }
   );
 
@@ -66,13 +74,14 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
-  const { request_id, role, existing_school_id, new_school, district_id } =
+  const { request_id, role, existing_school_id, new_school, district_id, new_nps } =
     parsed.data;
 
   // Resolve scope. district_admin is district-scoped; teacher/site_admin are
-  // school-scoped (and may create a new school inline).
+  // school-scoped (and may create a new school inline); nps_director carries
+  // only the org name (the RPC creates org + school itself).
   let schoolId: string | undefined = undefined;
-  if (role !== "district_admin") {
+  if (role !== "district_admin" && role !== "nps_director") {
     schoolId = existing_school_id;
     // schools.INSERT has no RLS policy — must use service role to create one.
     if (!schoolId && new_school) {
@@ -98,15 +107,18 @@ export async function POST(request: Request) {
 
   // Call RPC via the user's session so internal has_role('founder') + auth.uid()
   // (used for reviewed_by / created_by) resolve to the founder, not the service role.
-  const { data: result, error: rpcError } = await supabase.rpc(
-    "approve_access_request_as_role",
-    {
-      p_request_id: request_id,
-      p_role: role,
-      p_school_id: schoolId ?? null,
-      p_district_id: role === "district_admin" ? district_id ?? null : null,
-    }
-  );
+  const { data: result, error: rpcError } =
+    role === "nps_director"
+      ? await supabase.rpc("approve_access_request_as_nps_director", {
+          p_request_id: request_id,
+          p_org_name: new_nps!.name,
+        })
+      : await supabase.rpc("approve_access_request_as_role", {
+          p_request_id: request_id,
+          p_role: role,
+          p_school_id: schoolId ?? null,
+          p_district_id: role === "district_admin" ? district_id ?? null : null,
+        });
 
   if (rpcError) {
     console.error("approve_access_request_as_role failed", rpcError);
@@ -118,7 +130,9 @@ export async function POST(request: Request) {
     teacher_id?: string | null;
     school_id?: string | null;
     district_id?: string | null;
+    org_name?: string | null;
   };
+  if (role === "nps_director") schoolId = provision.school_id ?? undefined;
 
   const admin = createAdminClient();
 
@@ -131,8 +145,8 @@ export async function POST(request: Request) {
     .eq("id", request_id)
     .maybeSingle();
   if (requestRow?.email) {
-    let schoolName: string | null = null;
-    if (schoolId) {
+    let schoolName: string | null = provision.org_name ?? null;
+    if (!schoolName && schoolId) {
       const { data: school } = await admin
         .from("schools")
         .select("name")
@@ -163,6 +177,7 @@ export async function POST(request: Request) {
       school_id: schoolId ?? null,
       district_id: role === "district_admin" ? district_id ?? null : null,
       created_new_school: Boolean(new_school),
+      created_nps_org: role === "nps_director" ? provision.org_name ?? null : null,
       approval_email_sent: approvalEmailSent,
     },
   });

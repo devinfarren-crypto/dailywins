@@ -23,11 +23,13 @@ export async function sendApprovalEmail(input: {
   const direct = Boolean(input.signInUrl);
   const where = input.schoolName?.trim() ? ` at ${input.schoolName.trim()}` : "";
   const roleLabel =
-    input.role === "site_admin"
-      ? "site administrator"
-      : input.role === "district_admin"
-        ? "district administrator"
-        : "teacher";
+    input.role === "nps_director"
+      ? "director"
+      : input.role === "site_admin"
+        ? "site administrator"
+        : input.role === "district_admin"
+          ? "district administrator"
+          : "teacher";
 
   try {
     const resend = new Resend(apiKey);

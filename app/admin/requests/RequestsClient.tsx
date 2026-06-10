@@ -23,19 +23,21 @@ type DistrictOption = {
   name: string;
 };
 
-type GrantRole = "teacher" | "site_admin" | "district_admin";
+type GrantRole = "teacher" | "site_admin" | "district_admin" | "nps_director";
 
 type ApprovePayload = {
   role: GrantRole;
   existing_school_id?: string;
   new_school?: { name: string; district: string };
   district_id?: string;
+  new_nps?: { name: string };
 };
 
 const ROLE_OPTIONS: { value: GrantRole; label: string; hint: string }[] = [
   { value: "teacher", label: "Teacher", hint: "Tracks behavior in the dashboard. Scoped to one school." },
   { value: "site_admin", label: "Site Admin", hint: "Manages teachers & schedules at one school. Can act-as its teachers." },
   { value: "district_admin", label: "District Admin", hint: "Oversees every school in a district. Can act-as its teachers." },
+  { value: "nps_director", label: "NPS Director", hint: "Stands up a whole non-public school in one step: creates the organization + its school and grants this person full director oversight." },
 ];
 
 type Filter = "pending" | "all";
@@ -369,16 +371,21 @@ function ApproveModal({
 
   const isNew = selection === NEW_SCHOOL;
   const isDistrictAdmin = role === "district_admin";
-  const canSubmit = isDistrictAdmin
-    ? districtSelection.length > 0
-    : isNew
-      ? newName.trim().length > 0 && newDistrict.trim().length > 0
-      : selection.length > 0;
+  const isNpsDirector = role === "nps_director";
+  const canSubmit = isNpsDirector
+    ? newName.trim().length >= 2
+    : isDistrictAdmin
+      ? districtSelection.length > 0
+      : isNew
+        ? newName.trim().length > 0 && newDistrict.trim().length > 0
+        : selection.length > 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit || busy) return;
-    if (isDistrictAdmin) {
+    if (isNpsDirector) {
+      await onSubmit({ role, new_nps: { name: newName.trim() } });
+    } else if (isDistrictAdmin) {
       await onSubmit({ role, district_id: districtSelection });
     } else if (isNew) {
       await onSubmit({
@@ -433,7 +440,26 @@ function ApproveModal({
             {ROLE_OPTIONS.find((r) => r.value === role)?.hint}
           </p>
 
-          {isDistrictAdmin ? (
+          {isNpsDirector ? (
+            <>
+              <label className="block text-sm font-semibold text-[#2a4d42]">
+                Organization / school name
+              </label>
+              <input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                disabled={busy}
+                required
+                className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-[#3a7c6a] focus:outline-none focus:ring-2 focus:ring-[#3a7c6a]/20 disabled:opacity-60"
+                placeholder="Bright Path Academy"
+              />
+              <p className="text-xs text-[#8a9690]">
+                One step: creates the NPS organization and its school, and makes this
+                person its director (full oversight — teachers, schedules, links,
+                usage, audit, notes archive).
+              </p>
+            </>
+          ) : isDistrictAdmin ? (
             <>
               <label className="block text-sm font-semibold text-[#2a4d42]">
                 District

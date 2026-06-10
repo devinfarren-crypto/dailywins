@@ -131,9 +131,12 @@ export default async function UsagePage({
   // their per-teacher activity. Anyone else doesn't belong here.
   if (isDistrictAdmin || isFounder) {
     const { district: districtParam } = await searchParams;
-    let districtPicker: { id: string; name: string }[] = [];
+    let districtPicker: { id: string; name: string; org_type?: string }[] = [];
     if (isFounder) {
-      const { data: districts } = await admin.from("districts").select("id, name").order("name");
+      const { data: districts } = await admin
+        .from("districts")
+        .select("id, name, org_type")
+        .order("name");
       districtPicker = districts ?? [];
     }
     const { data, error } = await supabase.rpc(
@@ -183,6 +186,7 @@ export default async function UsagePage({
                 }}
               >
                 {d.name}
+                {d.org_type === "nps" ? " · NPS" : ""}
               </a>
             ))}
           </div>
