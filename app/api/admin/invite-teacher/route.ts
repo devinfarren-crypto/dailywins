@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { randomBytes } from "crypto";
 import { z } from "zod";
 import { createClient } from "@/src/lib/supabase-server";
 import { createAdminClient } from "@/src/lib/supabase-admin";
 import { writeAuditLog } from "@/src/lib/audit-log";
 import { sendTeacherInvite } from "@/src/lib/send-teacher-invite";
+import { createWelcomeLink } from "@/src/lib/welcome-link";
 
 const Body = z.object({
   email: z.string().trim().email("Enter a valid email address"),
@@ -92,41 +92,10 @@ export async function POST(request: Request) {
     .eq("auth_id", user.id)
     .maybeSingle();
 
-  // Mint a one-click sign-in link so the whole invite is a SINGLE email.
-  // generateLink does NOT send Supabase's own email — we embed the link in
-  // ours. 'invite' creates the auth user for a brand-new email; existing
-  // accounts get a 'magiclink' instead. The token is stored server-side and
-  // the email carries a SHORT branded link (/welcome/<code>) instead of the
-  // raw token URL — prettier, and the /welcome interstitial keeps mail
-  // scanners from burning the one-time token. If minting fails we fall back
-  // to the prefilled landing-page link (two-step, but still works).
-  let signInUrl: string | null = null;
-  try {
-    let linkRes = await admin.auth.admin.generateLink({ type: "invite", email });
-    if (linkRes.error) {
-      linkRes = await admin.auth.admin.generateLink({ type: "magiclink", email });
-    }
-    const props = linkRes.data?.properties;
-    if (!linkRes.error && props?.hashed_token) {
-      const otpType = props.verification_type ?? "magiclink";
-      const code = randomBytes(9).toString("base64url");
-      const { error: linkRowError } = await admin.from("invite_signin_links").insert({
-        code,
-        token_hash: props.hashed_token,
-        otp_type: otpType,
-        email,
-      });
-      if (!linkRowError) {
-        signInUrl = `${origin}/welcome/${code}`;
-      } else {
-        console.error("invite_signin_links insert failed", linkRowError.message);
-      }
-    } else if (linkRes.error) {
-      console.error("generateLink failed", linkRes.error.message);
-    }
-  } catch (err) {
-    console.error("generateLink threw", err);
-  }
+  // Mint a one-click branded sign-in link (/welcome/<code>) so the whole
+  // invite is a SINGLE pretty email. Falls back to the prefilled landing
+  // link if minting fails (two-step, but still works).
+  const signInUrl = await createWelcomeLink(admin, email, origin);
 
   const result = await sendTeacherInvite({
     to: email,

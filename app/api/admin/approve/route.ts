@@ -3,6 +3,8 @@ import { z } from "zod";
 import { createClient } from "@/src/lib/supabase-server";
 import { createAdminClient } from "@/src/lib/supabase-admin";
 import { writeAuditLog } from "@/src/lib/audit-log";
+import { createWelcomeLink } from "@/src/lib/welcome-link";
+import { sendApprovalEmail } from "@/src/lib/send-approval-email";
 
 // role defaults to "teacher" so existing callers and the common case keep
 // working unchanged. teacher/site_admin are school-scoped; district_admin is
@@ -32,6 +34,7 @@ const ApproveSchema = z
   );
 
 export async function POST(request: Request) {
+  const { origin } = new URL(request.url);
   const supabase = await createClient();
   const {
     data: { user },
@@ -118,6 +121,37 @@ export async function POST(request: Request) {
   };
 
   const admin = createAdminClient();
+
+  // Close the loop: tell the requester they're in, with a one-click branded
+  // sign-in link (/welcome/<code>). Email failures never undo the approval.
+  let approvalEmailSent = false;
+  const { data: requestRow } = await admin
+    .from("access_requests")
+    .select("email")
+    .eq("id", request_id)
+    .maybeSingle();
+  if (requestRow?.email) {
+    let schoolName: string | null = null;
+    if (schoolId) {
+      const { data: school } = await admin
+        .from("schools")
+        .select("name")
+        .eq("id", schoolId)
+        .maybeSingle();
+      schoolName = school?.name ?? null;
+    }
+    const signInUrl = await createWelcomeLink(admin, requestRow.email, origin);
+    const sent = await sendApprovalEmail({
+      to: requestRow.email,
+      origin,
+      role,
+      schoolName,
+      signInUrl,
+    });
+    approvalEmailSent = sent.sent;
+    if (!sent.sent) console.error("approval email not sent:", sent.error);
+  }
+
   await writeAuditLog(admin, {
     actor_user_id: user.id,
     action: "access_request.approve",
@@ -129,6 +163,7 @@ export async function POST(request: Request) {
       school_id: schoolId ?? null,
       district_id: role === "district_admin" ? district_id ?? null : null,
       created_new_school: Boolean(new_school),
+      approval_email_sent: approvalEmailSent,
     },
   });
 
@@ -138,5 +173,6 @@ export async function POST(request: Request) {
     teacher_id: provision.teacher_id ?? null,
     school_id: schoolId ?? null,
     district_id: role === "district_admin" ? district_id ?? null : null,
+    approval_email_sent: approvalEmailSent,
   });
 }
