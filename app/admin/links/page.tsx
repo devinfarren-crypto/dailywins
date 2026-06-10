@@ -5,6 +5,7 @@ import { createAdminClient } from "@/src/lib/supabase-admin";
 import SiteAdminNav from "@/src/components/SiteAdminNav";
 import SignOutButton from "@/src/components/SignOutButton";
 import LinksClient, { type SchoolLinkRow } from "./LinksClient";
+import LinkPolicyCard from "./LinkPolicyCard";
 
 export const metadata: Metadata = { title: "Family links — DailyWins" };
 export const dynamic = "force-dynamic";
@@ -126,6 +127,7 @@ export default async function LinksPage({
           ))}
         </div>
       ) : null}
+      <LinkPolicyCard schoolId={schoolId} />
       <LinksClient rows={rows} />
     </Shell>
   );

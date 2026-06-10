@@ -3325,6 +3325,7 @@ export default function DashboardClient() {
         studentName={selectedStudent}
         open={showLinks}
         onClose={() => setShowLinks(false)}
+        schoolId={teacher?.school_id ?? null}
       />
 
       {/* ─── Notes Modal ─────────────────────────────────────────────────────── */}

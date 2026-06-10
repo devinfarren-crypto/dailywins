@@ -41,9 +41,12 @@ interface ManageLinksModalProps {
   studentName: string;
   open: boolean;
   onClose: () => void;
+  // Teacher's school — used to load the school's link policy so disabled
+  // types don't appear. The DB enforces regardless (generate_magic_link).
+  schoolId?: string | null;
 }
 
-export default function ManageLinksModal({ studentId, studentName, open, onClose }: ManageLinksModalProps) {
+export default function ManageLinksModal({ studentId, studentName, open, onClose, schoolId }: ManageLinksModalProps) {
   const [links, setLinks] = useState<MagicLink[]>([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -53,6 +56,7 @@ export default function ManageLinksModal({ studentId, studentName, open, onClose
   const [scope, setScope] = useState<Scope>("parent");
   const [coteacherWrite, setCoteacherWrite] = useState(false);
   const [studentSelfAssess, setStudentSelfAssess] = useState(false);
+  const [linkSettings, setLinkSettings] = useState<Record<string, boolean> | null>(null);
 
   const supabase = createClient();
 
@@ -77,6 +81,33 @@ export default function ManageLinksModal({ studentId, studentName, open, onClose
       setCopied(false);
     }
   }, [open, studentId, loadLinks]);
+
+  // School link policy (director-controlled). Default everything on if the
+  // lookup fails — the RPC still enforces the real policy on generate.
+  useEffect(() => {
+    if (!open || !schoolId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.rpc("get_school_link_settings", { p_school_id: schoolId });
+      if (cancelled) return;
+      setLinkSettings({
+        parent: data?.parent !== false,
+        student: data?.student !== false,
+        co_teacher: data?.co_teacher !== false,
+      });
+    })();
+    return () => { cancelled = true; };
+  }, [open, schoolId, supabase]);
+
+  const allowedScopes = SCOPE_OPTIONS.filter((o) => linkSettings?.[o.value] !== false);
+
+  // Keep the selected scope legal if the policy hides the current one.
+  useEffect(() => {
+    if (allowedScopes.length > 0 && !allowedScopes.some((o) => o.value === scope)) {
+      setScope(allowedScopes[0].value);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkSettings]);
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -170,7 +201,7 @@ export default function ManageLinksModal({ studentId, studentName, open, onClose
               background: "white", color: COLORS.dark, fontWeight: 600,
             }}
           >
-            {SCOPE_OPTIONS.map((o) => (
+            {allowedScopes.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>
