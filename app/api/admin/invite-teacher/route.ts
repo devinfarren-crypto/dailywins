@@ -91,11 +91,34 @@ export async function POST(request: Request) {
     .eq("auth_id", user.id)
     .maybeSingle();
 
+  // Mint a one-click sign-in link so the whole invite is a SINGLE email.
+  // generateLink does NOT send Supabase's own email — we embed the link in
+  // ours. 'invite' creates the auth user for a brand-new email; existing
+  // accounts get a 'magiclink' instead. If both fail we fall back to the
+  // prefilled landing-page link (two-step, but still works).
+  let signInUrl: string | null = null;
+  try {
+    let linkRes = await admin.auth.admin.generateLink({ type: "invite", email });
+    if (linkRes.error) {
+      linkRes = await admin.auth.admin.generateLink({ type: "magiclink", email });
+    }
+    const props = linkRes.data?.properties;
+    if (!linkRes.error && props?.hashed_token) {
+      const otpType = props.verification_type ?? "magiclink";
+      signInUrl = `${origin}/auth/confirm?token_hash=${encodeURIComponent(props.hashed_token)}&type=${encodeURIComponent(otpType)}`;
+    } else if (linkRes.error) {
+      console.error("generateLink failed", linkRes.error.message);
+    }
+  } catch (err) {
+    console.error("generateLink threw", err);
+  }
+
   const result = await sendTeacherInvite({
     to: email,
     origin,
     schoolName: school?.name ?? "your school",
     inviterName: inviter?.full_name ?? undefined,
+    signInUrl,
   });
 
   await writeAuditLog(admin, {

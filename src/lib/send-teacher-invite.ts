@@ -8,6 +8,9 @@ export async function sendTeacherInvite(input: {
   origin: string;
   schoolName: string;
   inviterName?: string;
+  // Server-minted one-click sign-in link (auth/confirm token_hash URL). When
+  // present the invite is a single email: click → signed in → dashboard.
+  signInUrl?: string | null;
 }): Promise<{ sent: boolean; error?: string }> {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.NOTIFY_FROM_EMAIL;
@@ -16,9 +19,11 @@ export async function sendTeacherInvite(input: {
     return { sent: false, error: "Email is not configured (RESEND_API_KEY / NOTIFY_FROM_EMAIL)." };
   }
 
-  // Pre-fill the teacher's email on the landing page so they just request a
-  // sign-in link. Auto-provisioning happens on sign-in via the email-bound invite.
-  const link = `${input.origin}/?email=${encodeURIComponent(input.to)}`;
+  // Primary: the direct sign-in link (one click, no second email). Fallback:
+  // the landing page with the teacher's email pre-filled.
+  const fallback = `${input.origin}/?email=${encodeURIComponent(input.to)}`;
+  const link = input.signInUrl ?? fallback;
+  const direct = Boolean(input.signInUrl);
   const inviter = input.inviterName?.trim()
     ? `${input.inviterName.trim()} invited you`
     : "You've been invited";
@@ -34,16 +39,21 @@ export async function sendTeacherInvite(input: {
         "",
         `Get started: ${link}`,
         "",
-        `Sign in with this email address (${input.to}) and you'll go straight to your classroom dashboard.`,
+        direct
+          ? `That link signs you in directly (valid 24 hours). If it expires, go to ${fallback} and sign in with this email address (${input.to}).`
+          : `Sign in with this email address (${input.to}) and you'll go straight to your classroom dashboard.`,
       ].join("\n"),
       html: `
         <p>${escapeHtml(inviter)} to join <strong>DailyWins</strong> as a teacher at
         <strong>${escapeHtml(input.schoolName)}</strong>.</p>
-        <p><a href="${link}" style="display:inline-block;background:#1c5c3c;color:#fff;
+        <p><a href="${link}" style="display:inline-block;background:#0F6E56;color:#fff;
         padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600;">
-        Get started →</a></p>
-        <p style="color:#6b6e69;font-size:13px;">Sign in with this email address
-        (${escapeHtml(input.to)}) and you'll go straight to your classroom dashboard.</p>
+        ${direct ? "Accept invite &amp; sign in →" : "Get started →"}</a></p>
+        <p style="color:#6b6e69;font-size:13px;">${
+          direct
+            ? `That button signs you in directly (valid 24 hours). If it expires, go to <a href="${fallback}">${escapeHtml(input.origin.replace(/^https?:\/\//, ""))}</a> and sign in with this email address (${escapeHtml(input.to)}).`
+            : `Sign in with this email address (${escapeHtml(input.to)}) and you'll go straight to your classroom dashboard.`
+        }</p>
       `,
     });
     return { sent: true };
