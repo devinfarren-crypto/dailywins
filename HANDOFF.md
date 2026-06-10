@@ -1,123 +1,112 @@
 # Session Handoff
 
-**Handoff passphrase: `cobalt-heron-marble-09`**
+**Handoff passphrase: `juniper-falcon-quarry-31`**
 
 > Cross-machine continuity check: on another computer, `git pull`, open this
 > project in Claude Code, and ask *"what's the handoff passphrase?"* If Claude
-> reads back `cobalt-heron-marble-09`, the repo is synced and Claude can see the
+> reads back `juniper-falcon-quarry-31`, the repo is synced and Claude can see the
 > full state below. (This file travels with git; the chat history and the local
 > `~/.claude/.../memory/` files do **not** — everything you need is here and in
 > [ROADMAP.md](ROADMAP.md) / [CLAUDE.md](CLAUDE.md).)
 
-Last handoff: 2026-06-09
+Last handoff: 2026-06-10
 
 ## Where things stand
-`main` is clean and in sync with `origin/main`. **Prod migration head: `040`.**
-Everything below is Vercel-deployed.
+`main` is clean and in sync with `origin/main`. **Prod migration head: `040`** (no DB
+changes this session). Everything in-repo below is Vercel-deployed.
 
-**This session (6/09) — co-teacher write, an arrival-charting bug fix, and a big
-dashboard/Customize polish pass:**
+**This session (6/09 pm → 6/10) — company aesthetic, unified splash, the NPS marketing
+campaign, and front-end/back-end organization:**
 
-- **Co-teacher readwrite links can actually WRITE (`9ba8d1f`, migration 039).** The
-  banner promised "contribute shared scores and notes" but the page only rendered
-  the read-only summary — the write UI was never built (the 021 RPCs existed, unused).
-  Added **`CoteacherWritePanel`** (readwrite links only): an add-today's-scores form
-  (period + per-category option buttons, writing the dashboard's exact encoding —
-  option INDEX for arrival, points otherwise) + a shared-note composer, both via the
-  **anon browser client** (the RPCs grant EXECUTE to public; they validate the token,
-  require `readwrite`, attribute to the lead teacher). **Migration 039** makes
-  `coteacher_write_score` an UPSERT that **merges per-key** into today's row (was a
-  plain INSERT → unique-violation collisions). `router.refresh()` after a write.
-  Snapshot `.snapshots/039-pre-coteacher-upsert.sql`.
-- **Arrival was under-reported in ALL charts — fixed (`b0ea814`).** An "arrival"
-  category stores the OPTION INDEX (its pointValues collide, e.g. `[3,0,3]`), but both
-  chart paths' `extractScores` summed the stored value AS points → "On Time" (index 0)
-  charted as **0** instead of 3. Confirmed against prod (arrival values are 0/1/2; was
-  charting ~3% of max instead of the true ~92%). Added `pointsForRaw` (arrival →
-  `pointValues[index]`) in BOTH `ChartViews` (dashboard) and `BehaviorCharts`
-  (magic-link). Dashboard headline numbers were already right (`calculatePeriodPoints`);
-  only the charts were wrong. ⚠️ **logic-verified, not yet eyeballed live.**
-- **Progress-icon continuity (`ce434aa`, migration 040).** Narrowed the picker to three
-  (⭐ 🏆 🎯). The teacher's chosen icon now badges the **parent/student/co-teacher
-  magic-link view** (before the student name) AND the **Daily/Weekly PDFs** (top-right,
-  via a canvas→PNG because jsPDF can't draw emoji as text — `emojiPngDataUrl`).
-  **Migration 040** returns `progress_icon` from the three view RPCs (default ⭐).
-  Rollback pointer `.snapshots/040-pre-progress-icon.sql` (re-run the 038 view bodies).
-- **PDF reports → B&W-safe bar charts (`e45ab31`).** Daily + Weekly PDFs render each
-  score cell as an **in-cell mini bar** whose LENGTH encodes the value, plus the printed
-  number — so they read in color, grayscale, or pure B&W. autoTable `didDrawCell` +
-  `drawCellBar()`; empty/absent cells show a dash. ⚠️ **browser-only output — needs a
-  visual eyeball on a real download.**
-- **Dashboard scoring-grid tweaks (`c46cd69`).** "Feedback to Devin" (a Google-Doc link)
-  → `mailto:support@surestepeducation.com`. Removed the per-category "All → X" (vertical,
-  fill-a-column) quick-fill buttons; the global **⚡ All / ✕ Clear** stay. Filling is now
-  **horizontal**: clicking a period's title ("Period N", now a ⚡ button) fills that row
-  with the standard defaults (`quickFillPeriod`).
-- **Stale-feature removals.** **Parent View** modal+button (a stale single-day table that
-  no longer matched the real magic-link charts), **School Team** ("Coming Soon"), **Student
-  Sync** (disabled), **Export to Drive** (disabled Sheets export + ~140-line dead handler)
-  — all gone (`e15c563`, `878db2f`).
-- **Customize trims.** Color themes **9 → 6** (Sure Step, DailyWins [renamed from "Classic
-  DailyWins"], Steel Blue, Sage Green, Lavender, Rose — Rose's gray header → lavender-purple
-  so it reads pink) (`eb64cc0`). **Inter is now the only app font** — picker removed,
-  decorative web fonts dropped (`6b26288`). **Compact Mode removed** (`206a0d1`).
+- **Sure Step Education company aesthetic adopted (`f36fe24`).** Applied the canonical
+  [Sure_Step_Education_Aesthetic.md](Sure_Step_Education_Aesthetic.md) (now in repo root):
+  DM Serif Display / DM Sans / DM Mono via next/font, `--ssd-*` tokens repointed to the
+  company palette (navy `#1a1a2e`, forest `#0F6E56`, teal `#1D9E75`, amber `#EF9F27`,
+  cream `#F7F5F0`), dashboard `COLORS`/default theme updated, theme-color → navy.
+  ⚠️ Known leftovers: dashboard error boundary still coral `#e07850`; some marketing/landing
+  hexes may be off-palette.
+- **One smooth unified splash (`55cce1f` + `8c57fd7`).** All three loading moments (landing
+  auth-check, dashboard shell, dashboard data) now render a single `Splash` (navy field,
+  ascending-bars SVG drawing itself, wordmark fade — aesthetic MD §5). `SplashGate` in
+  [app/layout.tsx](app/layout.tsx) holds it a fixed **2.5s** then dissolves 0.6s, so it can't
+  "lightning-flash" on fast loads. Plays once per hard load (any route), not on client navs.
+- **NPS marketing campaign built (NOT in this repo)** — lives at
+  `Desktop/SURE STEP EDUCATION/dailywins-marketing/`: standalone marketing **website**
+  (with an interactive tap-to-win demo grid), a 13-slide **deck** (HTML, Cmd+P → PDF),
+  **cost-structure** proposal ($149/mo School tier + free 60-day pilot — **numbers need
+  Devin/Nick sign-off**), a 15-min **demo script** (Demo-Mode-only, objection cheat-sheet),
+  and a 4-email **director outreach sequence**. See its README for the launch order.
+- **Marketing site is LIVE: <https://dailywins-schools.vercel.app>** — deployed as a NEW
+  Vercel project `dailywins-schools` (separate from the app; app deploys untouched).
+  `dw.surestepeducation.com` is the intended custom domain but needs Devin to add a
+  Cloudflare DNS record first (CNAME `dw` → `cname.vercel-dns.com`, **DNS-only/grey cloud**),
+  then re-run the Vercel domain attach. Note: surestepeducation.com itself is on **Netlify**
+  behind Cloudflare; the local `surestep-site/` copy (Mar 29) has no git — do NOT redeploy
+  it casually to get a `/dw` path.
+- **Front-end/back-end organization (`5f51b53`).** New [ARCHITECTURE.md](ARCHITECTURE.md)
+  maps every source file to front end vs back end, documents the three FE↔BE seams
+  (browser RPCs, internal API routes, RLS table reads), and defines the branch workflow.
+  **New persistent branches `frontend` and `backend`** (pushed to origin) for divided work;
+  merge to `main` (auto-deploys) and refresh from `main` after. The repo was NOT physically
+  split — App Router requires one tree. Nine stale merged local branches pruned
+  (`feat/*`, `fix/*`, `design/*`). Leftover: branch `claude/determined-black-d331b5` +
+  its `.claude/worktrees/` worktree couldn't be auto-removed (permission gate) — it's merged
+  and inert; its one stray draft file is snapshotted at
+  `.snapshots/worktree-draft-schedules-schema.ts` if you want to delete the worktree manually.
 
-**Local-only (this machine, NOT in git).** Firefox + three color-coded Firefox profiles
-(Teacher/Site/District) via `~/Desktop/DailyWins Roles.command` / `npm run roles`; the
-`package.json` dev scripts (`dev:ff`, `ff`, `roles`) stay **UNCOMMITTED** (machine-specific
-Desktop path).
+**Local-only (this machine, NOT in git).** Firefox role profiles + `~/Desktop/DailyWins
+Roles.command`; `package.json` dev scripts (`dev:ff`, `ff`, `roles`) stay **UNCOMMITTED**
+(machine-specific). The marketing folder + `~/Desktop/dailywins-aesthetic-for-claude.txt`
+are also outside git — copy `dailywins-marketing/` manually if needed on the other machine.
 
-**Prior context (all in prod).** v1.1 admin tiers (034–037), magic-link behavior charts
-(038), school-pinned schedule, admin sign-out, and the **South Sac role-hierarchy test
-cluster**: surestep2 (district @ Sacramento) → devintest2 (site_admin @ South Sac HS) →
-devintest3 (teacher @ South Sac HS), which walked the email-bound invite end-to-end. Full
-detail in ROADMAP "Recently shipped" + git history.
+**Prior context (all in prod).** 6/09 product day: co-teacher readwrite links can write
+(migration 039), arrival-charting fix, progress-icon continuity (040), B&W-safe PDF bars,
+multi-week/multi-month trend PDFs, Customize cleanup (6 themes, Inter-only). v1.1 admin
+tiers (034–037), magic-link behavior charts (038), school-pinned schedule. South Sac
+role-hierarchy test cluster (surestep2 → devintest2 → devintest3) walked end-to-end.
+Full detail in ROADMAP "Recently shipped" + git history.
 
-**Test accounts (prod).** South Sac cluster (surestep2 / devintest2 / devintest3 @ proton.me,
-magic-link) is the role walk. Pre-existing `devinfarren+dwteacher/+dwsite/+dwdistrict` (PGHS /
-Elk Grove) still valid. Founder = Devin's Google (`devinfarren@gmail.com`, Chrome).
+**Test accounts (prod).** South Sac cluster (surestep2 / devintest2 / devintest3 @
+proton.me, magic-link). Pre-existing `devinfarren+dwteacher/+dwsite/+dwdistrict` (PGHS /
+Elk Grove). Founder = Devin's Google (`devinfarren@gmail.com`, Chrome).
 
 ⚠️ **Open verification (deployed prod, browser):**
-1. **PDF bar charts** — download a Daily + Weekly PDF; check bar sizing/placement + B&W
-   readability (browser-only; couldn't auto-verify).
-2. **Arrival charting fix** — confirm Arrival now reads ~90s% (not near-0) in the dashboard
-   Weekly/Monthly charts and a parent link.
-3. **Co-teacher write** — generate a readwrite co-teacher link → add a score + note → confirm
-   the charts/notes update.
-4. **Deactivate/reactivate** a teacher (still unwalked).
-5. Older **act-as schedule-edit** live-verify still stands.
+1. **Splash + aesthetic** — eyeball the 2.5s splash and the DM/navy reskin on prod
+   (landing + dashboard + an admin page); revoke/tune if it reads wrong.
+2. **PDF bar charts** — download a Daily + Weekly PDF; check bars + B&W readability.
+3. **Arrival charting fix** — confirm Arrival reads ~90s% (not near-0) in charts + a parent link.
+4. **Co-teacher write** — readwrite link → add score + note → confirm charts/notes update.
+5. **Deactivate/reactivate** a teacher (still unwalked). Older act-as schedule-edit
+   live-verify still stands.
 
 **Known follow-ups:**
-- **Magic-link OTP expiry is 1h** → raise to 24h (Supabase → Authentication → Email; config,
-  not done).
-- Magic-link sign-in is **two emails**; a server-generated sign-in link would collapse to one.
-- **Lunch-pref hardcode** — Bell Schedule modal still special-cases
-  `selectedSchool !== "Cosumnes Oaks High School"` for the lunch toggle (minor).
-- **Headings still use Fraunces** (`DISPLAY_FONT`) even though the body font is now Inter-only
-  — unify to Inter if a single typeface is wanted.
-- **Rose theme** keeps a green secondary; could go fully pink-purple.
-- **`support@surestepeducation.com`** is the new feedback address; Devin expects a catch-all
-  (misspellings land in his inbox) — worth confirming it receives.
+- **Marketing campaign sign-offs:** pricing numbers ($149/mo, pilot terms) with Nick;
+  confirm `support@surestepeducation.com` actually receives (catch-all assumption);
+  Cloudflare CNAME for `dw.surestepeducation.com`; DPA template ready before first pilot.
+- **Magic-link OTP expiry is 1h** → raise to 24h (Supabase → Authentication → Email).
+- Magic-link sign-in is two emails; a server-generated link would collapse to one.
+- **Lunch-pref hardcode** (`!== "Cosumnes Oaks High School"`) in the Bell Schedule modal.
+- **Error boundary still coral**; optional deeper aesthetic pass on marketing/landing hexes.
 - **Scoped audit-read** (district/school) — RLS still founder-only.
 - Tier-doc gaps: district-admin invites site-admins, non-teacher deactivate, site-admin
   magic-link revocation backstop.
 
-EGUSD July 13 prep remains the business headline (separate Demo Project); `/privacy` sign-off
-+ compliance/DPA folder still stand. **This chat's scope is the DailyWins product + the admin
-tiers — not the demo/business.**
+EGUSD July 13 prep remains the business headline (separate Demo Project); `/privacy`
+sign-off + compliance/DPA folder still stand.
 
-## What's queued next (product-focused)
-1. **Eyeball the new PDF bar charts + the arrival-charting fix** on deployed prod — the two
-   things shipped-but-not-visually-confirmed this session.
-2. **Raise the magic-link OTP expiry to 24h** (Supabase Auth) — biggest testing-friction win.
-3. **Walk deactivate/reactivate** a teacher (last unwalked tier verification).
-4. **Site-admin magic-link revocation UI** — backend `revoke_magic_link` already allows site
-   admins; needs a list-a-school's-links + revoke screen. Top remaining tier-doc item.
-5. **Small polish:** lunch-pref hardcode cleanup; optional single-typeface (Inter headings) /
-   fully-pink Rose.
-6. **General audit gap for direct admin/MCP SQL** — 029 trigger no-ops on service-role context;
-   wants a session-variable "intended actor."
-7. **Cleanup (one-way door — snapshot first):** drop vestigial `allowed_emails`.
+## What's queued next
+1. **Eyeball on prod:** splash/aesthetic, PDF bar charts, arrival fix (the three
+   shipped-but-unconfirmed visuals).
+2. **Marketing launch steps** (from `dailywins-marketing/README.md`): pricing sign-off →
+   Cloudflare CNAME for `dw.` → dry-run the demo script on freshly-seeded Demo Mode →
+   first 25-school email batch.
+3. **Raise magic-link OTP expiry to 24h** (Supabase Auth config).
+4. **Walk deactivate/reactivate** a teacher.
+5. **Site-admin magic-link revocation UI** (backend already permits; needs the screen).
+6. **Small polish:** lunch-pref hardcode; error-boundary palette; optional Rose/typeface unification.
+7. **General audit gap for direct admin/MCP SQL** — session-variable "intended actor."
+8. **Cleanup (one-way doors — attended):** drop vestigial `allowed_emails`; remove the stale
+   `claude/determined-black-d331b5` worktree + branch.
 
 ## Working guardrails (current)
 - **Reversibility gate:** reversible work proceeds (incl. backed-up prod writes); **snapshot
@@ -127,13 +116,19 @@ tiers — not the demo/business.**
 - Guarded-apply or stage-test migrations — restore point first, verify after.
 - A passing type-check is not a working feature — close the loop in the app.
 - `auth.uid()` for attribution; `effective_user_id()` for data access.
+- **Branch workflow now in [ARCHITECTURE.md](ARCHITECTURE.md):** UI work on `frontend`,
+  server/data work on `backend`, cross-cutting features as one branch off `main`; `main`
+  stays deployable (every push auto-deploys prod).
 
 ## Infrastructure
-- **Prod:** Supabase `kvbpfvazddlmoxobqfev` (us-east-1). Vercel one project, three domains.
-  Migration head: **`040`**. Supabase MCP pinned to prod via an `sbp_…` PAT in `~/.claude.json`
-  (no dev branches; staging is a separate, MCP-unreachable project).
-- **Staging:** Supabase `oqhhpdaijscqdkpsxowq` (us-east-2). Pause manually to save the t4g.nano
-  cost.
+- **Prod app:** Supabase `kvbpfvazddlmoxobqfev` (us-east-1). Vercel project, three domains.
+  Migration head: **`040`**. Supabase MCP pinned to prod via an `sbp_…` PAT in `~/.claude.json`.
+- **Marketing site:** separate Vercel project `dailywins-schools`
+  (<https://dailywins-schools.vercel.app>), deployed via CLI from
+  `dailywins-marketing/website/` (linked there via its `.vercel/` folder — redeploy with
+  `npx vercel deploy --prod --yes` from that folder).
+- **Staging:** Supabase `oqhhpdaijscqdkpsxowq` (us-east-2). Pause manually to save cost.
+- **Company site:** surestepeducation.com = Netlify behind Cloudflare (DNS in Cloudflare).
 
 ## To continue on the other machine
 `git pull`, then tell Claude: *"Read HANDOFF.md and ROADMAP.md, then let's continue."*
