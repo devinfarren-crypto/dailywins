@@ -1,13 +1,14 @@
-// Cross-links between the three Site Admin surfaces so each is reachable from
-// the others. Rendered for site admins on /admin/upload-schedule, /admin/teachers
-// and /admin/usage.
+// Cross-links between the Site Admin surfaces so each is reachable from the
+// others. Rendered for site admins on /admin/upload-schedule, /admin/teachers,
+// /admin/usage and /admin/links.
 
-type Current = "schedules" | "teachers" | "usage";
+type Current = "schedules" | "teachers" | "usage" | "links";
 
 const LINKS: { key: Current; label: string; href: string }[] = [
   { key: "schedules", label: "Bell schedules", href: "/admin/upload-schedule" },
   { key: "teachers", label: "Teachers", href: "/admin/teachers" },
   { key: "usage", label: "School usage", href: "/admin/usage" },
+  { key: "links", label: "Family links", href: "/admin/links" },
 ];
 
 export default function SiteAdminNav({ current }: { current: Current }) {
