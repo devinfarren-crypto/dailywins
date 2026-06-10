@@ -107,7 +107,11 @@ function Shell({ eyebrow, title, subtitle, children }: { eyebrow: string; title:
   );
 }
 
-export default async function UsagePage() {
+export default async function UsagePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ district?: string }>;
+}) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/");
@@ -118,13 +122,24 @@ export default async function UsagePage() {
     .select("role")
     .eq("user_id", user.id);
   const roles = (roleRows ?? []).map((r) => r.role);
+  const isFounder = roles.includes("founder");
   const isDistrictAdmin = roles.includes("district_admin");
   const isSiteAdmin = roles.includes("site_admin");
 
-  // District view takes precedence (district rollups). Site admins see their
-  // per-teacher activity. Anyone else doesn't belong here.
-  if (isDistrictAdmin) {
-    const { data, error } = await supabase.rpc("get_district_usage");
+  // District rollups: district admins see their own district; founders see all
+  // districts with a per-district filter (migration 042). Site admins see
+  // their per-teacher activity. Anyone else doesn't belong here.
+  if (isDistrictAdmin || isFounder) {
+    const { district: districtParam } = await searchParams;
+    let districtPicker: { id: string; name: string }[] = [];
+    if (isFounder) {
+      const { data: districts } = await admin.from("districts").select("id, name").order("name");
+      districtPicker = districts ?? [];
+    }
+    const { data, error } = await supabase.rpc(
+      "get_district_usage",
+      isFounder && districtParam ? { p_district_id: districtParam } : {}
+    );
     if (error || !data) {
       return (
         <Shell eyebrow="· District usage ·" title="Usage" subtitle="Couldn't load district usage right now.">
@@ -134,9 +149,44 @@ export default async function UsagePage() {
     }
     const totals = (data.totals ?? {}) as Totals;
     const schools = (data.schools ?? []) as DistrictSchool[];
-    const districtName = schools[0]?.district ?? "Your district";
+    const districtName = isFounder
+      ? districtPicker.find((d) => d.id === districtParam)?.name ?? "All districts"
+      : schools[0]?.district ?? "Your district";
     return (
-      <Shell eyebrow="· District usage ·" title={districtName} subtitle="Aggregate adoption across your schools">
+      <Shell
+        eyebrow="· District usage ·"
+        title={districtName}
+        subtitle={isFounder ? "Founder view — aggregate adoption per district" : "Aggregate adoption across your schools"}
+      >
+        {isFounder && districtPicker.length > 0 ? (
+          <div style={{ marginBottom: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <a
+              href="/admin/usage"
+              style={{
+                fontSize: 13, fontWeight: 600, padding: "6px 12px", borderRadius: 999,
+                textDecoration: "none", border: "1px solid var(--ssd-border)",
+                background: !districtParam ? "var(--ssd-green)" : "var(--ssd-surface)",
+                color: !districtParam ? "#fff" : "var(--ssd-text-muted)",
+              }}
+            >
+              All districts
+            </a>
+            {districtPicker.map((d) => (
+              <a
+                key={d.id}
+                href={`/admin/usage?district=${d.id}`}
+                style={{
+                  fontSize: 13, fontWeight: 600, padding: "6px 12px", borderRadius: 999,
+                  textDecoration: "none", border: "1px solid var(--ssd-border)",
+                  background: d.id === districtParam ? "var(--ssd-green)" : "var(--ssd-surface)",
+                  color: d.id === districtParam ? "#fff" : "var(--ssd-text-muted)",
+                }}
+              >
+                {d.name}
+              </a>
+            ))}
+          </div>
+        ) : null}
         <div style={{ marginBottom: 16 }}>
           <a
             href="/admin/audit-log"
@@ -179,7 +229,12 @@ export default async function UsagePage() {
               ) : (
                 schools.map((s) => (
                   <tr key={s.school_id}>
-                    <td style={{ ...td, fontWeight: 600, color: "var(--ssd-ink)" }}>{s.name}</td>
+                    <td style={{ ...td, fontWeight: 600, color: "var(--ssd-ink)" }}>
+                      {s.name}
+                      {isFounder && !districtParam ? (
+                        <span style={{ display: "block", fontSize: 11, fontWeight: 400, color: "var(--ssd-text-muted)" }}>{s.district}</span>
+                      ) : null}
+                    </td>
                     <td style={td}>{s.teachers}</td>
                     <td style={td}>{s.students}</td>
                     <td style={td}>{s.active_teachers_7d}</td>
@@ -254,7 +309,5 @@ export default async function UsagePage() {
     );
   }
 
-  // Founders have their own hub; teachers have the dashboard.
-  if (roles.includes("founder")) redirect("/admin/teachers");
   redirect("/dashboard");
 }
