@@ -33,7 +33,7 @@ const SCOPE_PATH: Record<Scope, string> = {
 const SCOPE_OPTIONS: { value: Scope; label: string }[] = [
   { value: "parent", label: "Parent / guardian" },
   { value: "student", label: "Student" },
-  { value: "co_teacher", label: "Co-teacher" },
+  { value: "co_teacher", label: "Co-teacher / Paraprofessional" },
 ];
 
 interface ManageLinksModalProps {
@@ -154,7 +154,7 @@ export default function ManageLinksModal({ studentId, studentName, open, onClose
         </div>
 
         <p style={{ fontSize: 13, color: COLORS.body, marginTop: 0 }}>
-          A link gives a read-only view of this student&apos;s progress (a co-teacher link can optionally allow contributions). Private notes are never shown. Every view is logged. You can revoke a link anytime.
+          A link gives a read-only view of this student&apos;s progress (a co-teacher / paraprofessional link can optionally allow contributions). Private notes are never shown. Every view is logged. You can revoke a link anytime.
         </p>
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 12 }}>

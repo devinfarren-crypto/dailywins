@@ -234,7 +234,7 @@ export default function CoteacherWritePanel({
             setNoteMsg(null);
           }}
           rows={3}
-          placeholder="A note the teacher and other co-teachers will see…"
+          placeholder="A note the teacher and the rest of the classroom team will see…"
           style={{
             width: "100%",
             boxSizing: "border-box",
@@ -248,7 +248,7 @@ export default function CoteacherWritePanel({
           }}
         />
         <div style={{ fontSize: 11, color: "var(--ssd-text-muted)", margin: "6px 0 0" }}>
-          Co-teacher notes are always shared (never private).
+          Classroom-team notes are always shared (never private).
         </div>
         <button
           type="button"

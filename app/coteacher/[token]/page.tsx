@@ -52,7 +52,7 @@ export default async function CoteacherPage({
         color: "var(--ssd-text)",
       }}
     >
-      <strong style={{ color: "var(--ssd-ink)" }}>Co-teacher access:</strong>{" "}
+      <strong style={{ color: "var(--ssd-ink)" }}>Classroom team access:</strong>{" "}
       {canWrite
         ? "you can add today's scores and shared notes below; everything else is the student's summary."
         : "you have a read-only view of this student's summary."}
@@ -66,7 +66,7 @@ export default async function CoteacherPage({
       notes={Array.isArray(view.notes) ? view.notes : []}
       categories={Array.isArray(view.categories) ? view.categories : []}
       progressIcon={view.progress_icon}
-      eyebrow="· DailyWins · Co-teacher ·"
+      eyebrow="· DailyWins · Classroom Team ·"
       subtitle="Shared behavior summary"
       banner={banner}
       writePanel={

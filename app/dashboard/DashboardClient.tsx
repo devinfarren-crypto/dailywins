@@ -195,7 +195,21 @@ interface Preferences {
   // teachers almost never collect behavior data before school. Toggle on per
   // teacher if they actually score a 0-period class.
   showPeriodZero?: boolean;
+  // The four progress-zone names, low → high. Editable in Customize; defaults
+  // to the Sure Step status-scale language.
+  zoneLabels?: [string, string, string, string];
+  // What the ⚡ quick-fill writes for SCALE categories: the top option ("3s"),
+  // one below ("2s", the default), or two below ("1s"). Arrival always fills
+  // best-arrival; binary toggles always fill their win value.
+  quickFillLevel?: "top" | "second" | "third";
 }
+
+const DEFAULT_ZONE_LABELS: [string, string, string, string] = [
+  "Needs Support",
+  "Working On It",
+  "On Track",
+  "Exceptional",
+];
 
 interface TeacherProfile {
   teacher_id: string;
@@ -327,11 +341,13 @@ function toggleButtonColor(optionIndex: number): string {
 }
 
 /** Quick fill default value for a category */
-function quickFillDefault(cat: Category): number {
+function quickFillDefault(cat: Category, level: "top" | "second" | "third" = "second"): number {
   if (cat.type === "scale") {
-    // Default to highest - 1 (e.g. 2 for 0-3 scale)
+    // Teacher-chosen fill level: top option (3s), one below (2s, default), or
+    // two below (1s) — clamped to however many options the category has.
     const sorted = [...cat.pointValues].sort((a, b) => b - a);
-    return sorted.length > 1 ? sorted[1] : sorted[0];
+    const idx = level === "top" ? 0 : level === "second" ? 1 : 2;
+    return sorted[Math.min(idx, sorted.length - 1)];
   }
   if (cat.type === "arrival") {
     // arrival state holds the option INDEX (see adaeb5f); first option is best.
@@ -525,6 +541,7 @@ export default function DashboardClient() {
     return () => { cancelled = true; };
   }, []);
   const [prefs, setPrefs] = useState<Preferences>({});
+  const zoneLabels = prefs.zoneLabels ?? DEFAULT_ZONE_LABELS;
   const [demoBusy, setDemoBusy] = useState<"seed" | "wipe" | null>(null);
   const [demoMessage, setDemoMessage] = useState<{ success: boolean; text: string } | null>(null);
   const [showWipeConfirm, setShowWipeConfirm] = useState(false);
@@ -1234,7 +1251,7 @@ export default function DashboardClient() {
       for (const p of trackablePeriods) {
         const ps: PeriodScores = {};
         for (const cat of categories) {
-          ps[cat.id] = quickFillDefault(cat);
+          ps[cat.id] = quickFillDefault(cat, prefs.quickFillLevel);
         }
         filled[p.label] = ps;
       }
@@ -1262,7 +1279,7 @@ export default function DashboardClient() {
     setScores((prev) => {
       const ps: PeriodScores = { ...(prev[periodLabel] ?? {}) };
       for (const cat of categories) {
-        ps[cat.id] = quickFillDefault(cat);
+        ps[cat.id] = quickFillDefault(cat, prefs.quickFillLevel);
       }
       const updated = { ...prev, [periodLabel]: ps };
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -2244,7 +2261,7 @@ export default function DashboardClient() {
                 fontWeight: 800,
                 letterSpacing: 0.5,
               }}>
-                {pct >= thresholds[2] ? "Exceptional" : pct >= thresholds[1] ? "On Track" : pct >= thresholds[0] ? "Working On It" : "Needs Support"}
+                {pct >= thresholds[2] ? zoneLabels[3] : pct >= thresholds[1] ? zoneLabels[2] : pct >= thresholds[0] ? zoneLabels[1] : zoneLabels[0]}
               </span>
             </div>
             <div
@@ -2322,10 +2339,10 @@ export default function DashboardClient() {
             </div>
             {/* Zone labels */}
             <div style={{ position: "relative", height: 12, marginTop: 2, fontSize: 8, fontWeight: 700, color: "#aaa" }}>
-              <span style={{ position: "absolute", left: 0, width: `${thresholds[0]}%`, textAlign: "center", overflow: "hidden", whiteSpace: "nowrap" }}>Needs Support</span>
-              <span style={{ position: "absolute", left: `${thresholds[0]}%`, width: `${thresholds[1] - thresholds[0]}%`, textAlign: "center", overflow: "hidden", whiteSpace: "nowrap" }}>Working On It</span>
-              <span style={{ position: "absolute", left: `${thresholds[1]}%`, width: `${thresholds[2] - thresholds[1]}%`, textAlign: "center", overflow: "hidden", whiteSpace: "nowrap" }}>On Track</span>
-              <span style={{ position: "absolute", left: `${thresholds[2]}%`, width: `${100 - thresholds[2]}%`, textAlign: "center", overflow: "hidden", whiteSpace: "nowrap" }}>Exceptional</span>
+              <span style={{ position: "absolute", left: 0, width: `${thresholds[0]}%`, textAlign: "center", overflow: "hidden", whiteSpace: "nowrap" }}>{zoneLabels[0]}</span>
+              <span style={{ position: "absolute", left: `${thresholds[0]}%`, width: `${thresholds[1] - thresholds[0]}%`, textAlign: "center", overflow: "hidden", whiteSpace: "nowrap" }}>{zoneLabels[1]}</span>
+              <span style={{ position: "absolute", left: `${thresholds[1]}%`, width: `${thresholds[2] - thresholds[1]}%`, textAlign: "center", overflow: "hidden", whiteSpace: "nowrap" }}>{zoneLabels[2]}</span>
+              <span style={{ position: "absolute", left: `${thresholds[2]}%`, width: `${100 - thresholds[2]}%`, textAlign: "center", overflow: "hidden", whiteSpace: "nowrap" }}>{zoneLabels[3]}</span>
             </div>
           </div>
         </div>
@@ -4219,6 +4236,80 @@ export default function DashboardClient() {
                     {icon}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Progress Zone Labels */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: C.dark, marginBottom: 4 }}>
+                Progress Zone Names
+              </div>
+              <div style={{ fontSize: 11, color: "#888", marginBottom: 8 }}>
+                The four labels under the progress bar, low to high. These are yours — match your classroom language.
+              </div>
+              {zoneLabels.map((label, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                  <div style={{ width: 12, height: 12, borderRadius: "50%", flexShrink: 0, background: [COLORS.red, COLORS.gold, COLORS.green, COLORS.blue][i] }} />
+                  <input
+                    key={`zl-${i}-${label}`}
+                    defaultValue={label}
+                    maxLength={24}
+                    onBlur={(e) => {
+                      const v = e.target.value.trim() || DEFAULT_ZONE_LABELS[i];
+                      if (v === zoneLabels[i]) return;
+                      const next = [...zoneLabels] as [string, string, string, string];
+                      next[i] = v;
+                      savePreferences({ ...prefs, zoneLabels: next });
+                    }}
+                    style={{
+                      flex: 1,
+                      fontSize: 13,
+                      padding: "6px 10px",
+                      borderRadius: 8,
+                      border: "1px solid #e0e0e0",
+                      background: "#fafafa",
+                      color: "#333",
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Quick-fill Level */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: C.dark, marginBottom: 4 }}>
+                ⚡ Quick-Fill Level
+              </div>
+              <div style={{ fontSize: 11, color: "#888", marginBottom: 8 }}>
+                What the lightning buttons write for scale goals (e.g. on a 0–3 scale: 3s, 2s, or 1s).
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                {([
+                  { value: "top" as const, label: "Highest (3s)" },
+                  { value: "second" as const, label: "Standard (2s)" },
+                  { value: "third" as const, label: "Modest (1s)" },
+                ]).map((opt) => {
+                  const active = (prefs.quickFillLevel ?? "second") === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      onClick={() => savePreferences({ ...prefs, quickFillLevel: opt.value })}
+                      style={{
+                        flex: 1,
+                        background: active ? C.dark : "#f0f0f0",
+                        color: active ? "white" : "#333",
+                        border: "none",
+                        borderRadius: 8,
+                        padding: "8px 6px",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
