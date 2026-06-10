@@ -2,14 +2,14 @@
 
 import { Component, type ReactNode, type ErrorInfo } from "react";
 import dynamic from "next/dynamic";
-import Splash from "@/src/components/Splash";
+import QuietLoader from "@/src/components/QuietLoader";
 
 // Dynamically import the heavy dashboard component with ssr: false.
 // This ensures browser-only libraries (Recharts, canvas APIs) never
 // run during server-side rendering, preventing silent module crashes.
 const DashboardClient = dynamic(() => import("./DashboardClient"), {
   ssr: false,
-  loading: () => <Splash />,
+  loading: () => <QuietLoader />,
 });
 
 // Error boundary catches any runtime errors in the dashboard

@@ -9,7 +9,7 @@ import type { User } from "@supabase/supabase-js";
 import dynamic from "next/dynamic";
 import { syncToGoogleSheets, getValidGoogleToken } from "./sheetsSync";
 import ManageLinksModal from "@/src/components/ManageLinksModal";
-import Splash from "@/src/components/Splash";
+import QuietLoader from "@/src/components/QuietLoader";
 import { fireAuditEvent } from "@/src/lib/audit-event-client";
 
 const ChartViews = dynamic(() => import("./ChartViews"), { ssr: false });
@@ -1758,7 +1758,7 @@ export default function DashboardClient() {
   // ─── Loading State ──────────────────────────────────────────────────────────
 
   if (loading) {
-    return <Splash />;
+    return <QuietLoader />;
   }
 
   if (!user) return null;

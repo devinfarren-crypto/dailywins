@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/src/lib/supabase";
-import Splash from "@/src/components/Splash";
+import QuietLoader from "@/src/components/QuietLoader";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -134,7 +134,7 @@ export default function LoginPage() {
   };
 
   if (checking) {
-    return <Splash />;
+    return <QuietLoader />;
   }
 
   return (
