@@ -357,6 +357,14 @@ function quickFillDefault(cat: Category, level: "top" | "second" | "third" = "se
   return cat.maxPoints;
 }
 
+// Human label for a stored self-check value (same encoding as the grid:
+// option INDEX for arrival, point value otherwise).
+function selfCheckLabel(cat: Category, raw: number): string {
+  if (cat.type === "arrival") return cat.options[raw] ?? String(raw);
+  const idx = cat.pointValues.indexOf(raw);
+  return idx >= 0 ? cat.options[idx] ?? String(raw) : String(raw);
+}
+
 function makeEmptyPeriodScores(categories: Category[]): PeriodScores {
   const ps: PeriodScores = {};
   for (const cat of categories) {
@@ -542,6 +550,9 @@ export default function DashboardClient() {
   }, []);
   const [prefs, setPrefs] = useState<Preferences>({});
   const zoneLabels = prefs.zoneLabels ?? DEFAULT_ZONE_LABELS;
+  // The selected student's own ratings for the selected day (self_assessments;
+  // submitted via a readwrite student link). Read-only context for the teacher.
+  const [selfChecks, setSelfChecks] = useState<{ period: number; scores: Record<string, number> }[]>([]);
   const [demoBusy, setDemoBusy] = useState<"seed" | "wipe" | null>(null);
   const [demoMessage, setDemoMessage] = useState<{ success: boolean; text: string } | null>(null);
   const [showWipeConfirm, setShowWipeConfirm] = useState(false);
@@ -945,6 +956,27 @@ export default function DashboardClient() {
     }
   }, [teacher, supabase]);
 
+  // ─── Self-Check Loading ─────────────────────────────────────────────────────
+
+  // Student self-checks for the selected day. RLS grants the owning teacher
+  // read on self_assessments; the teacher's own scores remain the official
+  // record — this is contextual only.
+  const loadSelfChecks = useCallback(async (studentId: string, date: string) => {
+    if (!teacher) return;
+    const { data, error } = await supabase
+      .from("self_assessments")
+      .select("period, scores")
+      .eq("student_id", studentId)
+      .eq("teacher_id", teacher.teacher_id)
+      .eq("assess_date", date)
+      .order("period", { ascending: true });
+    setSelfChecks(
+      !error && data
+        ? data.map((r) => ({ period: r.period as number, scores: (r.scores as Record<string, number>) ?? {} }))
+        : []
+    );
+  }, [teacher, supabase]);
+
   // ─── Trigger Score + Note Load ──────────────────────────────────────────────
 
   useEffect(() => {
@@ -952,6 +984,7 @@ export default function DashboardClient() {
     if (selectedStudentId && teacher) {
       loadScores(selectedStudentId, selectedDate);
       loadNotes(selectedStudentId, selectedDate);
+      loadSelfChecks(selectedStudentId, selectedDate);
     } else {
       const initial: AllScores = {};
       for (const p of trackablePeriods) {
@@ -959,6 +992,7 @@ export default function DashboardClient() {
       }
       setScores(initial);
       setNotes([]);
+      setSelfChecks([]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStudentId, selectedDate, selectedSchool, selectedSchedule, lunchPref, teacher]);
@@ -2373,6 +2407,24 @@ export default function DashboardClient() {
           </div>
         )}
 
+        {/* Student self-checks (read-only context; teacher's grid is official) */}
+        {hasStudents && activeView === "entry" && selfChecks.length > 0 && (
+          <div style={{ marginBottom: 8, padding: "10px 14px", borderRadius: 10, background: "white", boxShadow: "0 2px 12px rgba(0,0,0,0.06)", borderLeft: `3px solid ${COLORS.secondary}` }}>
+            <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: 1, color: C.dark, marginBottom: 4 }}>
+              🧑‍🎓 {selectedStudent}&apos;s self-checks — how they rated their own day (your grid stays the official record)
+            </div>
+            {selfChecks.map((sc) => (
+              <div key={sc.period} style={{ fontSize: 12.5, color: "#555", marginTop: 2 }}>
+                <strong style={{ color: C.dark }}>Period {sc.period}:</strong>{" "}
+                {categories
+                  .filter((c) => sc.scores[c.id] !== undefined && sc.scores[c.id] !== null)
+                  .map((c) => `${c.name} — ${selfCheckLabel(c, sc.scores[c.id])}`)
+                  .join(" · ") || "—"}
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Chart Views */}
         {hasStudents && activeView !== "entry" && teacher && (
           <ChartViews
@@ -3721,8 +3773,9 @@ export default function DashboardClient() {
               </div>
             )}
 
-            {/* Lunch Preference */}
-            {selectedSchool && selectedSchool !== "Cosumnes Oaks High School" && (() => {
+            {/* Lunch Preference — shown whenever the school's schedule actually
+                has a split lunch (Period 4/5 both present); no per-school hardcode. */}
+            {selectedSchool && (() => {
               const sched = schedulesForSchool?.[selectedSchedule] ?? schedulesForSchool?.[Object.keys(schedulesForSchool)[0]];
               const periods = sched?.periods ?? [];
               const splitLunch = periods.some(p => p.label === "Period 4") && periods.some(p => p.label === "Period 5");
