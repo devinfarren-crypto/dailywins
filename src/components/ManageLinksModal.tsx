@@ -52,6 +52,7 @@ export default function ManageLinksModal({ studentId, studentName, open, onClose
   const [copied, setCopied] = useState(false);
   const [scope, setScope] = useState<Scope>("parent");
   const [coteacherWrite, setCoteacherWrite] = useState(false);
+  const [studentSelfAssess, setStudentSelfAssess] = useState(false);
 
   const supabase = createClient();
 
@@ -81,7 +82,10 @@ export default function ManageLinksModal({ studentId, studentName, open, onClose
     setGenerating(true);
     setErrorMsg("");
     setNewUrl("");
-    const access = scope === "co_teacher" && coteacherWrite ? "readwrite" : "read";
+    const access =
+      (scope === "co_teacher" && coteacherWrite) || (scope === "student" && studentSelfAssess)
+        ? "readwrite"
+        : "read";
     const { data, error } = await supabase.rpc("generate_magic_link", {
       p_scope_type: scope,
       p_student_id: studentId,
@@ -179,6 +183,17 @@ export default function ManageLinksModal({ studentId, studentName, open, onClose
                 onChange={(e) => setCoteacherWrite(e.target.checked)}
               />
               Allow contributions (read &amp; write)
+            </label>
+          )}
+
+          {scope === "student" && (
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: COLORS.body }}>
+              <input
+                type="checkbox"
+                checked={studentSelfAssess}
+                onChange={(e) => setStudentSelfAssess(e.target.checked)}
+              />
+              Allow self-assessment (student rates their own day; your record stays official)
             </label>
           )}
 
