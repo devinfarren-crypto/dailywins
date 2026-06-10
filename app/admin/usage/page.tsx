@@ -187,7 +187,7 @@ export default async function UsagePage({
             ))}
           </div>
         ) : null}
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 16, display: "flex", gap: 18 }}>
           <a
             href="/admin/audit-log"
             style={{
@@ -198,6 +198,17 @@ export default async function UsagePage({
             }}
           >
             Audit log →
+          </a>
+          <a
+            href="/admin/notes-archive"
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: "var(--ssd-green)",
+              textDecoration: "none",
+            }}
+          >
+            Notes archive →
           </a>
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 28 }}>

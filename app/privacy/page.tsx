@@ -325,19 +325,33 @@ export default function PrivacyPage() {
                 <strong>District Administrators and the Operator (Sure Step
                 Education)</strong> administer the system but,{" "}
                 <strong>
-                  through their role-based access in the application, cannot view
-                  individual student behavior records or teacher notes
+                  through their day-to-day role-based access in the application,
+                  cannot view individual student behavior records or teacher
+                  notes
                 </strong>
                 . The database&rsquo;s Row-Level Security policies do not grant
-                these roles read access to pupil records; their access is limited
-                to the operational and aggregate information needed to run the
-                Service.
+                these roles ambient read access to pupil records; their routine
+                access is limited to the operational and aggregate information
+                needed to run the Service. The sole exception is the
+                reason-gated, fully audited district records access described
+                below.
               </li>
             </ul>
             <p>
-              Two limited exceptions exist and are handled transparently:
+              Three limited exceptions exist and are handled transparently:
             </p>
             <ul>
+              <li>
+                <strong>District records access (notes archive).</strong> The
+                LEA owns its educational records, and teacher notes may be
+                subject to records requests or legal discovery. A District
+                Administrator may therefore retrieve the complete note record
+                for their own district through a dedicated records function.
+                This access is not ambient browsing: it requires a stated
+                reason, and every use is permanently written to the audit log
+                (who, when, and the reason given) before any records are
+                returned.
+              </li>
               <li>
                 <strong>Supervised &ldquo;act-as&rdquo; support sessions.</strong>{" "}
                 An administrator may, when necessary to provide support or
@@ -360,8 +374,10 @@ export default function PrivacyPage() {
             <p>
               DailyWins maintains an <strong>append-only audit log</strong> of
               sensitive administrative actions &mdash; including access
-              approvals and &ldquo;act-as&rdquo; support sessions, together with
-              changes made to student records during those sessions. Each entry
+              approvals, &ldquo;act-as&rdquo; support sessions (together with
+              changes made to student records during those sessions), district
+              records access through the notes archive, and revocation of
+              family/team access links. Each entry
               records who performed the action and when. This log supports
               accountability and enables an LEA to review how administrative
               access to its data has been used.
