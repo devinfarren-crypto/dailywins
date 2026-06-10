@@ -1,135 +1,156 @@
 # Session Handoff
 
-**Handoff passphrase: `juniper-falcon-quarry-31`**
+**Handoff passphrase: `harbor-lynx-ember-47`**
 
 > Cross-machine continuity check: on another computer, `git pull`, open this
 > project in Claude Code, and ask *"what's the handoff passphrase?"* If Claude
-> reads back `juniper-falcon-quarry-31`, the repo is synced and Claude can see the
+> reads back `harbor-lynx-ember-47`, the repo is synced and Claude can see the
 > full state below. (This file travels with git; the chat history and the local
 > `~/.claude/.../memory/` files do **not** — everything you need is here and in
-> [ROADMAP.md](ROADMAP.md) / [CLAUDE.md](CLAUDE.md).)
+> [ROADMAP.md](ROADMAP.md) / [CLAUDE.md](CLAUDE.md) / [FIELD-GUIDE.md](FIELD-GUIDE.md).)
 
-Last handoff: 2026-06-10
+Last handoff: 2026-06-10 (evening)
 
 ## Where things stand
-`main` is clean and in sync with `origin/main`. **Prod migration head: `040`** (no DB
-changes this session). Everything in-repo below is Vercel-deployed.
+`main` is clean and in sync with `origin/main`. **Prod migration head: `047`.**
+Everything below is deployed. This was a huge day — the app went from
+"demo-ready" to **NPS-go-to-market-ready**, and the business decided pricing +
+the one-app/two-shapes architecture.
 
-**This session (6/09 pm → 6/10) — company aesthetic, unified splash, the NPS marketing
-campaign, and front-end/back-end organization:**
+**The big architectural decision (read [FIELD-GUIDE.md](FIELD-GUIDE.md)):** ONE
+app, no fork, no NPS branch. `districts.org_type ('district'|'nps')` is the
+single source of truth (046). An NPS = an org with one school whose **director**
+holds site_admin + district_admin. Devin's service-call protocol: name the
+school/person and Claude routes from the DB; prefixes `NPS:` / `District:` /
+`Kit:` (marketing) when no name.
 
-- **Sure Step Education company aesthetic adopted (`f36fe24`).** Applied the canonical
-  [Sure_Step_Education_Aesthetic.md](Sure_Step_Education_Aesthetic.md) (now in repo root):
-  DM Serif Display / DM Sans / DM Mono via next/font, `--ssd-*` tokens repointed to the
-  company palette (navy `#1a1a2e`, forest `#0F6E56`, teal `#1D9E75`, amber `#EF9F27`,
-  cream `#F7F5F0`), dashboard `COLORS`/default theme updated, theme-color → navy.
-  ⚠️ Known leftovers: dashboard error boundary still coral `#e07850`; some marketing/landing
-  hexes may be off-palette.
-- **One smooth unified splash (`55cce1f` + `8c57fd7`).** All three loading moments (landing
-  auth-check, dashboard shell, dashboard data) now render a single `Splash` (navy field,
-  ascending-bars SVG drawing itself, wordmark fade — aesthetic MD §5). `SplashGate` in
-  [app/layout.tsx](app/layout.tsx) holds it a fixed **2.5s** then dissolves 0.6s, so it can't
-  "lightning-flash" on fast loads. Plays once per hard load (any route), not on client navs.
-- **NPS marketing campaign built (NOT in this repo)** — lives at
-  `Desktop/SURE STEP EDUCATION/dailywins-marketing/`: standalone marketing **website**
-  (with an interactive tap-to-win demo grid), a 13-slide **deck** (HTML, Cmd+P → PDF),
-  **cost-structure** proposal ($149/mo School tier + free 60-day pilot — **numbers need
-  Devin/Nick sign-off**), a 15-min **demo script** (Demo-Mode-only, objection cheat-sheet),
-  and a 4-email **director outreach sequence**. See its README for the launch order.
-- **Marketing site is LIVE: <https://dailywins-schools.vercel.app>** — deployed as a NEW
-  Vercel project `dailywins-schools` (separate from the app; app deploys untouched).
-  `dw.surestepeducation.com` is the intended custom domain but needs Devin to add a
-  Cloudflare DNS record first (CNAME `dw` → `cname.vercel-dns.com`, **DNS-only/grey cloud**),
-  then re-run the Vercel domain attach. Note: surestepeducation.com itself is on **Netlify**
-  behind Cloudflare; the local `surestep-site/` copy (Mar 29) has no git — do NOT redeploy
-  it casually to get a `/dw` path.
-- **Front-end/back-end organization (`5f51b53`).** New [ARCHITECTURE.md](ARCHITECTURE.md)
-  maps every source file to front end vs back end, documents the three FE↔BE seams
-  (browser RPCs, internal API routes, RLS table reads), and defines the branch workflow.
-  **New persistent branches `frontend` and `backend`** (pushed to origin) for divided work;
-  merge to `main` (auto-deploys) and refresh from `main` after. The repo was NOT physically
-  split — App Router requires one tree. Nine stale merged local branches pruned
-  (`feat/*`, `fix/*`, `design/*`). Leftover: branch `claude/determined-black-d331b5` +
-  its `.claude/worktrees/` worktree couldn't be auto-removed (permission gate) — it's merged
-  and inert; its one stray draft file is snapshotted at
-  `.snapshots/worktree-draft-schedules-schema.ts` if you want to delete the worktree manually.
+**Product shipped today (chronological):**
+- **Site-admin magic-link oversight (041, `46475f2`)** — `/admin/links` "Family
+  links" tab: PII-blind school-wide link list (teacher + metadata, never student
+  names) + confirm-to-revoke; `revoke_magic_link` now founder-capable + writes
+  an audit row.
+- **Scoped audit-read (`90fd5df`)** — `/admin/audit-log` serves founder (all),
+  district admins (their district), site admins (their school); PII-table rows
+  excluded from scoped views. Audit tab in SiteAdminNav.
+- **Splash once per browser session (`0c72b70`)** — sessionStorage gate checked
+  pre-paint; landing/dashboard loading states now use a cream `QuietLoader`
+  instead of the navy splash.
+- **Customize: editable zone names + quick-fill level (`453a8ee`)** — the four
+  progress-zone labels are teacher-editable; ⚡ fills top/second/third scale
+  option (3s/2s/1s). Co-teacher link renamed "Co-teacher / Paraprofessional"
+  (view says "Classroom Team").
+- **Founder per-district usage (042, `ff3fd54`)** — `/admin/usage` founder view:
+  All-districts rollup + per-district chips (now with "· NPS" badges).
+- **District notes archive (043, `45238ff`)** — `/admin/notes-archive`: ALL
+  district notes (incl. private), reason-gated (≥10 chars), audit row written
+  BEFORE rows return, CSV + print. **/privacy rewritten (`342dcf1`): the
+  district plainly owns and can view its full record; PII-blindness is claimed
+  ONLY for the Operator.** Counsel eyeball still wanted.
+- **Student self-assess (044, `9b454a4`)** — student link generated with "Allow
+  self-assessment" (readwrite) shows a "Rate your own day" panel; submissions
+  land in separate `self_assessments` (teacher's record stays official).
+  **Teacher sees self-checks** in the Entry view (`2105d09`).
+- **Lunch hardcode removed + error boundary on palette (`2105d09`).**
+- **Single-email invite (`dbf284b`) → branded short links (045, `d9a5311`)** —
+  invites email ONE message with `dailywins.school/welcome/<code>` (12-char,
+  single-use, 24h; `invite_signin_links` table). `/welcome` is a branded
+  interstitial whose button POST does the verifyOtp — mail scanners can't burn
+  the token. **OTP expiry raised 1h → 24h** (Supabase auth config via
+  Management API; was 3600, now 86400).
+- **Approval email closes the signup loop (`ba0ea71`)** — approving an access
+  request emails the requester "You're approved" + welcome link (was: silence).
+  Diagnosed from prod: the loop itself had worked; the email never existed.
+- **org_type + one-step NPS provisioning (046, `a90c4d0`)** — approve modal has
+  an **"NPS Director"** role: type the org name → atomic RPC creates org
+  (org_type=nps) + school + grants site_admin & district_admin → approval email
+  says "director".
+- **NPS director login (047, `ad0c0bb`)** — `/admin/records` ("Student records"
+  tab): roster → full per-student record (BehaviorCharts + ALL notes incl.
+  private, teacher-attributed; each open audited `nps_record.student`).
+  NPS-only: district site admins stay PII-blind and see an explanation;
+  founders excluded (operator blindness). **Link policy:**
+  `schools.link_settings` {parent,student,co_teacher} — director toggles on
+  `/admin/links`, ENFORCED inside `generate_magic_link`; teacher's Manage Links
+  hides disabled types. All guards smoke-tested on prod.
 
-**Local-only (this machine, NOT in git).** Firefox role profiles + `~/Desktop/DailyWins
-Roles.command`; `package.json` dev scripts (`dev:ff`, `ff`, `roles`) stay **UNCOMMITTED**
-(machine-specific). The marketing folder + `~/Desktop/dailywins-aesthetic-for-claude.txt`
-are also outside git — copy `dailywins-marketing/` manually if needed on the other machine.
+**Business decided today:**
+- **Pricing:** $199/mo flat per school, unlimited teachers, billed annually
+  ($2,388/yr); free 60-day pilot; **founding rate: first 15 California schools
+  lock $149/mo for life.** Live on the marketing site + deck + demo script +
+  emails + cost-structure doc.
+- **Devin has a 260-school California NPS list** to start outreach this month.
+- Marketing site live at **dailywins-schools.vercel.app** (Vercel project
+  `dailywins-schools`, deployed from `dailywins-marketing/website/`).
+  `dw.surestepeducation.com` still awaits a Cloudflare CNAME
+  (`dw` → `cname.vercel-dns.com`, DNS-only).
 
-**Prior context (all in prod).** 6/09 product day: co-teacher readwrite links can write
-(migration 039), arrival-charting fix, progress-icon continuity (040), B&W-safe PDF bars,
-multi-week/multi-month trend PDFs, Customize cleanup (6 themes, Inter-only). v1.1 admin
-tiers (034–037), magic-link behavior charts (038), school-pinned schedule. South Sac
-role-hierarchy test cluster (surestep2 → devintest2 → devintest3) walked end-to-end.
-Full detail in ROADMAP "Recently shipped" + git history.
+**Local-only (this machine, NOT in git).** Firefox role profiles +
+`DailyWins Roles.command`; `package.json` dev scripts stay UNCOMMITTED;
+`dailywins-marketing/` and `DailyWins Docs 2026-06-10/` (doc snapshots for a
+Claude project) live outside git.
 
-**Test accounts (prod).** South Sac cluster (surestep2 / devintest2 / devintest3 @
-proton.me, magic-link). Pre-existing `devinfarren+dwteacher/+dwsite/+dwdistrict` (PGHS /
-Elk Grove). Founder = Devin's Google (`devinfarren@gmail.com`, Chrome).
+**Test accounts (prod).** South Sac cluster (surestep2 district / devintest2
+site_admin / devintest3 teacher @ proton.me) + surestep3@proton.me (approved
+teacher, from signup-loop testing). devinfarren+dw* aliases. Founder = Devin's
+Google in Chrome. **No NPS org exists yet** — first NPS-Director approval will
+create one.
 
 ⚠️ **Open verification (deployed prod, browser):**
-1. **Splash + aesthetic** — eyeball the 2.5s splash and the DM/navy reskin on prod
-   (landing + dashboard + an admin page); revoke/tune if it reads wrong.
-2. **PDF bar charts** — download a Daily + Weekly PDF; check bars + B&W readability.
-3. **Arrival charting fix** — confirm Arrival reads ~90s% (not near-0) in charts + a parent link.
-4. **Co-teacher write** — readwrite link → add score + note → confirm charts/notes update.
-5. **Deactivate/reactivate** a teacher (still unwalked). Older act-as schedule-edit
-   live-verify still stands.
+1. **NPS end-to-end walk** — sign up a fresh test email → approve as **NPS
+   Director** (fake org) → approval email → welcome link → director dashboard →
+   Student records tab (empty roster OK) → Link policy toggles → invite a
+   teacher → teacher generates links (confirm a disabled type is hidden AND
+   blocked).
+2. **Self-assess walk** — readwrite student link → submit → teacher Entry view
+   shows the self-checks card.
+3. **Single-email invite + approval email** — both flows end in `/welcome/…`;
+   eyeball the branded page.
+4. Older: PDF bar charts B&W eyeball, arrival-fix eyeball, deactivate/reactivate
+   walk, act-as schedule-edit live-verify.
 
 **Known follow-ups:**
-- **Marketing campaign sign-offs:** pricing numbers ($149/mo, pilot terms) with Nick;
-  confirm `support@surestepeducation.com` actually receives (catch-all assumption);
-  Cloudflare CNAME for `dw.surestepeducation.com`; DPA template ready before first pilot.
-- **Magic-link OTP expiry is 1h** → raise to 24h (Supabase → Authentication → Email).
-- Magic-link sign-in is two emails; a server-generated link would collapse to one.
-- **Lunch-pref hardcode** (`!== "Cosumnes Oaks High School"`) in the Bell Schedule modal.
-- **Error boundary still coral**; optional deeper aesthetic pass on marketing/landing hexes.
-- **Scoped audit-read** (district/school) — RLS still founder-only.
-- Tier-doc gaps: district-admin invites site-admins, non-teacher deactivate, site-admin
-  magic-link revocation backstop.
-
-EGUSD July 13 prep remains the business headline (separate Demo Project); `/privacy`
-sign-off + compliance/DPA folder still stand.
+- **/privacy counsel eyeball** — district-record-ownership wording (342dcf1) +
+  NPS director records access; the site-admin bullet already permits school-level
+  record access, but a lawyer should read the whole §7 once.
+- **Marketing launch:** Cloudflare CNAME for `dw.`; demo dry-run with Nick;
+  first 25-school email batch (sequence in `dailywins-marketing/emails/`).
+- **Tier-doc gaps (build when a multi-school org signs):** district-admin
+  invites site-admins; non-teacher deactivate.
+- **General audit gap** for direct admin/MCP SQL (session-variable actor).
+- **One-way doors (attended):** drop vestigial `allowed_emails`; remove stale
+  `claude/determined-black-d331b5` worktree+branch (draft snapshotted).
+- Rose theme green secondary (cosmetic).
 
 ## What's queued next
-1. **Eyeball on prod:** splash/aesthetic, PDF bar charts, arrival fix (the three
-   shipped-but-unconfirmed visuals).
-2. **Marketing launch steps** (from `dailywins-marketing/README.md`): pricing sign-off →
-   Cloudflare CNAME for `dw.` → dry-run the demo script on freshly-seeded Demo Mode →
-   first 25-school email batch.
-3. **Raise magic-link OTP expiry to 24h** (Supabase Auth config).
-4. **Walk deactivate/reactivate** a teacher.
-5. **Site-admin magic-link revocation UI** (backend already permits; needs the screen).
-6. **Small polish:** lunch-pref hardcode; error-boundary palette; optional Rose/typeface unification.
-7. **General audit gap for direct admin/MCP SQL** — session-variable "intended actor."
-8. **Cleanup (one-way doors — attended):** drop vestigial `allowed_emails`; remove the stale
-   `claude/determined-black-d331b5` worktree + branch.
+1. **The NPS end-to-end walk above** — it's the exact flow the first paying
+   director will experience; everything else is secondary.
+2. **Marketing launch steps** (CNAME → dry-run → first email batch).
+3. Counsel pass on /privacy §7.
+4. Parking lot: tier-doc gaps, audit SQL gap, one-way-door cleanups.
 
 ## Working guardrails (current)
-- **Reversibility gate:** reversible work proceeds (incl. backed-up prod writes); **snapshot
-  before every prod mutation;** queue one-way doors (force-push / history rewrite, un-backed-up
-  destructive SQL, bulk ops, real-user emails, infra teardown, auth-config lockout) for an
+- **Reversibility gate:** reversible work proceeds (incl. backed-up prod
+  writes); **snapshot before every prod mutation;** queue one-way doors for an
   attended + approved moment.
 - Guarded-apply or stage-test migrations — restore point first, verify after.
 - A passing type-check is not a working feature — close the loop in the app.
 - `auth.uid()` for attribution; `effective_user_id()` for data access.
-- **Branch workflow now in [ARCHITECTURE.md](ARCHITECTURE.md):** UI work on `frontend`,
-  server/data work on `backend`, cross-cutting features as one branch off `main`; `main`
-  stays deployable (every push auto-deploys prod).
+- Branch workflow in [ARCHITECTURE.md](ARCHITECTURE.md); service-call protocol
+  + estate map in [FIELD-GUIDE.md](FIELD-GUIDE.md).
+- **PII-blindness boundaries (post-047):** teachers → own students; NPS
+  director → everything at their school (audited); district admins → aggregate
+  + audited notes archive; site admins (district-shaped) → blind; Operator →
+  blind (act-as + maintenance exceptions only).
 
 ## Infrastructure
-- **Prod app:** Supabase `kvbpfvazddlmoxobqfev` (us-east-1). Vercel project, three domains.
-  Migration head: **`040`**. Supabase MCP pinned to prod via an `sbp_…` PAT in `~/.claude.json`.
-- **Marketing site:** separate Vercel project `dailywins-schools`
-  (<https://dailywins-schools.vercel.app>), deployed via CLI from
-  `dailywins-marketing/website/` (linked there via its `.vercel/` folder — redeploy with
-  `npx vercel deploy --prod --yes` from that folder).
-- **Staging:** Supabase `oqhhpdaijscqdkpsxowq` (us-east-2). Pause manually to save cost.
-- **Company site:** surestepeducation.com = Netlify behind Cloudflare (DNS in Cloudflare).
+- **Prod app:** Supabase `kvbpfvazddlmoxobqfev` (us-east-1). Migration head:
+  **`047`**. Vercel, three domains. OTP expiry now 86400s.
+- **Marketing site:** Vercel project `dailywins-schools`
+  (dailywins-schools.vercel.app) ← `dailywins-marketing/website/` via CLI
+  (`npx vercel deploy --prod --yes` from that folder).
+- **Staging:** Supabase `oqhhpdaijscqdkpsxowq` (us-east-2), paused manually.
+- **Company site:** surestepeducation.com = Netlify behind Cloudflare.
 
 ## To continue on the other machine
-`git pull`, then tell Claude: *"Read HANDOFF.md and ROADMAP.md, then let's continue."*
-Overwrite the passphrase line whenever you want a fresh marker.
+`git pull`, then tell Claude: *"Read HANDOFF.md and ROADMAP.md, then let's
+continue."* Overwrite the passphrase line whenever you want a fresh marker.
