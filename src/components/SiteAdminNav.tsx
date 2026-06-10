@@ -2,13 +2,14 @@
 // others. Rendered for site admins on /admin/upload-schedule, /admin/teachers,
 // /admin/usage and /admin/links.
 
-type Current = "schedules" | "teachers" | "usage" | "links";
+type Current = "schedules" | "teachers" | "usage" | "links" | "audit";
 
 const LINKS: { key: Current; label: string; href: string }[] = [
   { key: "schedules", label: "Bell schedules", href: "/admin/upload-schedule" },
   { key: "teachers", label: "Teachers", href: "/admin/teachers" },
   { key: "usage", label: "School usage", href: "/admin/usage" },
   { key: "links", label: "Family links", href: "/admin/links" },
+  { key: "audit", label: "Audit log", href: "/admin/audit-log" },
 ];
 
 export default function SiteAdminNav({ current }: { current: Current }) {

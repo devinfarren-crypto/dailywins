@@ -137,6 +137,19 @@ export default async function UsagePage() {
     const districtName = schools[0]?.district ?? "Your district";
     return (
       <Shell eyebrow="· District usage ·" title={districtName} subtitle="Aggregate adoption across your schools">
+        <div style={{ marginBottom: 16 }}>
+          <a
+            href="/admin/audit-log"
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: "var(--ssd-green)",
+              textDecoration: "none",
+            }}
+          >
+            Audit log →
+          </a>
+        </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 28 }}>
           <StatCard label="Schools" value={totals.schools ?? 0} />
           <StatCard label="Teachers" value={totals.teachers ?? 0} />
