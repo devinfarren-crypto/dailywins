@@ -64,6 +64,64 @@ function blankVariant(): ExtractedVariant {
   return { name: 'New schedule', days: null, specific_dates: null, notes: null, periods: [blankPeriod()] };
 }
 
+// The navy stage — the same branded field as the director launch sequence
+// (/admin/home), so the whole director experience reads as ONE product
+// moment instead of falling back to plain cream between steps.
+function NavyStage({ eyebrow, children, wide = false }: { eyebrow?: string; children: React.ReactNode; wide?: boolean }) {
+  return (
+    <div
+      style={{
+        position: 'relative',
+        borderRadius: 24,
+        background: 'linear-gradient(160deg, #1a1a2e 0%, #2a2b48 100%)',
+        padding: '30px 22px 36px',
+        overflow: 'hidden',
+      }}
+    >
+      <svg
+        viewBox="0 0 200 200"
+        aria-hidden="true"
+        style={{ position: 'absolute', right: -30, bottom: -40, width: 280, height: 280, opacity: 0.1, pointerEvents: 'none' }}
+      >
+        <rect x="38" y="120" width="22" height="40" rx="3" fill="#5DCAA5" />
+        <rect x="68" y="98" width="22" height="62" rx="3" fill="#5DCAA5" />
+        <rect x="98" y="74" width="22" height="86" rx="3" fill="#5DCAA5" />
+        <rect x="128" y="48" width="22" height="112" rx="3" fill="#5DCAA5" />
+        <path d="M38 150 C 78 124, 128 100, 158 36" stroke="#EF9F27" strokeWidth="5" strokeLinecap="round" fill="none" />
+      </svg>
+      {eyebrow ? (
+        <div
+          style={{
+            position: 'relative',
+            textAlign: 'center',
+            fontFamily: 'var(--ssd-font-mono), monospace',
+            fontSize: 11,
+            letterSpacing: '0.16em',
+            textTransform: 'uppercase',
+            color: '#5DCAA5',
+            marginBottom: 14,
+          }}
+        >
+          {eyebrow}
+        </div>
+      ) : null}
+      <div
+        style={{
+          position: 'relative',
+          background: '#fff',
+          borderRadius: 18,
+          padding: '30px 32px',
+          boxShadow: '0 24px 60px rgba(10,10,20,.45)',
+          maxWidth: wide ? 760 : 620,
+          margin: '0 auto',
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 // Storage keys schedules by variant NAME, so duplicates silently overwrite
 // each other — and the model legitimately produces them (e.g. two "ELA
 // Testing" windows with different dates). Make names unique as soon as the
@@ -344,13 +402,14 @@ export default function ScheduleUploader({
 
   if (state.kind === 'idle' || state.kind === 'error') {
     return (
+      <NavyStage eyebrow={`${selectedSchool?.name ?? 'Your school'} · Bell schedules`}>
       <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif', color: C.body }}>
-        <h2 style={{ color: C.heading, fontSize: 24, fontWeight: 500, marginBottom: 8 }}>
-          Bell schedules
+        <h2 style={{ fontFamily: 'var(--ssd-font-display), Georgia, serif', color: '#1a1a2e', fontSize: 26, fontWeight: 500, marginBottom: 8 }}>
+          Make the day look like your day.
         </h2>
-        <p style={{ color: C.hint, marginBottom: 20, fontSize: 15 }}>
-          Upload a PDF and we&apos;ll read it for you, or edit the schedule that&apos;s already on
-          file. You&apos;ll review everything before it&apos;s saved.
+        <p style={{ color: C.hint, marginBottom: 20, fontSize: 14.5, lineHeight: 1.55 }}>
+          Drop in your bell schedule — a PDF is perfect, the AI reads it for you — and every
+          teacher&apos;s grid shows your real periods. You&apos;ll review everything before it saves.
         </p>
 
         {/* School picker — which school you're managing. */}
@@ -422,11 +481,11 @@ export default function ScheduleUploader({
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
           style={{
-            border: `2px dashed ${C.border}`,
-            borderRadius: 12,
-            padding: 48,
+            border: '2px dashed #5DCAA5',
+            borderRadius: 14,
+            padding: 44,
             textAlign: 'center',
-            background: C.cream,
+            background: '#E1F5EE',
             cursor: 'pointer',
             transition: 'border-color 0.15s',
           }}
@@ -463,12 +522,14 @@ export default function ScheduleUploader({
           </div>
         )}
       </div>
+      </NavyStage>
     );
   }
 
   if (state.kind === 'uploading' || state.kind === 'extracting') {
     return (
-      <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif', textAlign: 'center', padding: 48 }}>
+      <NavyStage eyebrow={`${selectedSchool?.name ?? 'Your school'} · Reading your schedule`}>
+      <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif', textAlign: 'center', padding: 12 }}>
         <style>{`
           @keyframes dwReadBar { 0%, 100% { transform: scaleY(.35) } 50% { transform: scaleY(1) } }
           @keyframes dwTrophy { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-5px) } }
@@ -497,56 +558,82 @@ export default function ScheduleUploader({
             : 'The AI is reading every period, variant, and lunch split. Simple schedules take ~15 seconds; detailed multi-day ones can take a minute or two. This page is not frozen — the bars are working.'}
         </div>
       </div>
+      </NavyStage>
     );
   }
 
   if (state.kind === 'saving') {
     return (
-      <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif', textAlign: 'center', padding: 48 }}>
-        <div style={{ fontSize: 28, marginBottom: 16 }}>💾</div>
-        <div style={{ color: C.heading, fontSize: 18, fontWeight: 500, marginBottom: 6 }}>
-          Saving
+      <NavyStage eyebrow={`${selectedSchool?.name ?? 'Your school'} · Saving`}>
+      <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif', textAlign: 'center', padding: 12 }}>
+        <div style={{ fontSize: 28, marginBottom: 12 }}>💾</div>
+        <div style={{ fontFamily: 'var(--ssd-font-display), Georgia, serif', color: '#1a1a2e', fontSize: 20, marginBottom: 6 }}>
+          Locking it in…
         </div>
         <div style={{ color: C.hint, fontSize: 14 }}>
           Just a moment.
         </div>
       </div>
+      </NavyStage>
     );
   }
 
   if (state.kind === 'saved') {
     return (
-      <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif', textAlign: 'center', padding: 48 }}>
-        <div style={{ fontSize: 32, marginBottom: 16 }}>✅</div>
-        <div style={{ color: C.heading, fontSize: 20, fontWeight: 500, marginBottom: 8 }}>
-          Schedule saved
-        </div>
-        <div style={{ color: C.hint, fontSize: 14, marginBottom: 24 }}>
-          {state.variants_saved} variant{state.variants_saved === 1 ? '' : 's'} saved
-          {' · '}
-          {state.variants_total} total on file
-        </div>
-        <button
-          onClick={() => {
-            setState({ kind: 'idle' });
-            setEditedSchedule(null);
-            setExpandedVariant(0);
-            setSaveMode('merge');
-          }}
+      <NavyStage eyebrow={`${selectedSchool?.name ?? 'Your school'} · Schedule saved`}>
+      <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif', textAlign: 'center', padding: 12 }}>
+        <style>{`
+          @keyframes dwSavePop { 0% { transform: scale(.4); opacity: 0 } 60% { transform: scale(1.15) } 100% { transform: scale(1); opacity: 1 } }
+          @media (prefers-reduced-motion: reduce) { .dw-save-pop { animation: none !important } }
+        `}</style>
+        <div
+          className="dw-save-pop"
           style={{
-            padding: '10px 20px',
-            background: C.primary,
-            color: '#fff',
-            border: 'none',
-            borderRadius: 6,
-            fontSize: 14,
-            fontWeight: 500,
-            cursor: 'pointer',
+            width: 64, height: 64, borderRadius: '50%', margin: '0 auto 14px',
+            background: '#1D9E75', color: '#fff', fontSize: 30, fontWeight: 800,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 0 0 8px rgba(29,158,117,.22)',
+            animation: 'dwSavePop .45s ease both',
           }}
         >
-          Done
-        </button>
+          ✓
+        </div>
+        <div style={{ fontFamily: 'var(--ssd-font-display), Georgia, serif', color: '#1a1a2e', fontSize: 24, marginBottom: 6 }}>
+          🏆 Your schedule is on file.
+        </div>
+        <div style={{ color: C.hint, fontSize: 14, marginBottom: 22 }}>
+          {state.variants_saved} schedule{state.variants_saved === 1 ? '' : 's'} saved
+          {' · '}
+          {state.variants_total} total on file — teachers see your real day from their next visit.
+        </div>
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <a
+            href="/admin/home"
+            style={{
+              padding: '11px 24px', background: '#0F6E56', color: '#fff', border: 'none',
+              borderRadius: 999, fontSize: 14, fontWeight: 700, cursor: 'pointer', textDecoration: 'none',
+            }}
+          >
+            Back to launch →
+          </a>
+          <button
+            onClick={() => {
+              setState({ kind: 'idle' });
+              setEditedSchedule(null);
+              setExpandedVariant(0);
+              setSaveMode('merge');
+            }}
+            style={{
+              padding: '11px 20px', background: 'transparent', color: '#1D9E75',
+              border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+              textDecoration: 'underline', textUnderlineOffset: 3,
+            }}
+          >
+            Upload another
+          </button>
+        </div>
       </div>
+      </NavyStage>
     );
   }
 
@@ -561,21 +648,33 @@ export default function ScheduleUploader({
 
   return (
     <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif', color: C.body, maxWidth: 880 }}>
-      {/* Header — celebrate first, then guide */}
+      {/* Header — the navy stage moment, same as the launch sequence */}
       <div
         style={{
-          background: '#E1F5EE',
-          borderLeft: '4px solid #1D9E75',
-          borderRadius: 12,
-          padding: '16px 20px',
+          position: 'relative',
+          background: 'linear-gradient(160deg, #1a1a2e 0%, #2a2b48 100%)',
+          borderRadius: 20,
+          padding: '22px 26px',
           marginBottom: 20,
+          overflow: 'hidden',
         }}
       >
-        <h2 style={{ color: '#0F6E56', fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>
+        <svg
+          viewBox="0 0 200 200"
+          aria-hidden="true"
+          style={{ position: 'absolute', right: -20, bottom: -50, width: 200, height: 200, opacity: 0.12, pointerEvents: 'none' }}
+        >
+          <rect x="38" y="120" width="22" height="40" rx="3" fill="#5DCAA5" />
+          <rect x="68" y="98" width="22" height="62" rx="3" fill="#5DCAA5" />
+          <rect x="98" y="74" width="22" height="86" rx="3" fill="#5DCAA5" />
+          <rect x="128" y="48" width="22" height="112" rx="3" fill="#5DCAA5" />
+          <path d="M38 150 C 78 124, 128 100, 158 36" stroke="#EF9F27" strokeWidth="5" strokeLinecap="round" fill="none" />
+        </svg>
+        <h2 style={{ position: 'relative', fontFamily: 'var(--ssd-font-display), Georgia, serif', color: '#fff', fontSize: 24, fontWeight: 500, margin: '0 0 6px' }}>
           {saveMode === 'replace' ? 'Your schedule, ready to edit' : '🏆 Got it — your schedule is in!'}
         </h2>
-        <p style={{ color: '#2a4d42', fontSize: 14, margin: 0, lineHeight: 1.5 }}>
-          {schedule.school_name && <strong>{schedule.school_name}</strong>}
+        <p style={{ position: 'relative', color: 'rgba(255,255,255,.75)', fontSize: 14, margin: 0, lineHeight: 1.55 }}>
+          {schedule.school_name && <strong style={{ color: '#5DCAA5' }}>{schedule.school_name}</strong>}
           {schedule.school_year && <> · {schedule.school_year}</>}
           {' · '}
           {schedule.variants.length} schedule{schedule.variants.length === 1 ? '' : 's'} read
