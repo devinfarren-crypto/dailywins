@@ -50,3 +50,32 @@ Front end talks to back end three ways — when changing a contract, check both 
 - **`backend`** — working branch for server/data work (API routes, auth, src/lib server code, migrations).
 
 Cycle: branch from fresh `main` → work → `npm run build` green → merge to `main` → push (deploys) → refresh your working branch from `main` (`git checkout frontend && git merge main`). Small/urgent fixes can still go straight to `main`. If one change spans both sides (e.g., a new RPC + the UI that calls it), do it as one branch off `main` — don't split a single feature across the two branches.
+
+## Two agents at once — worktrees (set up 2026-06-11)
+
+A branch alone can't host a second agent: one checkout = one active branch, and
+VS Code won't open the same folder twice. **Git worktrees** solve both — each is
+a real folder with its own checked-out branch, sharing one repo history:
+
+| Folder (Desktop/SURE STEP EDUCATION/) | Branch | Open as |
+|---|---|---|
+| `dailywins-app/` | `main` | window 1 — integration + deploys |
+| `dailywins-frontend/` | `frontend` | window 2 — UI agent |
+| `dailywins-backend/` | `backend` | window 3 — server/data agent |
+
+Quickstart for a two-agent session:
+
+1. Open `dailywins-frontend` and `dailywins-backend` in separate VS Code windows
+   (File → Open Folder). Start Claude Code in each.
+2. Dev servers need different ports: `npm run dev` in one,
+   `npm run dev -- -p 3001` in the other.
+3. Before starting work in a worktree: `git merge main` (stay fresh).
+4. To ship: merge the branch into `main` (from `dailywins-app`:
+   `git merge frontend && git push`) — only `main` deploys.
+
+Worktree facts: `.env.local` and `node_modules` do NOT travel with git — they
+were copied/installed per folder at setup; re-copy `.env.local` if secrets
+change. `git worktree list` shows the map; `git worktree remove <path>` cleans
+one up. Commits made in any worktree are instantly visible to the others (same
+repo). Both agents share the ONE prod database — coordinate migrations
+(numbered files) through the backend window only.
