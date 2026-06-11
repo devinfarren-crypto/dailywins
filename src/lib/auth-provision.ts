@@ -50,19 +50,32 @@ export async function resolvePostAuthRedirect(
   }
 
   // Pure admins (no teacher row) land on their role's home surface — the teacher
-  // dashboard would bounce them to /pending via ensure_teacher_exists. Each tier
-  // has a distinct home (per docs/TIERED_ARCHITECTURE_v1.1):
+  // dashboard would bounce them to /pending via ensure_teacher_exists.
   //   founder        → the management/act-as hub (/admin/teachers)
-  //   district_admin → the PII-blind district usage dashboard (/admin/usage)
-  //   site_admin     → bell-schedule management (/admin/upload-schedule)
+  //   site_admin     → the admin home (checklist + onboarding; NPS directors
+  //                    hold this role, so a new director never lands on an
+  //                    empty stats page)
+  //   district_admin → NPS-shaped orgs go to the admin home too; true
+  //                    district admins keep the PII-blind usage dashboard
   if (roles.includes("founder")) {
     return "/admin/teachers";
   }
-  if (roles.includes("district_admin")) {
-    return "/admin/usage";
-  }
   if (roles.includes("site_admin")) {
-    return "/admin/upload-schedule";
+    return "/admin/home";
+  }
+  if (roles.includes("district_admin")) {
+    const { data: districtRoles } = await admin
+      .from("role_assignments")
+      .select("district_id, districts(org_type)")
+      .eq("user_id", user.id)
+      .eq("role", "district_admin")
+      .not("district_id", "is", null);
+    const allNps =
+      (districtRoles ?? []).length > 0 &&
+      (districtRoles ?? []).every(
+        (r) => (r.districts as { org_type?: string } | null)?.org_type === "nps"
+      );
+    return allNps ? "/admin/home" : "/admin/usage";
   }
 
   // Email-bound teacher invite: a site admin pre-authorized this email address.

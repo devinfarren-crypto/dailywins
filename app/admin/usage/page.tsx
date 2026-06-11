@@ -85,7 +85,7 @@ const td: React.CSSProperties = {
   borderBottom: "1px solid var(--ssd-border)",
 };
 
-function Shell({ eyebrow, title, subtitle, children }: { eyebrow: string; title: string; subtitle: string; children: React.ReactNode }) {
+function Shell({ eyebrow, title, subtitle, children, footer }: { eyebrow: string; title: string; subtitle: string; children: React.ReactNode; footer?: string }) {
   return (
     <main style={{ minHeight: "100vh", background: "var(--ssd-paper)", padding: "40px 20px" }}>
       <div style={{ maxWidth: 1000, margin: "0 auto" }}>
@@ -99,8 +99,8 @@ function Shell({ eyebrow, title, subtitle, children }: { eyebrow: string; title:
         </header>
         {children}
         <p style={{ marginTop: 28, fontSize: 12, color: "var(--ssd-text-muted)", lineHeight: 1.5 }}>
-          These figures are aggregate usage only. Individual student behavior scores and notes are never visible to
-          administrators — by database design.
+          {footer ??
+            "These figures are aggregate usage only. Individual student behavior scores and notes are never visible to administrators — by database design."}
         </p>
       </div>
     </main>
@@ -123,8 +123,24 @@ export default async function UsagePage({
     .eq("user_id", user.id);
   const roles = (roleRows ?? []).map((r) => r.role);
   const isFounder = roles.includes("founder");
-  const isDistrictAdmin = roles.includes("district_admin");
   const isSiteAdmin = roles.includes("site_admin");
+  let isDistrictAdmin = roles.includes("district_admin");
+
+  // An NPS director holds district_admin over a single-school org, but their
+  // usage view should read as a SCHOOL page (site branch, with the admin nav)
+  // — not as an empty "district" dashboard with the wrong language.
+  if (isDistrictAdmin && !isFounder && isSiteAdmin) {
+    const { data: orgRows } = await admin
+      .from("role_assignments")
+      .select("districts(org_type)")
+      .eq("user_id", user.id)
+      .eq("role", "district_admin")
+      .not("district_id", "is", null);
+    const allNps =
+      (orgRows ?? []).length > 0 &&
+      (orgRows ?? []).every((r) => (r.districts as { org_type?: string } | null)?.org_type === "nps");
+    if (allNps) isDistrictAdmin = false; // fall through to the school branch
+  }
 
   // District rollups: district admins see their own district; founders see all
   // districts with a per-district filter (migration 042). Site admins see
@@ -284,7 +300,12 @@ export default async function UsagePage({
     const teachers = (data.teachers ?? []) as SiteTeacher[];
     const schoolName = teachers[0]?.school ?? "Your school";
     return (
-      <Shell eyebrow="· School usage ·" title={schoolName} subtitle="Teacher activity at your school">
+      <Shell
+        eyebrow="· School usage ·"
+        title={schoolName}
+        subtitle="Teacher activity at your school"
+        footer="These figures are aggregate activity. Where your role permits individual records (NPS directors), they live under the Student records tab — with every access audited."
+      >
         <SiteAdminNav current="usage" />
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 28 }}>
           <StatCard label="Teachers" value={totals.teachers ?? 0} />
