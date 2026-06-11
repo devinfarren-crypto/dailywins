@@ -756,43 +756,46 @@ function MissionControl({
         @media (prefers-reduced-motion: reduce) { .dw-bar { animation: none } .dw-tile:hover { transform: none } }
       `}</style>
 
-      {/* Navy hero: the school, live */}
+      {/* Navy band: compact steady-state header — the big hero was a one-time
+          finale moment; day-to-day it should cost one slim row, not a screen. */}
       <div
         style={{
           position: "relative",
-          borderRadius: 24,
+          borderRadius: 18,
           background: `linear-gradient(160deg, ${NAVY} 0%, ${NAVY_SOFT} 100%)`,
-          padding: "40px 28px",
-          textAlign: "center",
+          padding: "16px 22px",
           overflow: "hidden",
-          marginBottom: 18,
+          marginBottom: 14,
+          display: "flex",
+          alignItems: "center",
+          gap: 16,
+          flexWrap: "wrap",
         }}
       >
         <svg
           viewBox="0 0 200 200"
           aria-hidden="true"
-          style={{ position: "absolute", left: -40, top: -30, width: 260, height: 260, opacity: 0.08, pointerEvents: "none" }}
+          style={{ position: "absolute", right: -20, top: -50, width: 180, height: 180, opacity: 0.1, pointerEvents: "none" }}
         >
           <path d="M38 150 C 78 124, 128 100, 158 36" stroke={AMBER} strokeWidth="5" strokeLinecap="round" fill="none" />
           <circle cx="158" cy="36" r="7" fill={AMBER} />
         </svg>
-        <BarsMark size={76} light />
-        <h2
-          style={{
-            fontFamily: "var(--ssd-font-display), Georgia, serif",
-            fontSize: 32,
-            fontWeight: 500,
-            color: "#fff",
-            margin: "10px 0 8px",
-          }}
-        >
-          {schoolName} is live.
-        </h2>
-        <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "rgba(255,255,255,.7)", maxWidth: 460, margin: "0 auto 10px" }}>
-          {isNps
-            ? "Your school is set up and yours to run — every tab above, whenever you need it."
-            : "Your school is set up — every tab above, whenever you need it."}
-        </p>
+        <BarsMark size={40} light />
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <span
+            style={{
+              fontFamily: "var(--ssd-font-display), Georgia, serif",
+              fontSize: 20,
+              fontWeight: 500,
+              color: "#fff",
+            }}
+          >
+            {schoolName} is live.
+          </span>
+          <span style={{ fontSize: 13, color: "rgba(255,255,255,.65)", marginLeft: 10 }}>
+            {isNps ? "Yours to run — every tab above." : "Every tab above, whenever you need it."}
+          </span>
+        </div>
         <button
           onClick={onReplay}
           style={{
@@ -804,6 +807,7 @@ function MissionControl({
             cursor: "pointer",
             textDecoration: "underline",
             textUnderlineOffset: 3,
+            flexShrink: 0,
           }}
         >
           Replay setup
