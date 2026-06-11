@@ -227,7 +227,9 @@ export default function LoginPage() {
                 {invited ? "Join your school" : "Welcome back"}
               </h2>
               <p style={{ fontSize: 13, color: "var(--ssd-text-muted)", margin: "0 0 20px" }}>
-                {invited ? "Use the email this invite was sent to." : "Pilot teachers and approved accounts only."}
+                {invited
+                  ? "Use the email this invite was sent to."
+                  : "Your email is your key — first visit or five-hundredth, this same box signs you in."}
               </p>
 
               {error && (
@@ -262,7 +264,8 @@ export default function LoginPage() {
                 <div style={{ background: "var(--ssd-surface-alt)", border: "1px solid var(--ssd-border)", borderLeft: "3px solid var(--ssd-green)", borderRadius: "var(--ssd-radius-sm)", padding: "12px 14px", fontSize: 13, color: "var(--ssd-text)", lineHeight: 1.5 }}>
                   Check your inbox — we sent a sign-in link to{" "}
                   <span style={{ fontWeight: 600 }}>{email.trim().toLowerCase()}</span>.
-                  The link opens DailyWins and expires shortly.
+                  Don&apos;t see it? Check Spam or Promotions. Links are one-time and expire,
+                  but you can repeat this from here whenever you need — it never stops working.
                   <button
                     onClick={() => { setMagicSent(false); setMagicError(""); }}
                     style={{ display: "block", marginTop: 8, background: "none", border: "none", padding: 0, color: "var(--ssd-green-deep)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
@@ -295,6 +298,11 @@ export default function LoginPage() {
                   >
                     {magicBusy ? "Sending…" : "Email me a sign-in link"}
                   </button>
+                  <p style={{ margin: "12px 0 0", fontSize: 12, color: "var(--ssd-text-muted)", lineHeight: 1.55 }}>
+                    <strong style={{ color: "var(--ssd-ink)" }}>Already have DailyWins?</strong> This is
+                    also how you sign back in — no password, no re-registering. Lost an old sign-in
+                    email? It doesn&apos;t matter; a fresh link is sent every time.
+                  </p>
                 </form>
               )}
 
