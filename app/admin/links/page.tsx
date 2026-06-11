@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { createClient } from "@/src/lib/supabase-server";
 import { createAdminClient } from "@/src/lib/supabase-admin";
 import SiteAdminNav from "@/src/components/SiteAdminNav";
+import AdminNavyBand from "@/src/components/AdminNavyBand";
 import SignOutButton from "@/src/components/SignOutButton";
 import LinksClient, { type SchoolLinkRow } from "./LinksClient";
 import LinkPolicyCard from "./LinkPolicyCard";
@@ -34,7 +35,15 @@ function Shell({
           </div>
           <SignOutButton />
         </header>
-        {showNav ? <SiteAdminNav current="links" /> : null}
+        {showNav ? (
+          <>
+            <SiteAdminNav current="links" />
+            <AdminNavyBand
+              title="You decide which links exist."
+              sub="Turn parent, student, and co-teacher links on or off — revoke any single link instantly."
+            />
+          </>
+        ) : null}
         {children}
         <p style={{ marginTop: 28, fontSize: 12, color: "var(--ssd-text-muted)", lineHeight: 1.5 }}>
           Links are listed by the teacher who created them — student names are never shown to

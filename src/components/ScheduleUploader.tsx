@@ -9,6 +9,7 @@ import {
   type ExtractedSchedule,
 } from '@/src/lib/schedule-shape';
 import type { Schedules } from '@/src/lib/schedules-schema';
+import AdminNavyBand from '@/src/components/AdminNavyBand';
 
 // "merge"   → POST adds these variants over the school's existing ones (upload).
 // "replace" → POST writes these variants AS the school's whole schedule, so a
@@ -64,60 +65,23 @@ function blankVariant(): ExtractedVariant {
   return { name: 'New schedule', days: null, specific_dates: null, notes: null, periods: [blankPeriod()] };
 }
 
-// The navy stage — the same branded field as the director launch sequence
-// (/admin/home), so the whole director experience reads as ONE product
-// moment instead of falling back to plain cream between steps.
-function NavyStage({ eyebrow, children, wide = false }: { eyebrow?: string; children: React.ReactNode; wide?: boolean }) {
+// The white working card under the shared AdminNavyBand. The band (one slim
+// navy row, identical on every admin tab) is the only navy element on the
+// page — the old full-bleed "navy stage" made the box jump size and position
+// between tabs, so it's gone; states talk through the band's title instead.
+function StageCard({ children, center = false }: { children: React.ReactNode; center?: boolean }) {
   return (
     <div
       style={{
-        position: 'relative',
-        borderRadius: 24,
-        background: 'linear-gradient(160deg, #1a1a2e 0%, #2a2b48 100%)',
-        padding: '30px 22px 36px',
-        overflow: 'hidden',
+        background: '#fff',
+        border: `1px solid ${C.border}`,
+        borderRadius: 18,
+        padding: '26px 28px',
+        boxShadow: '0 6px 16px rgba(26,38,61,.06)',
+        textAlign: center ? 'center' : undefined,
       }}
     >
-      <svg
-        viewBox="0 0 200 200"
-        aria-hidden="true"
-        style={{ position: 'absolute', right: -30, bottom: -40, width: 280, height: 280, opacity: 0.1, pointerEvents: 'none' }}
-      >
-        <rect x="38" y="120" width="22" height="40" rx="3" fill="#5DCAA5" />
-        <rect x="68" y="98" width="22" height="62" rx="3" fill="#5DCAA5" />
-        <rect x="98" y="74" width="22" height="86" rx="3" fill="#5DCAA5" />
-        <rect x="128" y="48" width="22" height="112" rx="3" fill="#5DCAA5" />
-        <path d="M38 150 C 78 124, 128 100, 158 36" stroke="#EF9F27" strokeWidth="5" strokeLinecap="round" fill="none" />
-      </svg>
-      {eyebrow ? (
-        <div
-          style={{
-            position: 'relative',
-            textAlign: 'center',
-            fontFamily: 'var(--ssd-font-mono), monospace',
-            fontSize: 11,
-            letterSpacing: '0.16em',
-            textTransform: 'uppercase',
-            color: '#5DCAA5',
-            marginBottom: 14,
-          }}
-        >
-          {eyebrow}
-        </div>
-      ) : null}
-      <div
-        style={{
-          position: 'relative',
-          background: '#fff',
-          borderRadius: 18,
-          padding: '30px 32px',
-          boxShadow: '0 24px 60px rgba(10,10,20,.45)',
-          maxWidth: wide ? 760 : 620,
-          margin: '0 auto',
-        }}
-      >
-        {children}
-      </div>
+      {children}
     </div>
   );
 }
@@ -402,14 +366,15 @@ export default function ScheduleUploader({
 
   if (state.kind === 'idle' || state.kind === 'error') {
     return (
-      <NavyStage eyebrow={`${selectedSchool?.name ?? 'Your school'} · Bell schedules`}>
       <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif', color: C.body }}>
-        <h2 style={{ fontFamily: 'var(--ssd-font-display), Georgia, serif', color: '#1a1a2e', fontSize: 26, fontWeight: 500, marginBottom: 8 }}>
-          Make the day look like your day.
-        </h2>
-        <p style={{ color: C.hint, marginBottom: 20, fontSize: 14.5, lineHeight: 1.55 }}>
-          Drop in your bell schedule — a PDF is perfect, the AI reads it for you — and every
-          teacher&apos;s grid shows your real periods. You&apos;ll review everything before it saves.
+        <AdminNavyBand
+          title="Make the day look like your day."
+          sub={`${selectedSchool?.name ?? 'Your school'} · drop in a PDF — you'll review everything before it saves.`}
+        />
+        <StageCard>
+        <p style={{ color: C.hint, marginBottom: 20, fontSize: 14.5, lineHeight: 1.55, marginTop: 0 }}>
+          The AI reads your bell schedule — every period, variant, and lunch split — and every
+          teacher&apos;s grid shows your real day.
         </p>
 
         {/* School picker — which school you're managing. */}
@@ -521,15 +486,19 @@ export default function ScheduleUploader({
             {state.message}
           </div>
         )}
+        </StageCard>
       </div>
-      </NavyStage>
     );
   }
 
   if (state.kind === 'uploading' || state.kind === 'extracting') {
     return (
-      <NavyStage eyebrow={`${selectedSchool?.name ?? 'Your school'} · Reading your schedule`}>
-      <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif', textAlign: 'center', padding: 12 }}>
+      <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+        <AdminNavyBand
+          title={state.kind === 'uploading' ? 'Sending your schedule…' : '🏆 Reading your schedule…'}
+          sub={state.filename}
+        />
+        <StageCard center>
         <style>{`
           @keyframes dwReadBar { 0%, 100% { transform: scaleY(.35) } 50% { transform: scaleY(1) } }
           @keyframes dwTrophy { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-5px) } }
@@ -549,39 +518,41 @@ export default function ScheduleUploader({
         </div>
         <div style={{ color: C.heading, fontSize: 18, fontWeight: 600, marginBottom: 6 }}>
           {state.kind === 'uploading' ? 'Uploading' : (
-            <><span className="dw-trophy">🏆</span> Reading your schedule…</>
+            <><span className="dw-trophy">🏆</span> Reading every period, variant, and lunch split</>
           )}
         </div>
         <div style={{ color: C.hint, fontSize: 14, maxWidth: 380, margin: '0 auto', lineHeight: 1.5 }}>
           {state.kind === 'uploading'
             ? state.filename
-            : 'The AI is reading every period, variant, and lunch split. Simple schedules take ~15 seconds; detailed multi-day ones can take a minute or two. This page is not frozen — the bars are working.'}
+            : 'Simple schedules take ~15 seconds; detailed multi-day ones can take a minute or two. This page is not frozen — the bars are working.'}
         </div>
+        </StageCard>
       </div>
-      </NavyStage>
     );
   }
 
   if (state.kind === 'saving') {
     return (
-      <NavyStage eyebrow={`${selectedSchool?.name ?? 'Your school'} · Saving`}>
-      <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif', textAlign: 'center', padding: 12 }}>
-        <div style={{ fontSize: 28, marginBottom: 12 }}>💾</div>
-        <div style={{ fontFamily: 'var(--ssd-font-display), Georgia, serif', color: '#1a1a2e', fontSize: 20, marginBottom: 6 }}>
-          Locking it in…
-        </div>
-        <div style={{ color: C.hint, fontSize: 14 }}>
-          Just a moment.
-        </div>
+      <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+        <AdminNavyBand title="Locking it in…" sub="Just a moment." />
+        <StageCard center>
+          <div style={{ fontSize: 28, marginBottom: 10 }}>💾</div>
+          <div style={{ color: C.hint, fontSize: 14 }}>
+            Writing your reviewed schedule to {selectedSchool?.name ?? 'your school'}.
+          </div>
+        </StageCard>
       </div>
-      </NavyStage>
     );
   }
 
   if (state.kind === 'saved') {
     return (
-      <NavyStage eyebrow={`${selectedSchool?.name ?? 'Your school'} · Schedule saved`}>
-      <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif', textAlign: 'center', padding: 12 }}>
+      <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+        <AdminNavyBand
+          title="🏆 Your schedule is on file."
+          sub={`${selectedSchool?.name ?? 'Your school'} · teachers see your real day from their next visit.`}
+        />
+        <StageCard center>
         <style>{`
           @keyframes dwSavePop { 0% { transform: scale(.4); opacity: 0 } 60% { transform: scale(1.15) } 100% { transform: scale(1); opacity: 1 } }
           @media (prefers-reduced-motion: reduce) { .dw-save-pop { animation: none !important } }
@@ -598,13 +569,10 @@ export default function ScheduleUploader({
         >
           ✓
         </div>
-        <div style={{ fontFamily: 'var(--ssd-font-display), Georgia, serif', color: '#1a1a2e', fontSize: 24, marginBottom: 6 }}>
-          🏆 Your schedule is on file.
-        </div>
         <div style={{ color: C.hint, fontSize: 14, marginBottom: 22 }}>
           {state.variants_saved} schedule{state.variants_saved === 1 ? '' : 's'} saved
           {' · '}
-          {state.variants_total} total on file — teachers see your real day from their next visit.
+          {state.variants_total} total on file.
         </div>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
           <a
@@ -632,8 +600,8 @@ export default function ScheduleUploader({
             Upload another
           </button>
         </div>
+        </StageCard>
       </div>
-      </NavyStage>
     );
   }
 
@@ -648,46 +616,26 @@ export default function ScheduleUploader({
 
   return (
     <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif', color: C.body, maxWidth: 880 }}>
-      {/* Header — the navy stage moment, same as the launch sequence */}
-      <div
-        style={{
-          position: 'relative',
-          background: 'linear-gradient(160deg, #1a1a2e 0%, #2a2b48 100%)',
-          borderRadius: 20,
-          padding: '22px 26px',
-          marginBottom: 20,
-          overflow: 'hidden',
-        }}
-      >
-        <svg
-          viewBox="0 0 200 200"
-          aria-hidden="true"
-          style={{ position: 'absolute', right: -20, bottom: -50, width: 200, height: 200, opacity: 0.12, pointerEvents: 'none' }}
-        >
-          <rect x="38" y="120" width="22" height="40" rx="3" fill="#5DCAA5" />
-          <rect x="68" y="98" width="22" height="62" rx="3" fill="#5DCAA5" />
-          <rect x="98" y="74" width="22" height="86" rx="3" fill="#5DCAA5" />
-          <rect x="128" y="48" width="22" height="112" rx="3" fill="#5DCAA5" />
-          <path d="M38 150 C 78 124, 128 100, 158 36" stroke="#EF9F27" strokeWidth="5" strokeLinecap="round" fill="none" />
-        </svg>
-        <h2 style={{ position: 'relative', fontFamily: 'var(--ssd-font-display), Georgia, serif', color: '#fff', fontSize: 24, fontWeight: 500, margin: '0 0 6px' }}>
-          {saveMode === 'replace' ? 'Your schedule, ready to edit' : '🏆 Got it — your schedule is in!'}
-        </h2>
-        <p style={{ position: 'relative', color: 'rgba(255,255,255,.75)', fontSize: 14, margin: 0, lineHeight: 1.55 }}>
-          {schedule.school_name && <strong style={{ color: '#5DCAA5' }}>{schedule.school_name}</strong>}
-          {schedule.school_year && <> · {schedule.school_year}</>}
-          {' · '}
-          {schedule.variants.length} schedule{schedule.variants.length === 1 ? '' : 's'} read
-          {saveMode === 'replace' ? '.' : (
-            <>
-              .{' '}
-              {schedule.uncertainties.length > 0
-                ? `Now a few quick questions to make it perfect — ${schedule.uncertainties.length} thing${schedule.uncertainties.length === 1 ? '' : 's'} I want your eyes on.`
-                : 'It read clean — skim the list below and save when it looks like your day.'}
-            </>
-          )}
-        </p>
-      </div>
+      {/* Header — the same shared band as every other admin surface. */}
+      <AdminNavyBand
+        title={saveMode === 'replace' ? 'Your schedule, ready to edit' : '🏆 Got it — your schedule is in!'}
+        sub={
+          <>
+            {schedule.school_name && <strong style={{ color: '#5DCAA5' }}>{schedule.school_name}</strong>}
+            {schedule.school_year && <> · {schedule.school_year}</>}
+            {' · '}
+            {schedule.variants.length} schedule{schedule.variants.length === 1 ? '' : 's'} read
+            {saveMode === 'replace' ? '.' : (
+              <>
+                .{' '}
+                {schedule.uncertainties.length > 0
+                  ? `Now a few quick questions to make it perfect — ${schedule.uncertainties.length} thing${schedule.uncertainties.length === 1 ? '' : 's'} I want your eyes on.`
+                  : 'It read clean — skim the list below and save when it looks like your day.'}
+              </>
+            )}
+          </>
+        }
+      />
 
       {saveError && (
         <div

@@ -85,7 +85,9 @@ export default async function AdminHomePage() {
 
         <SiteAdminNav current="home" />
 
-        <div style={{ marginTop: 28 }}>
+        {/* No extra top margin — the navy band should sit the same distance
+            under the tabs here as on every other admin tab. */}
+        <div>
           <LaunchClient
             schoolId={schoolId}
             schoolName={schoolName}

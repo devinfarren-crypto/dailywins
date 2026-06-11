@@ -9,6 +9,7 @@ import {
 } from "@/src/lib/audit-log-query";
 import AuditRowList from "@/src/components/AuditRowList";
 import SiteAdminNav from "@/src/components/SiteAdminNav";
+import AdminNavyBand from "@/src/components/AdminNavyBand";
 import SignOutButton from "@/src/components/SignOutButton";
 
 export const metadata: Metadata = {
@@ -107,7 +108,13 @@ export default async function AdminAuditLogPage() {
         </header>
 
         {showSiteNav ? (
-          <SiteAdminNav current="audit" />
+          <>
+            <SiteAdminNav current="audit" />
+            <AdminNavyBand
+              title="Your access trail, airtight."
+              sub="Who did what, when — including you."
+            />
+          </>
         ) : !isFounder ? (
           <p style={{ marginBottom: 16 }}>
             <a href="/admin/usage" style={{ fontSize: 13, fontWeight: 600, color: "var(--ssd-green)", textDecoration: "none" }}>

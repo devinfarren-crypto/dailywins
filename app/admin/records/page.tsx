@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { createClient } from "@/src/lib/supabase-server";
 import { createAdminClient } from "@/src/lib/supabase-admin";
 import SiteAdminNav from "@/src/components/SiteAdminNav";
+import AdminNavyBand from "@/src/components/AdminNavyBand";
 import SignOutButton from "@/src/components/SignOutButton";
 import RecordsClient from "./RecordsClient";
 
@@ -126,7 +127,15 @@ function Shell({
           </div>
           <SignOutButton />
         </header>
-        {showNav ? <SiteAdminNav current="records" /> : null}
+        {showNav ? (
+          <>
+            <SiteAdminNav current="records" />
+            <AdminNavyBand
+              title="Every score and note, on demand."
+              sub="Complete records for placement calls — every open is logged."
+            />
+          </>
+        ) : null}
         {children}
       </div>
     </main>

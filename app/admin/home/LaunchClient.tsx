@@ -16,6 +16,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/src/lib/supabase";
 import CopyBlock from "./CopyBlock";
+import AdminNavyBand from "@/src/components/AdminNavyBand";
 
 interface LaunchProps {
   schoolId: string;
@@ -100,37 +101,6 @@ const ghostBtn: React.CSSProperties = {
   textDecoration: "underline",
   textUnderlineOffset: 3,
 };
-
-// The brand mark: ascending bars + amber growth curve.
-function BarsMark({ size = 72, delayBase = 0.1, light = false }: { size?: number; delayBase?: number; light?: boolean }) {
-  const fills = light
-    ? ["rgba(225,245,238,.9)", TEAL_LIGHT, TEAL, "#0c5a46"]
-    : [TEAL_LIGHT, TEAL, FOREST, NAVY];
-  return (
-    <svg width={size} height={size} viewBox="0 0 200 200" aria-hidden="true">
-      {[
-        { x: 38, y: 120, h: 40 },
-        { x: 68, y: 98, h: 62 },
-        { x: 98, y: 74, h: 86 },
-        { x: 128, y: 48, h: 112 },
-      ].map((b, i) => (
-        <rect
-          key={i}
-          className="dw-bar"
-          style={{ animationDelay: `${delayBase + i * 0.15}s` }}
-          x={b.x}
-          y={b.y}
-          width="22"
-          height={b.h}
-          rx="3"
-          fill={fills[i]}
-        />
-      ))}
-      <path d="M38 150 C 78 124, 128 100, 158 36" stroke={AMBER} strokeWidth="6" strokeLinecap="round" fill="none" />
-      <circle cx="158" cy="36" r="8" fill={AMBER} />
-    </svg>
-  );
-}
 
 export default function LaunchClient({ schoolId, schoolName, isNps, userEmail, initial }: LaunchProps) {
   const steps: StepKey[] = useMemo(
@@ -750,69 +720,33 @@ function MissionControl({
   return (
     <div>
       <style>{`
-        @keyframes dwBarGrow { from { transform: scaleY(0) } to { transform: scaleY(1) } }
-        .dw-bar { transform-box: fill-box; transform-origin: bottom; animation: dwBarGrow .6s ${EASE} both; }
         .dw-tile:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(26,38,61,.12); }
-        @media (prefers-reduced-motion: reduce) { .dw-bar { animation: none } .dw-tile:hover { transform: none } }
+        @media (prefers-reduced-motion: reduce) { .dw-tile:hover { transform: none } }
       `}</style>
 
-      {/* Navy band: compact steady-state header — the big hero was a one-time
-          finale moment; day-to-day it should cost one slim row, not a screen. */}
-      <div
-        style={{
-          position: "relative",
-          borderRadius: 18,
-          background: `linear-gradient(160deg, ${NAVY} 0%, ${NAVY_SOFT} 100%)`,
-          padding: "16px 22px",
-          overflow: "hidden",
-          marginBottom: 14,
-          display: "flex",
-          alignItems: "center",
-          gap: 16,
-          flexWrap: "wrap",
-        }}
-      >
-        <svg
-          viewBox="0 0 200 200"
-          aria-hidden="true"
-          style={{ position: "absolute", right: -20, top: -50, width: 180, height: 180, opacity: 0.1, pointerEvents: "none" }}
-        >
-          <path d="M38 150 C 78 124, 128 100, 158 36" stroke={AMBER} strokeWidth="5" strokeLinecap="round" fill="none" />
-          <circle cx="158" cy="36" r="7" fill={AMBER} />
-        </svg>
-        <BarsMark size={40} light />
-        <div style={{ flex: 1, minWidth: 220 }}>
-          <span
+      {/* The shared admin band — same component, same spot, on every tab. */}
+      <AdminNavyBand
+        title={`${schoolName} is live.`}
+        sub={isNps ? "Yours to run — every tab above." : "Every tab above, whenever you need it."}
+        action={
+          <button
+            onClick={onReplay}
             style={{
-              fontFamily: "var(--ssd-font-display), Georgia, serif",
-              fontSize: 20,
-              fontWeight: 500,
-              color: "#fff",
+              background: "transparent",
+              color: TEAL_LIGHT,
+              border: "none",
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: "pointer",
+              textDecoration: "underline",
+              textUnderlineOffset: 3,
+              flexShrink: 0,
             }}
           >
-            {schoolName} is live.
-          </span>
-          <span style={{ fontSize: 13, color: "rgba(255,255,255,.65)", marginLeft: 10 }}>
-            {isNps ? "Yours to run — every tab above." : "Every tab above, whenever you need it."}
-          </span>
-        </div>
-        <button
-          onClick={onReplay}
-          style={{
-            background: "transparent",
-            color: TEAL_LIGHT,
-            border: "none",
-            fontSize: 12,
-            fontWeight: 700,
-            cursor: "pointer",
-            textDecoration: "underline",
-            textUnderlineOffset: 3,
-            flexShrink: 0,
-          }}
-        >
-          Replay setup
-        </button>
-      </div>
+            Replay setup
+          </button>
+        }
+      />
 
       {/* live tiles */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginBottom: 18 }}>

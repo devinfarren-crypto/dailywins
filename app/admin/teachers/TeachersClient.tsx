@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import SiteAdminNav from "@/src/components/SiteAdminNav";
+import AdminNavyBand from "@/src/components/AdminNavyBand";
 import SignOutButton from "@/src/components/SignOutButton";
 
 export interface TeacherRow {
@@ -138,7 +139,15 @@ export default function TeachersClient({
         <div className="mb-4 flex justify-end">
           <SignOutButton />
         </div>
-        {showSiteAdminNav ? <SiteAdminNav current="teachers" /> : null}
+        {showSiteAdminNav ? (
+          <>
+            <SiteAdminNav current="teachers" />
+            <AdminNavyBand
+              title="Your staff, one tap from tracking."
+              sub="Invite a teacher — a one-click sign-in button lands in their inbox."
+            />
+          </>
+        ) : null}
         <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-[#2a4d42]">Teachers</h1>

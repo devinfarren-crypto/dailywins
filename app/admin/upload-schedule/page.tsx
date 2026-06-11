@@ -5,6 +5,7 @@ import ScheduleUploader, {
   type SchoolOption,
 } from "@/src/components/ScheduleUploader";
 import SiteAdminNav from "@/src/components/SiteAdminNav";
+import AdminNavyBand from "@/src/components/AdminNavyBand";
 import SignOutButton from "@/src/components/SignOutButton";
 import type { Schedules } from "@/src/lib/schedules-schema";
 
@@ -100,16 +101,7 @@ export default async function UploadSchedulePage() {
             color: "#5a6e66",
           }}
         >
-          <h2
-            style={{
-              color: "#2a4d42",
-              fontSize: 24,
-              fontWeight: 500,
-              marginBottom: 8,
-            }}
-          >
-            Bell schedules
-          </h2>
+          <AdminNavyBand title="Bell schedules" sub="Nothing to manage yet." />
           <p style={{ fontSize: 15, color: "#8a9690" }}>
             You aren&apos;t set up as an admin of any school yet, so there&apos;s
             nothing to manage here. Ask a founder to add you as a Site Admin.

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { createClient } from "@/src/lib/supabase-server";
 import { createAdminClient } from "@/src/lib/supabase-admin";
 import SiteAdminNav from "@/src/components/SiteAdminNav";
+import AdminNavyBand from "@/src/components/AdminNavyBand";
 import SignOutButton from "@/src/components/SignOutButton";
 
 export const metadata: Metadata = { title: "Usage — DailyWins" };
@@ -307,6 +308,10 @@ export default async function UsagePage({
         footer="These figures are aggregate activity. Where your role permits individual records (NPS directors), they live under the Student records tab — with every access audited."
       >
         <SiteAdminNav current="usage" />
+        <AdminNavyBand
+          title="Who's tracking, at a glance."
+          sub="Live counts — they update as your teachers work."
+        />
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 28 }}>
           <StatCard label="Teachers" value={totals.teachers ?? 0} />
           <StatCard label="Students tracked" value={totals.students ?? 0} />
