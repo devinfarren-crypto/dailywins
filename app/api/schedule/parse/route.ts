@@ -296,4 +296,8 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export const maxDuration = 60;
+// Complex multi-variant bell schedules can take the model >60s; Fluid compute
+// allows up to 300s and the uploader UI sets expectations + animates while
+// waiting. (A 60s cap was killing real uploads mid-parse → browser saw a
+// bare NetworkError. Vercel log 2026-06-11 19:53: 504 Runtime Timeout.)
+export const maxDuration = 300;

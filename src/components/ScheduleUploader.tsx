@@ -90,8 +90,10 @@ export default function ScheduleUploader({
       setState({ kind: 'error', message: 'Please upload a PDF file.' });
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      setState({ kind: 'error', message: 'File too large. Max 10 MB.' });
+    if (file.size > 4 * 1024 * 1024) {
+      // Vercel rejects request bodies >4.5MB at the edge (an opaque network
+      // error, not a nice JSON one) — catch it here with a human message.
+      setState({ kind: 'error', message: 'That PDF is over 4 MB. Try exporting just the bell-schedule page(s) — smaller files also read faster.' });
       return;
     }
 
@@ -400,14 +402,32 @@ export default function ScheduleUploader({
   if (state.kind === 'uploading' || state.kind === 'extracting') {
     return (
       <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif', textAlign: 'center', padding: 48 }}>
-        <div style={{ fontSize: 28, marginBottom: 16 }}>⏳</div>
-        <div style={{ color: C.heading, fontSize: 18, fontWeight: 500, marginBottom: 6 }}>
-          {state.kind === 'uploading' ? 'Uploading' : 'Reading your schedule'}
+        <style>{`
+          @keyframes dwReadBar { 0%, 100% { transform: scaleY(.35) } 50% { transform: scaleY(1) } }
+          @keyframes dwTrophy { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-5px) } }
+          .dw-read-bar { transform-box: fill-box; transform-origin: bottom; animation: dwReadBar 1.2s ease-in-out infinite; }
+          .dw-trophy { display: inline-block; animation: dwTrophy 1.6s ease-in-out infinite; }
+          @media (prefers-reduced-motion: reduce) { .dw-read-bar, .dw-trophy { animation: none } }
+        `}</style>
+        <div style={{ marginBottom: 6 }}>
+          <svg width="64" height="64" viewBox="0 0 200 200" aria-hidden="true">
+            <rect className="dw-read-bar" style={{ animationDelay: '0s' }} x="38" y="120" width="22" height="40" rx="3" fill="#5DCAA5" />
+            <rect className="dw-read-bar" style={{ animationDelay: '.15s' }} x="68" y="98" width="22" height="62" rx="3" fill="#1D9E75" />
+            <rect className="dw-read-bar" style={{ animationDelay: '.3s' }} x="98" y="74" width="22" height="86" rx="3" fill="#0F6E56" />
+            <rect className="dw-read-bar" style={{ animationDelay: '.45s' }} x="128" y="48" width="22" height="112" rx="3" fill="#1a1a2e" />
+            <path d="M38 150 C 78 124, 128 100, 158 36" stroke="#EF9F27" strokeWidth="6" strokeLinecap="round" fill="none" />
+            <circle cx="158" cy="36" r="8" fill="#EF9F27" />
+          </svg>
         </div>
-        <div style={{ color: C.hint, fontSize: 14 }}>
+        <div style={{ color: C.heading, fontSize: 18, fontWeight: 600, marginBottom: 6 }}>
+          {state.kind === 'uploading' ? 'Uploading' : (
+            <><span className="dw-trophy">🏆</span> Reading your schedule…</>
+          )}
+        </div>
+        <div style={{ color: C.hint, fontSize: 14, maxWidth: 380, margin: '0 auto', lineHeight: 1.5 }}>
           {state.kind === 'uploading'
             ? state.filename
-            : 'This usually takes about 10 seconds. Hang tight.'}
+            : 'The AI is reading every period, variant, and lunch split. Simple schedules take ~15 seconds; detailed multi-day ones can take a minute or two. This page is not frozen — the bars are working.'}
         </div>
       </div>
     );
