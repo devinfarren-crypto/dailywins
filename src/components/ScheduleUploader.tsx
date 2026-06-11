@@ -73,6 +73,11 @@ export default function ScheduleUploader({
   const [editedSchedule, setEditedSchedule] = useState<ExtractedSchedule | null>(null);
   const [expandedVariant, setExpandedVariant] = useState<number | null>(0);
   const [showOnlyFlagged, setShowOnlyFlagged] = useState(false);
+  // One-at-a-time walkthrough of the model's "double-check" notes — a wall of
+  // 9 bullets reads as homework; one friendly question at a time reads as a
+  // conversation.
+  const [checkIdx, setCheckIdx] = useState(0);
+  const [checksDone, setChecksDone] = useState(false);
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>(
     schools[0]?.id ?? ''
   );
@@ -518,46 +523,126 @@ export default function ScheduleUploader({
 
   return (
     <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif', color: C.body, maxWidth: 880 }}>
-      {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <h2 style={{ color: C.heading, fontSize: 24, fontWeight: 500, marginBottom: 4 }}>
-          {saveMode === 'replace' ? 'Edit your schedule' : 'Review your schedule'}
+      {/* Header — celebrate first, then guide */}
+      <div
+        style={{
+          background: '#E1F5EE',
+          borderLeft: '4px solid #1D9E75',
+          borderRadius: 12,
+          padding: '16px 20px',
+          marginBottom: 20,
+        }}
+      >
+        <h2 style={{ color: '#0F6E56', fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>
+          {saveMode === 'replace' ? 'Your schedule, ready to edit' : '🏆 Got it — your schedule is in!'}
         </h2>
-        <p style={{ color: C.hint, fontSize: 14, margin: 0 }}>
-          {schedule.school_name && <>{schedule.school_name} · </>}
-          {schedule.school_year && <>{schedule.school_year} · </>}
-          {schedule.variants.length} variant{schedule.variants.length === 1 ? '' : 's'}
-          {saveMode === 'replace' ? ' on file' : ' found'}
+        <p style={{ color: '#2a4d42', fontSize: 14, margin: 0, lineHeight: 1.5 }}>
+          {schedule.school_name && <strong>{schedule.school_name}</strong>}
+          {schedule.school_year && <> · {schedule.school_year}</>}
+          {' · '}
+          {schedule.variants.length} schedule{schedule.variants.length === 1 ? '' : 's'} read
+          {saveMode === 'replace' ? '.' : (
+            <>
+              .{' '}
+              {schedule.uncertainties.length > 0
+                ? `Now a few quick questions to make it perfect — ${schedule.uncertainties.length} thing${schedule.uncertainties.length === 1 ? '' : 's'} I want your eyes on.`
+                : 'It read clean — skim the list below and save when it looks like your day.'}
+            </>
+          )}
         </p>
       </div>
 
-      {/* Uncertainties summary */}
-      {hasUncertainties && (
+      {/* Quick checks — one at a time, not a wall */}
+      {hasUncertainties && !checksDone && (
         <div
           style={{
-            background: C.warningBg,
-            border: `1px solid ${C.warning}`,
-            borderRadius: 8,
-            padding: 16,
+            background: '#fff',
+            border: '1px solid #d9d4c5',
+            borderLeft: '4px solid #EF9F27',
+            borderRadius: 12,
+            padding: '18px 20px',
             marginBottom: 20,
+            boxShadow: '0 6px 16px rgba(26,38,61,.07)',
           }}
         >
-          <div style={{ color: C.warning, fontWeight: 500, marginBottom: 8, fontSize: 15 }}>
-            {schedule.uncertainties.length} thing{schedule.uncertainties.length === 1 ? '' : 's'} to double-check
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#b5740f' }}>
+              Quick check {checkIdx + 1} of {schedule.uncertainties.length}
+            </span>
+            <span style={{ display: 'flex', gap: 4 }}>
+              {schedule.uncertainties.map((_, i) => (
+                <span
+                  key={i}
+                  style={{
+                    width: 7, height: 7, borderRadius: '50%',
+                    background: i < checkIdx ? '#1D9E75' : i === checkIdx ? '#EF9F27' : '#ebe7da',
+                  }}
+                />
+              ))}
+            </span>
           </div>
-          <ul style={{ margin: 0, paddingLeft: 20, color: C.warning, fontSize: 13, lineHeight: 1.6 }}>
-            {schedule.uncertainties.map((u, i) => (
-              <li key={i}>{u}</li>
-            ))}
-          </ul>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 12, fontSize: 13, color: C.warning, cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={showOnlyFlagged}
-              onChange={(e) => setShowOnlyFlagged(e.target.checked)}
-            />
-            Show only flagged variants
-          </label>
+          <p style={{ fontSize: 14.5, lineHeight: 1.6, color: '#2a3540', margin: '0 0 16px' }}>
+            {schedule.uncertainties[checkIdx]}
+          </p>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => {
+                if (checkIdx >= schedule.uncertainties.length - 1) setChecksDone(true);
+                else setCheckIdx(checkIdx + 1);
+              }}
+              style={{
+                background: '#0F6E56', color: '#fff', border: 'none', borderRadius: 999,
+                padding: '10px 22px', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+              }}
+            >
+              {checkIdx >= schedule.uncertainties.length - 1 ? 'All checked — looks right ✓' : 'Looks right — next ›'}
+            </button>
+            {checkIdx > 0 && (
+              <button
+                onClick={() => setCheckIdx(checkIdx - 1)}
+                style={{ background: 'none', border: 'none', color: '#7a7a8e', fontSize: 13, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3 }}
+              >
+                ‹ Back
+              </button>
+            )}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#7a7a8e', cursor: 'pointer', marginLeft: 'auto' }}>
+              <input
+                type="checkbox"
+                checked={showOnlyFlagged}
+                onChange={(e) => setShowOnlyFlagged(e.target.checked)}
+              />
+              Show only flagged schedules
+            </label>
+          </div>
+          <p style={{ fontSize: 12, color: '#7a7a8e', margin: '12px 0 0' }}>
+            Anything off? Edit it directly in the schedule list below — these checks are just pointers.
+          </p>
+        </div>
+      )}
+      {hasUncertainties && checksDone && (
+        <div
+          style={{
+            background: '#E1F5EE',
+            borderLeft: '4px solid #1D9E75',
+            borderRadius: 12,
+            padding: '12px 18px',
+            marginBottom: 20,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 12,
+            flexWrap: 'wrap',
+          }}
+        >
+          <span style={{ fontSize: 14, fontWeight: 600, color: '#0F6E56' }}>
+            ✓ All {schedule.uncertainties.length} checks reviewed — save when the list below looks like your day.
+          </span>
+          <button
+            onClick={() => { setChecksDone(false); setCheckIdx(0); }}
+            style={{ background: 'none', border: 'none', color: '#1D9E75', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3 }}
+          >
+            Review again
+          </button>
         </div>
       )}
 

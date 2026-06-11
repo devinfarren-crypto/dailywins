@@ -45,6 +45,8 @@ export async function sendApprovalEmail(input: {
         direct
           ? `That link signs you in directly (valid 24 hours, one use). If it expires, go to ${fallback} and sign in with this email address (${input.to}).`
           : `Sign in with this email address (${input.to}) and you'll go straight to your dashboard.`,
+        "",
+        "Tip: bookmark dailywins.school (not this link — sign-in links are one-time). That page signs you in with this email whenever you need, and you'll stay signed in on devices you use regularly.",
       ].join("\n"),
       html: `
         <p>Good news: your <strong>DailyWins</strong> access request was approved.
@@ -57,6 +59,7 @@ export async function sendApprovalEmail(input: {
             ? `That button signs you in directly (valid 24 hours, one use). If it expires, go to <a href="${fallback}">${escapeHtml(input.origin.replace(/^https?:\/\//, ""))}</a> and sign in with this email address (${escapeHtml(input.to)}).`
             : `Sign in with this email address (${escapeHtml(input.to)}) and you'll go straight to your dashboard.`
         }</p>
+        <p style="color:#6b6e69;font-size:13px;">Tip: bookmark <a href="https://dailywins.school">dailywins.school</a> (not this link — sign-in links are one-time). That page signs you in with this email whenever you need, and you'll stay signed in on devices you use regularly.</p>
       `,
     });
     return { sent: true };

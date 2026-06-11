@@ -33,6 +33,8 @@ export async function sendSigninLink(input: {
         direct
           ? `That link signs you in directly (valid 24 hours, one use). You can ALWAYS sign in without any email: go to ${fallback} and request a link with this address (${input.to}).`
           : `Sign in with this email address (${input.to}) and you'll land on your home page.`,
+        "",
+        "Tip: bookmark dailywins.school (not this link — sign-in links are one-time). That page signs you in with this email whenever you need, and you'll stay signed in on devices you use regularly.",
       ].join("\n"),
       html: `
         <p>Here's a fresh sign-in link for <strong>DailyWins</strong>:</p>
@@ -44,6 +46,7 @@ export async function sendSigninLink(input: {
             ? `That button signs you in directly (valid 24 hours, one use). You can <strong>always</strong> sign in without any saved email: go to <a href="${fallback}">${escapeHtml(input.origin.replace(/^https?:\/\//, ""))}</a> and request a link with this address (${escapeHtml(input.to)}).`
             : `Sign in with this email address (${escapeHtml(input.to)}) and you'll land on your home page.`
         }</p>
+        <p style="color:#6b6e69;font-size:13px;">Tip: bookmark <a href="https://dailywins.school">dailywins.school</a> (not this link — sign-in links are one-time). That page signs you in with this email whenever you need, and you'll stay signed in on devices you use regularly.</p>
       `,
     });
     return { sent: true };
