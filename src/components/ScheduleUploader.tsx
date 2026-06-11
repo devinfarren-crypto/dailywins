@@ -64,6 +64,32 @@ function blankVariant(): ExtractedVariant {
   return { name: 'New schedule', days: null, specific_dates: null, notes: null, periods: [blankPeriod()] };
 }
 
+// Storage keys schedules by variant NAME, so duplicates silently overwrite
+// each other — and the model legitimately produces them (e.g. two "ELA
+// Testing" windows with different dates). Make names unique as soon as the
+// parse arrives, so the director reviews the names that will actually save.
+function dedupeVariantNames(schedule: ExtractedSchedule): ExtractedSchedule {
+  const next = structuredClone(schedule);
+  const used = new Set<string>();
+  for (const v of next.variants) {
+    const base = v.name.trim() || 'Untitled schedule';
+    let name = base;
+    if (used.has(name.toLowerCase())) {
+      const firstDate = v.specific_dates?.[0];
+      if (firstDate && !used.has(`${base} (${firstDate})`.toLowerCase())) {
+        name = `${base} (${firstDate})`;
+      } else {
+        let n = 2;
+        while (used.has(`${base} (${n})`.toLowerCase())) n++;
+        name = `${base} (${n})`;
+      }
+    }
+    used.add(name.toLowerCase());
+    v.name = name;
+  }
+  return next;
+}
+
 export default function ScheduleUploader({
   schools,
 }: {
@@ -78,6 +104,10 @@ export default function ScheduleUploader({
   // conversation.
   const [checkIdx, setCheckIdx] = useState(0);
   const [checksDone, setChecksDone] = useState(false);
+  // Save failures keep the director ON the review screen (their reviewed
+  // parse is precious) with this banner, instead of dumping them back to the
+  // drop zone — which threw away an 11-check review on 6/11.
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>(
     schools[0]?.id ?? ''
   );
@@ -152,9 +182,13 @@ export default function ScheduleUploader({
         return;
       }
 
+      const deduped = dedupeVariantNames(data as unknown as ExtractedSchedule);
       setSaveMode('merge');
-      setState({ kind: 'review', schedule: data as unknown as ExtractedSchedule });
-      setEditedSchedule(data as unknown as ExtractedSchedule);
+      setSaveError(null);
+      setCheckIdx(0);
+      setChecksDone(false);
+      setState({ kind: 'review', schedule: deduped });
+      setEditedSchedule(deduped);
       setExpandedVariant(0);
     } catch (err) {
       setState({
@@ -256,6 +290,11 @@ export default function ScheduleUploader({
       return;
     }
 
+    // Belt-and-suspenders: the director may have hand-edited names into a
+    // collision; fix silently rather than failing the save.
+    const cleaned = dedupeVariantNames(editedSchedule);
+    setEditedSchedule(cleaned);
+    setSaveError(null);
     setState({ kind: 'saving' });
     try {
       const res = await fetch('/api/schedule/save', {
@@ -263,7 +302,7 @@ export default function ScheduleUploader({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           school_id: selectedSchoolId,
-          schedule: editedSchedule,
+          schedule: cleaned,
           mode: saveMode,
         }),
       });
@@ -281,10 +320,10 @@ export default function ScheduleUploader({
             message: 'Your session expired. Please sign in again.',
           });
         } else {
-          setState({
-            kind: 'error',
-            message: data.detail || 'Save failed. Try again.',
-          });
+          // Validation problems are fixable on the review screen — never
+          // discard the director's reviewed parse over one.
+          setSaveError(data.detail || 'Save failed. Try again.');
+          setState({ kind: 'review', schedule: cleaned });
         }
         return;
       }
@@ -295,10 +334,9 @@ export default function ScheduleUploader({
         variants_total: data.variants_total,
       });
     } catch (err) {
-      setState({
-        kind: 'error',
-        message: err instanceof Error ? err.message : 'Save failed. Try again.',
-      });
+      // Network hiccup — same rule: keep the review, show the problem.
+      setSaveError(err instanceof Error ? err.message : 'Save failed. Try again.');
+      setState({ kind: 'review', schedule: cleaned });
     }
   };
 
@@ -551,6 +589,23 @@ export default function ScheduleUploader({
           )}
         </p>
       </div>
+
+      {saveError && (
+        <div
+          style={{
+            background: '#fdf0f0',
+            borderLeft: '4px solid #d43c3c',
+            borderRadius: 12,
+            padding: '12px 16px',
+            marginBottom: 20,
+            fontSize: 14,
+            color: '#9c3a22',
+            fontWeight: 600,
+          }}
+        >
+          Couldn&apos;t save: {saveError}. Your review is safe — fix it below (every name and time is editable) and save again.
+        </div>
+      )}
 
       {/* Quick checks — one at a time, not a wall */}
       {hasUncertainties && !checksDone && (
