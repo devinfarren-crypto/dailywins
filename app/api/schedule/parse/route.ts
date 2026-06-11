@@ -179,7 +179,10 @@ async function runParse(jobId: string, base64: string): Promise<void> {
       .eq('id', jobId);
   };
   try {
-    const response = await anthropic.messages.create({
+    // Streamed server-side: the SDK requires streaming at this max_tokens
+    // (its >10-minute heuristic), and we're in a background job anyway —
+    // finalMessage() gives the same response shape as create().
+    const response = await anthropic.messages.stream({
       model: MODEL,
       max_tokens: 32768, // headroom for monster multi-variant schedules — overflow showed up as invalid_json
       system: SYSTEM_PROMPT,
@@ -202,7 +205,7 @@ async function runParse(jobId: string, base64: string): Promise<void> {
           ],
         },
       ],
-    });
+    }).finalMessage();
 
     const textBlock = response.content.find((b) => b.type === 'text');
     if (!textBlock || textBlock.type !== 'text') {
