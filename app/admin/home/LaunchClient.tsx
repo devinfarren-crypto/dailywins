@@ -23,11 +23,16 @@ interface LaunchProps {
   schoolName: string;
   isNps: boolean;
   userEmail: string;
+  // 052: launch completion is school state, not browser state — a director
+  // who finished setup on one device never replays the wizard on another.
+  serverFinished?: boolean;
   initial: {
     teacherCount: number;
     studentCount: number;
     hasSchedule: boolean;
+    scheduleVariants: number;
     linksOn: number;
+    parentLinksOn: boolean;
   };
 }
 
@@ -102,7 +107,7 @@ const ghostBtn: React.CSSProperties = {
   textUnderlineOffset: 3,
 };
 
-export default function LaunchClient({ schoolId, schoolName, isNps, userEmail, initial }: LaunchProps) {
+export default function LaunchClient({ schoolId, schoolName, isNps, userEmail, serverFinished = false, initial }: LaunchProps) {
   const steps: StepKey[] = useMemo(
     () => (isNps ? ["meet", "teacher", "schedule", "links", "records"] : ["meet", "teacher", "schedule", "links"]),
     [isNps]
@@ -132,7 +137,7 @@ export default function LaunchClient({ schoolId, schoolName, isNps, userEmail, i
       const savedDone: StepKey[] = Array.isArray(saved.done) ? saved.done : [];
       const merged = new Set<StepKey>([...autoDone, ...savedDone]);
       setDoneSteps(merged);
-      if (saved.finished) {
+      if (saved.finished || serverFinished) {
         setFinished(true);
       } else {
         const firstOpen = steps.findIndex((s) => !merged.has(s));
@@ -143,7 +148,7 @@ export default function LaunchClient({ schoolId, schoolName, isNps, userEmail, i
       // fresh start
     }
     setMounted(true);
-  }, [schoolId, autoDone, steps]);
+  }, [schoolId, autoDone, steps, serverFinished]);
 
   function persist(nextDone: Set<StepKey>, nextFinished: boolean) {
     try {
@@ -153,6 +158,15 @@ export default function LaunchClient({ schoolId, schoolName, isNps, userEmail, i
       );
     } catch {
       // private mode — progress just won't persist
+    }
+    if (nextFinished) {
+      // School-level state (052): finishing on this device finishes everywhere.
+      fetch("/api/admin/launch-finished", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ school_id: schoolId }),
+        keepalive: true,
+      }).catch(() => {});
     }
   }
 
@@ -699,13 +713,16 @@ function MissionControl({
   onReplay: () => void;
 }) {
   const [demoBusy, setDemoBusy] = useState(false);
+  const [wipeBusy, setWipeBusy] = useState(false);
   const [demoErr, setDemoErr] = useState("");
+  const [demoMsg, setDemoMsg] = useState("");
 
   // "What teachers see": seed a [DEMO] class on the director's own teacher
   // dashboard, then open it in a new tab so this home stays put.
   const openDemo = async () => {
     setDemoBusy(true);
     setDemoErr("");
+    setDemoMsg("");
     try {
       const res = await fetch("/api/admin/demo-dashboard", { method: "POST" });
       const data = await res.json();
@@ -720,12 +737,45 @@ function MissionControl({
     }
   };
 
+  // Done exploring: remove the [DEMO] class everywhere — roster, Student
+  // records, usage counts, and any teacher's dashboard — before real staff
+  // arrive. Reversible in spirit: the demo reseeds with one click.
+  const wipeDemo = async () => {
+    setWipeBusy(true);
+    setDemoErr("");
+    setDemoMsg("");
+    try {
+      const res = await fetch("/api/admin/demo-dashboard", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "wipe" }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error ?? "Couldn't wipe the demo data. Try again.");
+      }
+      setDemoMsg(
+        data.studentsDeleted > 0
+          ? `Demo data wiped — ${data.studentsDeleted} [DEMO] student${data.studentsDeleted === 1 ? "" : "s"} removed everywhere.`
+          : "No demo data to wipe — you're clean."
+      );
+    } catch (err) {
+      setDemoErr(err instanceof Error ? err.message : "Couldn't wipe the demo data. Try again.");
+    } finally {
+      setWipeBusy(false);
+    }
+  };
+
   const teacherBlurb = [
     `Hi team — we're starting with DailyWins (dailywins.school), a behavior/goal tracker built by teachers.`,
     ``,
     `What it asks of you: about 30 seconds per class period. Your roster appears as a grid — tap to mark each goal a student met. That's it. No save button, no syncing, no binder.`,
     ``,
-    `What you get back: daily/weekly/monthly progress charts that build themselves, printable progress reports for meetings, and (if enabled) secure links for parents — no parent accounts needed.`,
+    `What you get back: daily/weekly/monthly progress charts that build themselves${
+      initial.parentLinksOn
+        ? ", printable progress reports for meetings, and secure links for parents — no parent accounts needed."
+        : " and printable progress reports for meetings."
+    }`,
     ``,
     `Getting in: you'll receive an email from DailyWins with a one-click sign-in button. Click it and you're in — add your students (paste a list of names) and customize your five goal labels to match how you track.`,
     ``,
@@ -735,7 +785,15 @@ function MissionControl({
   const stats = [
     { label: "Teachers", value: initial.teacherCount, href: "/admin/teachers", accent: TEAL },
     { label: "Students tracked", value: initial.studentCount, href: "/admin/usage", accent: AMBER },
-    { label: "Bell schedule", value: initial.hasSchedule ? "Set" : "Default day", href: "/admin/upload-schedule", accent: FOREST },
+    {
+      label: "Bell schedule",
+      // Same vocabulary as the Bell schedules tab ("N variants on file").
+      value: initial.hasSchedule
+        ? `${initial.scheduleVariants} variant${initial.scheduleVariants === 1 ? "" : "s"}`
+        : "Default day",
+      href: "/admin/upload-schedule",
+      accent: FOREST,
+    },
     { label: "Link types on", value: `${initial.linksOn}/3`, href: "/admin/links", accent: NAVY },
   ];
 
@@ -825,23 +883,48 @@ function MissionControl({
           <div style={{ fontSize: 13, color: "#7a7a8e", lineHeight: 1.55 }}>
             Open your own teacher dashboard, pre-loaded with seven fake students and 8 weeks of
             history — tap scores, open the charts, print a progress report. Everything is tagged{" "}
-            <strong>[DEMO]</strong> and wipeable from the dashboard&apos;s settings; no real student
-            data is touched. Opens in a new tab.
+            <strong>[DEMO]</strong>; no real student data is touched. Opens in a new tab.{" "}
+            <strong>Done exploring? Wipe the demo before inviting real teachers</strong> — the fake
+            students show up on their dashboards too.
           </div>
           {demoErr ? (
             <div style={{ fontSize: 13, color: "#9c3a22", fontWeight: 600, marginTop: 8 }}>
               {demoErr}
             </div>
           ) : null}
+          {demoMsg ? (
+            <div style={{ fontSize: 13, color: FOREST, fontWeight: 600, marginTop: 8 }}>
+              {demoMsg}
+            </div>
+          ) : null}
         </div>
-        <button
-          className="dw-primary"
-          style={{ ...primaryBtn, opacity: demoBusy ? 0.7 : 1, cursor: demoBusy ? "wait" : "pointer", flexShrink: 0 }}
-          onClick={openDemo}
-          disabled={demoBusy}
-        >
-          {demoBusy ? "Setting up your demo class…" : "Open the demo dashboard →"}
-        </button>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "stretch", flexShrink: 0 }}>
+          <button
+            className="dw-primary"
+            style={{ ...primaryBtn, opacity: demoBusy ? 0.7 : 1, cursor: demoBusy ? "wait" : "pointer" }}
+            onClick={openDemo}
+            disabled={demoBusy || wipeBusy}
+          >
+            {demoBusy ? "Setting up your demo class…" : "Open the demo dashboard →"}
+          </button>
+          <button
+            onClick={wipeDemo}
+            disabled={demoBusy || wipeBusy}
+            style={{
+              background: "transparent",
+              color: "#9c3a22",
+              border: "1px solid #e0c9c0",
+              borderRadius: 999,
+              padding: "9px 18px",
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: wipeBusy ? "wait" : "pointer",
+              opacity: wipeBusy ? 0.7 : 1,
+            }}
+          >
+            {wipeBusy ? "Wiping…" : "Wipe demo data"}
+          </button>
+        </div>
       </div>
 
       <div

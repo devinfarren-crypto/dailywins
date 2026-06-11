@@ -44,6 +44,8 @@ export async function sendTeacherInvite(input: {
           : `Sign in with this email address (${input.to}) and you'll go straight to your classroom dashboard.`,
         "",
         "Tip: bookmark dailywins.school (not this link — sign-in links are one-time). That page signs you in with this email whenever you need, and you'll stay signed in on devices you use regularly.",
+        "",
+        "One thing to know up front: notes you mark \"Private\" are hidden from parents, students, and other teachers — but everything you write is part of your school's official record and is visible to school administrators with records access.",
       ].join("\n"),
       html: `
         <p>${escapeHtml(inviter)} to join <strong>DailyWins</strong> as a teacher at
@@ -57,6 +59,7 @@ export async function sendTeacherInvite(input: {
             : `Sign in with this email address (${escapeHtml(input.to)}) and you'll go straight to your classroom dashboard.`
         }</p>
         <p style="color:#6b6e69;font-size:13px;">Tip: bookmark <a href="https://dailywins.school">dailywins.school</a> (not this link — sign-in links are one-time). That page signs you in with this email whenever you need, and you'll stay signed in on devices you use regularly.</p>
+        <p style="color:#6b6e69;font-size:13px;">One thing to know up front: notes you mark &quot;Private&quot; are hidden from parents, students, and other teachers — but everything you write is part of your school&#39;s official record and is visible to school administrators with records access.</p>
       `,
     });
     return { sent: true };

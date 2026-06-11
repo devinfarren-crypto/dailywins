@@ -6,8 +6,9 @@
 // teacher attribution. Server page gates to NPS site admins; the RPCs
 // re-check and audit each record open.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/src/lib/supabase";
+import { fireAuditEvent } from "@/src/lib/audit-event-client";
 import BehaviorCharts, {
   type CategoryDef,
   type ChartScoreRow,
@@ -20,6 +21,7 @@ interface RosterRow {
   last_score_date: string | null;
   scores_30d: number;
   notes_count: number;
+  archived_at: string | null;
 }
 
 interface RecordNote {
@@ -32,8 +34,11 @@ interface RecordNote {
 }
 
 interface StudentRecord {
-  student: { id: string; display_name: string } | null;
+  student: { id: string; display_name: string; archived_at?: string | null } | null;
   categories: CategoryDef[];
+  // Migration 050: each scoring teacher's config — rows are computed against
+  // the config they were written under.
+  categories_by_teacher?: Record<string, CategoryDef[]> | null;
   scores: ChartScoreRow[];
   notes: RecordNote[];
 }
@@ -70,9 +75,11 @@ function fmt(d: string | null): string {
 export default function RecordsClient({
   schoolId,
   schoolName = "Your school",
+  userEmail = "",
 }: {
   schoolId: string;
   schoolName?: string;
+  userEmail?: string;
 }) {
   const [roster, setRoster] = useState<RosterRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -80,27 +87,55 @@ export default function RecordsClient({
   const [record, setRecord] = useState<StudentRecord | null>(null);
   const [loadingRecord, setLoadingRecord] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
+  // Compliance date range — placing districts ask for THEIR window ("March 1
+  // to May 31"), not a rolling one. Empty = everything on file.
+  const [rangeFrom, setRangeFrom] = useState("");
+  const [rangeTo, setRangeTo] = useState("");
 
-  // Print everything on this page — charts (all three grains), the category
-  // breakdown, and every note — as one branded PDF. jspdf is browser-only,
-  // so the generator module is imported inside the handler (CLAUDE.md gotcha).
+  const inRange = useCallback(
+    (d: string) => (!rangeFrom || d >= rangeFrom) && (!rangeTo || d <= rangeTo),
+    [rangeFrom, rangeTo]
+  );
+  const filteredScores = useMemo(
+    () => (record ? record.scores.filter((s) => inRange(s.score_date)) : []),
+    [record, inRange]
+  );
+  const filteredNotes = useMemo(
+    () => (record ? record.notes.filter((n) => inRange(n.note_date)) : []),
+    [record, inRange]
+  );
+  const rangeLabel =
+    rangeFrom || rangeTo ? `${rangeFrom || "start"} to ${rangeTo || "today"}` : null;
+
+  // Print everything on this page — charts, the category breakdown, and every
+  // note in the selected range — as one branded PDF. The export itself is
+  // audited (nps_record.print) and the document is stamped with who made it.
+  // jspdf is browser-only, so the generator is imported inside the handler.
   const printPdf = useCallback(async (row: RosterRow, rec: StudentRecord) => {
     setPdfBusy(true);
     try {
+      fireAuditEvent({
+        action: "nps_record.print",
+        target_table: "students",
+        target_id: rec.student?.id ?? row.id,
+      });
       const { generateStudentRecordPdf } = await import("@/src/lib/student-record-pdf");
       await generateStudentRecordPdf({
         studentName: rec.student?.display_name ?? row.display_name,
         schoolName,
-        scores: rec.scores,
+        generatedBy: userEmail,
+        scores: filteredScores,
         categories: rec.categories,
-        notes: rec.notes,
+        categoriesByTeacher: rec.categories_by_teacher ?? null,
+        notes: filteredNotes,
+        rangeLabel,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "PDF generation failed.");
     } finally {
       setPdfBusy(false);
     }
-  }, [schoolName]);
+  }, [schoolName, userEmail, filteredScores, filteredNotes, rangeLabel]);
 
   useEffect(() => {
     (async () => {
@@ -169,18 +204,56 @@ export default function RecordsClient({
             </button>
           ) : null}
         </div>
-        <h2 style={{ fontFamily: "var(--ssd-font-display), Georgia, serif", fontSize: 24, fontWeight: 500, color: "var(--ssd-ink)", margin: "0 0 16px" }}>
+        <h2 style={{ fontFamily: "var(--ssd-font-display), Georgia, serif", fontSize: 24, fontWeight: 500, color: "var(--ssd-ink)", margin: "0 0 16px", display: "flex", alignItems: "center", gap: 10 }}>
           {selected.display_name}
+          {selected.archived_at ? (
+            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#8a6d1a", background: "#faeeda", border: "1px solid #e8d9b0", borderRadius: 999, padding: "3px 10px" }}>
+              Archived — record retained
+            </span>
+          ) : null}
         </h2>
         {loadingRecord || !record ? (
           <div style={{ fontSize: 14, color: "var(--ssd-text-muted)" }}>Loading record…</div>
         ) : (
           <>
-            <BehaviorCharts scores={record.scores} categories={record.categories} />
+            {/* Compliance date range — what districts actually ask for. */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14, fontSize: 13, color: "var(--ssd-text-muted)" }}>
+              <span style={{ fontWeight: 600 }}>Date range:</span>
+              <input
+                type="date"
+                value={rangeFrom}
+                onChange={(e) => setRangeFrom(e.target.value)}
+                style={{ padding: "6px 8px", border: "1px solid var(--ssd-border)", borderRadius: 8, fontSize: 13, background: "var(--ssd-surface)", color: "var(--ssd-ink)" }}
+              />
+              <span>to</span>
+              <input
+                type="date"
+                value={rangeTo}
+                onChange={(e) => setRangeTo(e.target.value)}
+                style={{ padding: "6px 8px", border: "1px solid var(--ssd-border)", borderRadius: 8, fontSize: 13, background: "var(--ssd-surface)", color: "var(--ssd-ink)" }}
+              />
+              {rangeLabel ? (
+                <button
+                  onClick={() => { setRangeFrom(""); setRangeTo(""); }}
+                  style={{ background: "none", border: "none", color: "var(--ssd-green-deep)", fontSize: 13, fontWeight: 600, cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 3 }}
+                >
+                  Clear — show everything
+                </button>
+              ) : (
+                <span style={{ fontSize: 12 }}>showing everything on file · set a range for a district&apos;s reporting window</span>
+              )}
+            </div>
+
+            <BehaviorCharts
+              scores={filteredScores}
+              categories={record.categories}
+              categoriesByTeacher={record.categories_by_teacher}
+            />
 
             <div style={{ marginTop: 28 }}>
               <div style={{ fontFamily: "var(--ssd-font-mono), monospace", fontSize: 12, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--ssd-text-muted)", marginBottom: 10 }}>
-                Notes — all teachers, shared and private ({record.notes.length})
+                Notes — all teachers, shared and private ({filteredNotes.length}
+                {rangeLabel ? ` in range · ${record.notes.length} total` : ""})
               </div>
               <div style={{ background: "var(--ssd-surface)", border: "1px solid var(--ssd-border)", borderRadius: "var(--ssd-radius)", overflow: "hidden" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -194,10 +267,10 @@ export default function RecordsClient({
                     </tr>
                   </thead>
                   <tbody>
-                    {record.notes.length === 0 ? (
-                      <tr><td style={td} colSpan={5}>No notes for this student yet.</td></tr>
+                    {filteredNotes.length === 0 ? (
+                      <tr><td style={td} colSpan={5}>{rangeLabel ? "No notes in this date range." : "No notes for this student yet."}</td></tr>
                     ) : (
-                      record.notes.map((n) => (
+                      filteredNotes.map((n) => (
                         <tr key={n.id}>
                           <td style={{ ...td, whiteSpace: "nowrap" }}>{fmt(n.note_date)}</td>
                           <td style={td}>{n.period ?? "—"}</td>
@@ -243,7 +316,14 @@ export default function RecordsClient({
           ) : (
             roster.map((r) => (
               <tr key={r.id}>
-                <td style={{ ...td, fontWeight: 600, color: "var(--ssd-ink)" }}>{r.display_name}</td>
+                <td style={{ ...td, fontWeight: 600, color: r.archived_at ? "var(--ssd-text-muted)" : "var(--ssd-ink)" }}>
+                  {r.display_name}
+                  {r.archived_at ? (
+                    <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#8a6d1a", background: "#faeeda", border: "1px solid #e8d9b0", borderRadius: 999, padding: "2px 8px" }}>
+                      Archived
+                    </span>
+                  ) : null}
+                </td>
                 <td style={td}>{r.teacher_names ?? "—"}</td>
                 <td style={td}>{fmt(r.last_score_date)}</td>
                 <td style={td}>{r.scores_30d}</td>

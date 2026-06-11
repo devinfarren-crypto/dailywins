@@ -49,20 +49,34 @@ export default async function AdminHomePage() {
 
   const { data: schoolRow } = await admin
     .from("schools")
-    .select("name, schedules, link_settings, districts(org_type)")
+    .select("name, schedules, link_settings, launch_finished_at, districts(org_type)")
     .eq("id", schoolId)
     .maybeSingle();
   const schoolName = schoolRow?.name ?? "Your school";
   const isNps = (schoolRow?.districts as { org_type?: string } | null)?.org_type === "nps";
-  const hasSchedule = Boolean(
-    schoolRow?.schedules && Object.keys(schoolRow.schedules as Record<string, unknown>).length > 0
-  );
+  const scheduleVariants = schoolRow?.schedules
+    ? Object.keys(schoolRow.schedules as Record<string, unknown>).length
+    : 0;
+  const hasSchedule = scheduleVariants > 0;
   const linkSettings = (schoolRow?.link_settings ?? {}) as Record<string, boolean>;
   const linksOn = ["parent", "student", "co_teacher"].filter((k) => linkSettings[k] !== false).length;
+  const parentLinksOn = linkSettings.parent !== false;
 
+  // Counts reflect the REAL school: the director's demo-minted teacher row
+  // (admin_first), [DEMO] students, and archived students are excluded.
   const [{ count: teacherCount }, { count: studentCount }] = await Promise.all([
-    admin.from("teachers").select("id", { count: "exact", head: true }).eq("school_id", schoolId).is("deactivated_at", null),
-    admin.from("students").select("id", { count: "exact", head: true }).eq("school_id", schoolId),
+    admin
+      .from("teachers")
+      .select("id", { count: "exact", head: true })
+      .eq("school_id", schoolId)
+      .is("deactivated_at", null)
+      .or("preferences->>admin_first.is.null,preferences->>admin_first.neq.true"),
+    admin
+      .from("students")
+      .select("id", { count: "exact", head: true })
+      .eq("school_id", schoolId)
+      .is("archived_at", null)
+      .not("display_name", "like", "[DEMO] %"),
   ]);
 
   return (
@@ -93,11 +107,14 @@ export default async function AdminHomePage() {
             schoolName={schoolName}
             isNps={isNps}
             userEmail={user.email ?? "your email"}
+            serverFinished={Boolean(schoolRow?.launch_finished_at)}
             initial={{
               teacherCount: teacherCount ?? 0,
               studentCount: studentCount ?? 0,
               hasSchedule,
+              scheduleVariants,
               linksOn,
+              parentLinksOn,
             }}
           />
         </div>

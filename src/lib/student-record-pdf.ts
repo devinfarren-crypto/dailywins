@@ -62,9 +62,14 @@ type Doc = InstanceType<(typeof import("jspdf"))["default"]>;
 export async function generateStudentRecordPdf(opts: {
   studentName: string;
   schoolName: string;
+  generatedBy?: string;
   scores: ChartScoreRow[];
   categories: CategoryDef[] | null;
+  categoriesByTeacher?: Record<string, CategoryDef[]> | null;
   notes: PdfNote[];
+  // Explicit compliance window ("2026-03-01 to 2026-05-31"). When set, charts
+  // show EVERY bucket in range instead of the rolling last-N.
+  rangeLabel?: string | null;
 }): Promise<void> {
   const { default: jsPDF } = await import("jspdf");
   const doc: Doc = new jsPDF();
@@ -84,8 +89,9 @@ export async function generateStudentRecordPdf(opts: {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
     doc.setTextColor(...GRAY);
+    const by = opts.generatedBy ? ` by ${opts.generatedBy}` : "";
     doc.text(
-      `DailyWins · ${opts.schoolName} · generated ${generated} · every record access is audited`,
+      `DailyWins · ${opts.schoolName} · generated ${generated}${by} · record access and exports are audited`,
       M,
       pageH - 9
     );
@@ -121,11 +127,22 @@ export async function generateStudentRecordPdf(opts: {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9.5);
   doc.setTextColor(210, 215, 222);
-  doc.text(`${opts.schoolName}  ·  ${generated}`, M, 31);
+  doc.text(
+    `${opts.schoolName}  ·  ${generated}${opts.rangeLabel ? `  ·  reporting window: ${opts.rangeLabel}` : ""}`,
+    M,
+    31
+  );
 
   // ── Page 1: weekly + monthly charts ──────────────────────────────────────
-  const weekly = summarizeBehavior(opts.scores, opts.categories, "weekly");
-  const monthly = summarizeBehavior(opts.scores, opts.categories, "monthly");
+  // An explicit reporting window shows EVERY bucket in range; otherwise the
+  // rolling last-N default keeps the charts readable.
+  const sumOpts = {
+    categoriesByTeacher: opts.categoriesByTeacher ?? null,
+    ...(opts.rangeLabel ? { maxBuckets: 1000 } : {}),
+  };
+  const weekly = summarizeBehavior(opts.scores, opts.categories, "weekly", sumOpts);
+  const monthly = summarizeBehavior(opts.scores, opts.categories, "monthly", sumOpts);
+  const windowNoun = opts.rangeLabel ? `in ${opts.rangeLabel}` : null;
 
   const CHART_H = 112; // full card height — two fit on page 1 with the header
   drawTimeChart(doc, {
@@ -134,7 +151,7 @@ export async function generateStudentRecordPdf(opts: {
     w: contentW,
     h: CHART_H,
     title: "Weekly — % of behavior goals met",
-    caption: `Last ${weekly.series.length || 0} weeks · ${weekly.totalCount} logged periods · week of (Mon)`,
+    caption: `${weekly.series.length || 0} weeks ${windowNoun ?? "(most recent)"} · ${weekly.totalCount} logged periods · week of (Mon)`,
     data: weekly.series,
   });
   drawTimeChart(doc, {
@@ -143,7 +160,7 @@ export async function generateStudentRecordPdf(opts: {
     w: contentW,
     h: CHART_H,
     title: "Monthly — % of behavior goals met",
-    caption: `Last ${monthly.series.length || 0} months · ${monthly.totalCount} logged periods`,
+    caption: `${monthly.series.length || 0} months ${windowNoun ?? "(most recent)"} · ${monthly.totalCount} logged periods`,
     data: monthly.series,
   });
   footer();
@@ -162,7 +179,7 @@ export async function generateStudentRecordPdf(opts: {
     w: contentW,
     h: CHART_H + 6,
     title: "By category — average % of goal points earned",
-    caption: `Average across ${weekly.totalCount} logged period${weekly.totalCount === 1 ? "" : "s"} in the weekly range · the teacher's own category labels`,
+    caption: `Average across ${weekly.totalCount} logged period${weekly.totalCount === 1 ? "" : "s"} ${windowNoun ?? "in the weekly range"} · each entry scored against its own teacher's category settings`,
     data: catData,
     colors: weekly.breakdown.map((_, i) => CAT_COLORS[i % CAT_COLORS.length]),
     wideBars: true,
@@ -336,10 +353,13 @@ function drawTimeChart(
   }
   doc.setLineDashPattern([], 0);
 
-  // Bars
+  // Bars. Long compliance ranges can mean 20+ buckets — thin the labels and
+  // drop the per-bar % once they'd collide (the axis still carries the scale).
   const n = opts.data.length;
   const slot = plotW / n;
   const barW = Math.min(opts.wideBars ? 18 : 11, slot * 0.58);
+  const showPct = n <= 20;
+  const labelEvery = Math.max(1, Math.ceil(n / 14));
   opts.data.forEach((d, i) => {
     const cx = plotX + slot * i + slot / 2;
     const bh = Math.max(0.8, (plotH * Math.min(d.pct, 100)) / 100);
@@ -350,17 +370,19 @@ function drawTimeChart(
     if (bh > 2.4) {
       doc.rect(cx - barW / 2, plotBottom - 2.2, barW, 2.2, "F");
     }
-    // % above the bar
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(n > 10 ? 6.6 : 7.4);
-    doc.setTextColor(...INK);
-    doc.text(`${d.pct}`, cx, plotBottom - bh - 1.6, { align: "center" });
-    // Label below the axis — wrap category names onto two short lines.
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(n > 10 ? 6.4 : 7);
-    doc.setTextColor(...GRAY);
-    const labelLines = (doc.splitTextToSize(d.label, Math.max(slot - 2, 10)) as string[]).slice(0, 2);
-    doc.text(labelLines, cx, plotBottom + 4, { align: "center" });
+    if (showPct) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(n > 10 ? 6.6 : 7.4);
+      doc.setTextColor(...INK);
+      doc.text(`${d.pct}`, cx, plotBottom - bh - 1.6, { align: "center" });
+    }
+    if (i % labelEvery === 0 || i === n - 1) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(n > 10 ? 6.4 : 7);
+      doc.setTextColor(...GRAY);
+      const labelLines = (doc.splitTextToSize(d.label, Math.max(slot * labelEvery - 2, 10)) as string[]).slice(0, 2);
+      doc.text(labelLines, cx, plotBottom + 4, { align: "center" });
+    }
   });
 
   // Caption

@@ -56,6 +56,9 @@ export interface ChartScoreRow {
   score_date: string; // YYYY-MM-DD
   period: number;
   scores: Record<string, number | null> | null;
+  // Which teacher wrote the row (migration 050) — rows must be scored against
+  // THEIR category config, not the most recent teacher's.
+  teacher_id?: string | null;
   // Legacy per-category columns (pre-jsonb rows)
   arrival?: number | null;
   compliance?: number | null;
@@ -179,19 +182,40 @@ export interface GrainSummary {
   totalCount: number;
 }
 
+export interface SummarizeOptions {
+  // Migration 050: each scoring teacher's config, keyed by teacher id. Rows
+  // are computed against THEIR teacher's config (mixing configs through one
+  // teacher's lens read mismatched ids as zeros and used the wrong maxes).
+  categoriesByTeacher?: Record<string, CategoryDef[]> | null;
+  // Override the per-grain bucket cap (e.g. an explicit compliance date range
+  // must show EVERY bucket in range, not the most recent N).
+  maxBuckets?: number;
+}
+
 // The single source of the chart math — used by the component below AND the
 // director's printable PDF (src/lib/student-record-pdf.ts), so what prints is
 // exactly what's on screen.
 export function summarizeBehavior(
   scores: ChartScoreRow[],
   categories: CategoryDef[] | null | undefined,
-  grain: Grain
+  grain: Grain,
+  options?: SummarizeOptions
 ): GrainSummary {
-  const cats = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
-  // Points possible per period = sum of scoring categories' maxes (noPoints excluded).
-  const maxPerPeriod = cats.reduce((s, c) => (c.noPoints ? s : s + (c.maxPoints || 0)), 0);
+  const fallbackCats = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
+  const byTeacher = options?.categoriesByTeacher ?? null;
+  const catsFor = (row: ChartScoreRow): CategoryDef[] => {
+    if (byTeacher && row.teacher_id) {
+      const tc = byTeacher[row.teacher_id];
+      if (tc && tc.length > 0) return tc;
+    }
+    return fallbackCats;
+  };
 
   const buckets = new Map<string, Bucket>();
+  // Per-category accumulation tracks its OWN possible (different teachers can
+  // set different maxPoints for the "same" category).
+  const perCat = new Map<string, { name: string; points: number; possible: number }>();
+
   for (const row of scores) {
     if (!row || typeof row.score_date !== "string") continue;
     const { key, label } = bucketFor(grain, row.score_date);
@@ -200,20 +224,32 @@ export function summarizeBehavior(
       b = { key, label, count: 0, earned: 0, possible: 0, perCat: {} };
       buckets.set(key, b);
     }
+    const cats = catsFor(row);
     const pts = extractScores(row, cats);
     let rowEarned = 0;
+    let rowPossible = 0;
     for (const cat of cats) {
       const v = pts[cat.id] ?? 0;
       b.perCat[cat.id] = (b.perCat[cat.id] ?? 0) + v;
-      if (!cat.noPoints) rowEarned += v;
+      if (!cat.noPoints) {
+        rowEarned += v;
+        rowPossible += cat.maxPoints || 0;
+      }
+      const agg = perCat.get(cat.id) ?? { name: cat.name, points: 0, possible: 0 };
+      agg.points += v;
+      agg.possible += cat.maxPoints || 0;
+      agg.name = cat.name;
+      perCat.set(cat.id, agg);
     }
     b.count += 1;
     b.earned += rowEarned;
-    b.possible += maxPerPeriod;
+    b.possible += rowPossible;
   }
 
   const ordered = [...buckets.values()].sort((a, b) => a.key.localeCompare(b.key));
-  const shown = ordered.slice(-CAP[grain]);
+  const cap = options?.maxBuckets ?? CAP[grain];
+  const shown = ordered.slice(-cap);
+  const shownKeys = new Set(shown.map((b) => b.key));
 
   const seriesOut: TimeBucket[] = shown.map((b) => ({
     label: b.label,
@@ -221,17 +257,33 @@ export function summarizeBehavior(
     count: b.count,
   }));
 
-  const perCatTotal: Record<string, number> = {};
+  // Breakdown over the SHOWN window only — recompute from shown buckets when
+  // the cap dropped some (keeps the on-screen claim "in this range" true).
   let count = 0;
-  for (const b of shown) {
-    count += b.count;
-    for (const cat of cats) perCatTotal[cat.id] = (perCatTotal[cat.id] ?? 0) + (b.perCat[cat.id] ?? 0);
+  for (const b of shown) count += b.count;
+  if (shownKeys.size !== buckets.size) {
+    // Re-walk rows restricted to shown buckets for accurate per-cat possible.
+    perCat.clear();
+    for (const row of scores) {
+      if (!row || typeof row.score_date !== "string") continue;
+      if (!shownKeys.has(bucketFor(grain, row.score_date).key)) continue;
+      const cats = catsFor(row);
+      const pts = extractScores(row, cats);
+      for (const cat of cats) {
+        const agg = perCat.get(cat.id) ?? { name: cat.name, points: 0, possible: 0 };
+        agg.points += pts[cat.id] ?? 0;
+        agg.possible += cat.maxPoints || 0;
+        agg.name = cat.name;
+        perCat.set(cat.id, agg);
+      }
+    }
   }
-  const breakdownOut = cats.map((cat, i) => {
-    const avg = count > 0 ? (perCatTotal[cat.id] ?? 0) / count : 0;
-    const pct = cat.maxPoints > 0 ? Math.round((avg / cat.maxPoints) * 100) : 0;
-    return { id: cat.id, name: cat.name, pct, color: CHART_COLORS[i % CHART_COLORS.length] };
-  });
+  const breakdownOut = [...perCat.entries()].map(([id, agg], i) => ({
+    id,
+    name: agg.name,
+    pct: agg.possible > 0 ? Math.round((agg.points / agg.possible) * 100) : 0,
+    color: CHART_COLORS[i % CHART_COLORS.length],
+  }));
 
   return { series: seriesOut, breakdown: breakdownOut, totalCount: count };
 }
@@ -239,15 +291,17 @@ export function summarizeBehavior(
 export default function BehaviorCharts({
   scores,
   categories,
+  categoriesByTeacher,
 }: {
   scores: ChartScoreRow[];
   categories?: CategoryDef[] | null;
+  categoriesByTeacher?: Record<string, CategoryDef[]> | null;
 }) {
   const [grain, setGrain] = useState<Grain>("daily");
 
   const { series, breakdown, totalCount } = useMemo(
-    () => summarizeBehavior(scores, categories, grain),
-    [scores, categories, grain]
+    () => summarizeBehavior(scores, categories, grain, { categoriesByTeacher }),
+    [scores, categories, grain, categoriesByTeacher]
   );
 
   const cardStyle: React.CSSProperties = {

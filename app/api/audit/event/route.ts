@@ -46,6 +46,34 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient();
 
+  // nps_record.print is audited UNCONDITIONALLY (not act-as-gated): the
+  // director's PDF export is a copy of student records leaving the audited
+  // surface, so the chain of custody must show it. Permission re-checked via
+  // is_nps_school_admin (runs as the caller).
+  if (parsed.data.action === "nps_record.print") {
+    if (!parsed.data.target_id) {
+      return NextResponse.json({ error: "target_id required" }, { status: 400 });
+    }
+    const { data: st } = await admin
+      .from("students")
+      .select("school_id")
+      .eq("id", parsed.data.target_id)
+      .maybeSingle();
+    const { data: isDirector } = st?.school_id
+      ? await supabase.rpc("is_nps_school_admin", { p_school_id: st.school_id })
+      : { data: false };
+    if (isDirector !== true) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    await writeAuditLog(admin, {
+      actor_user_id: user.id,
+      action: "nps_record.print",
+      target_table: "students",
+      target_id: parsed.data.target_id,
+    });
+    return NextResponse.json({ ok: true, audited: true });
+  }
+
   // Only audit if the caller is currently act-as'd. Otherwise drop silently.
   const { data: session } = await admin
     .from("act_as_sessions")

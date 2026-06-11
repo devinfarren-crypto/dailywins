@@ -730,6 +730,7 @@ export default function DashboardClient() {
       .from("students")
       .select("id, display_name, school_id")
       .eq("school_id", schoolId)
+      .is("archived_at", null) // archived students stay in the record, not the roster
       .order("display_name");
 
     if (error) {
@@ -3280,16 +3281,23 @@ export default function DashboardClient() {
                     >
                       {s.display_name}
                       <button
+                        title="Remove from roster (the student's record is kept — ask support to restore)"
                         onClick={async () => {
-                          const { error } = await supabase.from("students").delete().eq("id", s.id);
-                          if (error) { console.error("Failed to delete student:", error); return; }
+                          // Soft delete (049): hard DELETE cascaded scores+notes
+                          // away — the school's legal record must survive
+                          // roster tidying. Archive instead; admins can restore.
+                          const { error } = await supabase
+                            .from("students")
+                            .update({ archived_at: new Date().toISOString() })
+                            .eq("id", s.id);
+                          if (error) { console.error("Failed to archive student:", error); return; }
                           setDbStudents((prev) => {
                             const updated = prev.filter((st) => st.id !== s.id);
                             localStorage.setItem("dailywins_students", JSON.stringify(updated.map((st) => st.display_name)));
                             return updated;
                           });
                           fireAuditEvent({
-                            action: "student.delete",
+                            action: "student.archive",
                             target_table: "students",
                             target_id: s.id,
                             before: { display_name: s.display_name },
@@ -3564,8 +3572,15 @@ export default function DashboardClient() {
                 }} />
               </div>
               <span style={{ fontSize: 12, color: COLORS.dark }}>
-                {noteShared ? "New notes: Shared (visible to parents)" : "New notes: Private (teacher only)"}
+                {noteShared ? "New notes: Shared (visible to parents)" : "New notes: Private (hidden from parents & other teachers)"}
               </span>
+            </div>
+            {/* Honest-disclosure line: "private" must not read as invisible-to-
+                everyone — school admins with records access and the official
+                record include these notes (it's the school's legal record). */}
+            <div style={{ fontSize: 11, color: "#8a9690", marginTop: 4, lineHeight: 1.45 }}>
+              All notes — including private ones — are part of your school&apos;s official record and
+              are visible to school administrators with records access.
             </div>
             </>)}
 

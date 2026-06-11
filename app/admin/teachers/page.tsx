@@ -52,7 +52,7 @@ export default async function AdminTeachersPage() {
 
   let query = admin
     .from("teachers")
-    .select("id, auth_id, full_name, email, school_id, deactivated_at, schools(name, district)")
+    .select("id, auth_id, full_name, email, school_id, deactivated_at, preferences, schools(name, district)")
     .order("full_name", { ascending: true });
 
   if (!isFounder) {
@@ -67,6 +67,9 @@ export default async function AdminTeachersPage() {
     const { data } = await query;
     teachers = (data ?? [])
       .filter((t) => t.auth_id !== user.id)
+      // Demo-minted director rows (preferences.admin_first) are not staff —
+      // they exist only so "What teachers see" has a dashboard to open.
+      .filter((t) => (t.preferences as { admin_first?: boolean } | null)?.admin_first !== true)
       .map((t) => ({
         id: t.id,
         auth_id: t.auth_id,

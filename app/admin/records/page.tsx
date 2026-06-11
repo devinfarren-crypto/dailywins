@@ -94,7 +94,7 @@ export default async function RecordsPage() {
       subtitle="Full student records — every goal, every note, across your school"
       showNav={true}
     >
-      <RecordsClient schoolId={schoolId} schoolName={schoolName} />
+      <RecordsClient schoolId={schoolId} schoolName={schoolName} userEmail={user.email ?? ""} />
       <p style={{ marginTop: 28, fontSize: 12, color: "var(--ssd-text-muted)", lineHeight: 1.5, maxWidth: 720 }}>
         As the school&apos;s director you can see every score and every note —
         shared and private — recorded at your school. Each record you open is

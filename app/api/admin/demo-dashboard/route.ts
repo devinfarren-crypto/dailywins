@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/src/lib/supabase-server";
 import { createAdminClient } from "@/src/lib/supabase-admin";
-import { seedDemoData } from "@/src/lib/demo-seed";
+import { seedDemoData, wipeDemoData } from "@/src/lib/demo-seed";
 import { writeAuditLog } from "@/src/lib/audit-log";
 
 // "What teachers see": gives a site admin / NPS director their own teacher
@@ -14,7 +14,9 @@ import { writeAuditLog } from "@/src/lib/audit-log";
 //   never carries the flag, still routes to /dashboard as always).
 // - Re-running reseeds: seedDemoData wipes [DEMO] students at the school
 //   first, so this is safe to click as many times as the director likes.
-export async function POST() {
+// - Body {action:"wipe"} removes the [DEMO] class everywhere (roster, records,
+//   teacher dashboards) without reseeding — the "done exploring" button.
+export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -46,6 +48,32 @@ export async function POST() {
     .maybeSingle();
   if (existing?.deactivated_at) {
     return NextResponse.json({ ok: false, error: "This account is deactivated." }, { status: 403 });
+  }
+
+  const body = await req.json().catch(() => ({} as Record<string, unknown>));
+  const action = typeof body?.action === "string" ? body.action : "seed";
+
+  // Wipe: needs an existing teachers row (the demo created one); deletes every
+  // [DEMO]-prefixed student at the school, cascading their scores/notes.
+  if (action === "wipe") {
+    if (!existing?.id) {
+      return NextResponse.json({ ok: true, studentsDeleted: 0 });
+    }
+    try {
+      const result = await wipeDemoData(admin, existing.id as string);
+      await writeAuditLog(admin, {
+        actor_user_id: user.id,
+        action: "demo_dashboard.wipe",
+        target_table: "teachers",
+        target_id: existing.id as string,
+        after: result,
+      });
+      return NextResponse.json({ ok: true, ...result });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Wipe failed";
+      console.error("demo-dashboard wipe failed", err);
+      return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    }
   }
 
   let teacherId = existing?.id as string | undefined;
