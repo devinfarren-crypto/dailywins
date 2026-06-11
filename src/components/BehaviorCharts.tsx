@@ -47,6 +47,7 @@ export interface CategoryDef {
   // INDEX (pointValues can collide, e.g. [3,0,3]), not the point value.
   type?: string;
   pointValues?: number[];
+  options?: string[];
 }
 
 // One behavior_scores row as returned by the magic-link RPCs (migration 038).
@@ -63,7 +64,7 @@ export interface ChartScoreRow {
   phone_away?: boolean | null;
 }
 
-type Grain = "daily" | "weekly" | "monthly";
+export type Grain = "daily" | "weekly" | "monthly";
 
 // Fallback when a student has no scores yet (RPC returns []). Mirrors the
 // teachers.categories DB default (see DashboardClient DEFAULT_CATEGORIES).
@@ -98,8 +99,23 @@ function num(v: unknown): number {
 // An "arrival" category stores the OPTION INDEX (its pointValues can collide,
 // e.g. [3,0,3]), not the point value; every other type stores points directly.
 // Mirrors the dashboard's calculatePeriodPoints so the % is correct.
+//
+// Stored teacher configs often have NO pointValues (the teachers.categories DB
+// default from migration 003 ships options only) — derive them exactly like
+// the dashboard's ensurePointValues, or every arrival charts as 0 (the
+// "Arrival 0%" bug seen on the records view 2026-06-11).
+function arrivalPointValues(cat: CategoryDef): number[] {
+  if (cat.pointValues && cat.pointValues.length > 0) return cat.pointValues;
+  const maxPts = cat.maxPoints ?? 3;
+  const optCount = cat.options?.length ?? 3;
+  // On Time / L / L-E: excused late = full points (matches the dashboard).
+  return optCount === 3
+    ? [maxPts, 0, maxPts]
+    : Array.from({ length: optCount }, (_, i) => Math.max(0, maxPts - i));
+}
+
 function pointsForRaw(cat: CategoryDef, raw: number): number {
-  if (cat.type === "arrival") return cat.pointValues?.[raw] ?? 0;
+  if (cat.type === "arrival") return arrivalPointValues(cat)[raw] ?? 0;
   return raw;
 }
 
@@ -157,6 +173,69 @@ interface Bucket {
   perCat: Record<string, number>;
 }
 
+export interface GrainSummary {
+  series: TimeBucket[];
+  breakdown: { id: string; name: string; pct: number; color: string }[];
+  totalCount: number;
+}
+
+// The single source of the chart math — used by the component below AND the
+// director's printable PDF (src/lib/student-record-pdf.ts), so what prints is
+// exactly what's on screen.
+export function summarizeBehavior(
+  scores: ChartScoreRow[],
+  categories: CategoryDef[] | null | undefined,
+  grain: Grain
+): GrainSummary {
+  const cats = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
+  // Points possible per period = sum of scoring categories' maxes (noPoints excluded).
+  const maxPerPeriod = cats.reduce((s, c) => (c.noPoints ? s : s + (c.maxPoints || 0)), 0);
+
+  const buckets = new Map<string, Bucket>();
+  for (const row of scores) {
+    if (!row || typeof row.score_date !== "string") continue;
+    const { key, label } = bucketFor(grain, row.score_date);
+    let b = buckets.get(key);
+    if (!b) {
+      b = { key, label, count: 0, earned: 0, possible: 0, perCat: {} };
+      buckets.set(key, b);
+    }
+    const pts = extractScores(row, cats);
+    let rowEarned = 0;
+    for (const cat of cats) {
+      const v = pts[cat.id] ?? 0;
+      b.perCat[cat.id] = (b.perCat[cat.id] ?? 0) + v;
+      if (!cat.noPoints) rowEarned += v;
+    }
+    b.count += 1;
+    b.earned += rowEarned;
+    b.possible += maxPerPeriod;
+  }
+
+  const ordered = [...buckets.values()].sort((a, b) => a.key.localeCompare(b.key));
+  const shown = ordered.slice(-CAP[grain]);
+
+  const seriesOut: TimeBucket[] = shown.map((b) => ({
+    label: b.label,
+    pct: b.possible > 0 ? Math.round((b.earned / b.possible) * 100) : 0,
+    count: b.count,
+  }));
+
+  const perCatTotal: Record<string, number> = {};
+  let count = 0;
+  for (const b of shown) {
+    count += b.count;
+    for (const cat of cats) perCatTotal[cat.id] = (perCatTotal[cat.id] ?? 0) + (b.perCat[cat.id] ?? 0);
+  }
+  const breakdownOut = cats.map((cat, i) => {
+    const avg = count > 0 ? (perCatTotal[cat.id] ?? 0) / count : 0;
+    const pct = cat.maxPoints > 0 ? Math.round((avg / cat.maxPoints) * 100) : 0;
+    return { id: cat.id, name: cat.name, pct, color: CHART_COLORS[i % CHART_COLORS.length] };
+  });
+
+  return { series: seriesOut, breakdown: breakdownOut, totalCount: count };
+}
+
 export default function BehaviorCharts({
   scores,
   categories,
@@ -166,55 +245,10 @@ export default function BehaviorCharts({
 }) {
   const [grain, setGrain] = useState<Grain>("daily");
 
-  const cats = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
-  // Points possible per period = sum of scoring categories' maxes (noPoints excluded).
-  const maxPerPeriod = cats.reduce((s, c) => (c.noPoints ? s : s + (c.maxPoints || 0)), 0);
-
-  const { series, breakdown, totalCount } = useMemo(() => {
-    const buckets = new Map<string, Bucket>();
-    for (const row of scores) {
-      if (!row || typeof row.score_date !== "string") continue;
-      const { key, label } = bucketFor(grain, row.score_date);
-      let b = buckets.get(key);
-      if (!b) {
-        b = { key, label, count: 0, earned: 0, possible: 0, perCat: {} };
-        buckets.set(key, b);
-      }
-      const pts = extractScores(row, cats);
-      let rowEarned = 0;
-      for (const cat of cats) {
-        const v = pts[cat.id] ?? 0;
-        b.perCat[cat.id] = (b.perCat[cat.id] ?? 0) + v;
-        if (!cat.noPoints) rowEarned += v;
-      }
-      b.count += 1;
-      b.earned += rowEarned;
-      b.possible += maxPerPeriod;
-    }
-
-    const ordered = [...buckets.values()].sort((a, b) => a.key.localeCompare(b.key));
-    const shown = ordered.slice(-CAP[grain]);
-
-    const seriesOut: TimeBucket[] = shown.map((b) => ({
-      label: b.label,
-      pct: b.possible > 0 ? Math.round((b.earned / b.possible) * 100) : 0,
-      count: b.count,
-    }));
-
-    const perCatTotal: Record<string, number> = {};
-    let count = 0;
-    for (const b of shown) {
-      count += b.count;
-      for (const cat of cats) perCatTotal[cat.id] = (perCatTotal[cat.id] ?? 0) + (b.perCat[cat.id] ?? 0);
-    }
-    const breakdownOut = cats.map((cat, i) => {
-      const avg = count > 0 ? (perCatTotal[cat.id] ?? 0) / count : 0;
-      const pct = cat.maxPoints > 0 ? Math.round((avg / cat.maxPoints) * 100) : 0;
-      return { id: cat.id, name: cat.name, pct, color: CHART_COLORS[i % CHART_COLORS.length] };
-    });
-
-    return { series: seriesOut, breakdown: breakdownOut, totalCount: count };
-  }, [scores, cats, grain, maxPerPeriod]);
+  const { series, breakdown, totalCount } = useMemo(
+    () => summarizeBehavior(scores, categories, grain),
+    [scores, categories, grain]
+  );
 
   const cardStyle: React.CSSProperties = {
     background: "var(--ssd-surface)",

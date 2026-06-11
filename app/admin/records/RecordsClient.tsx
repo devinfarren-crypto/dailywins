@@ -67,12 +67,40 @@ function fmt(d: string | null): string {
   }
 }
 
-export default function RecordsClient({ schoolId }: { schoolId: string }) {
+export default function RecordsClient({
+  schoolId,
+  schoolName = "Your school",
+}: {
+  schoolId: string;
+  schoolName?: string;
+}) {
   const [roster, setRoster] = useState<RosterRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<RosterRow | null>(null);
   const [record, setRecord] = useState<StudentRecord | null>(null);
   const [loadingRecord, setLoadingRecord] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+
+  // Print everything on this page — charts (all three grains), the category
+  // breakdown, and every note — as one branded PDF. jspdf is browser-only,
+  // so the generator module is imported inside the handler (CLAUDE.md gotcha).
+  const printPdf = useCallback(async (row: RosterRow, rec: StudentRecord) => {
+    setPdfBusy(true);
+    try {
+      const { generateStudentRecordPdf } = await import("@/src/lib/student-record-pdf");
+      await generateStudentRecordPdf({
+        studentName: rec.student?.display_name ?? row.display_name,
+        schoolName,
+        scores: rec.scores,
+        categories: rec.categories,
+        notes: rec.notes,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "PDF generation failed.");
+    } finally {
+      setPdfBusy(false);
+    }
+  }, [schoolName]);
 
   useEffect(() => {
     (async () => {
@@ -115,16 +143,32 @@ export default function RecordsClient({ schoolId }: { schoolId: string }) {
   if (selected) {
     return (
       <div>
-        <button
-          onClick={() => { setSelected(null); setRecord(null); }}
-          style={{
-            fontSize: 13, fontWeight: 600, padding: "7px 14px", borderRadius: 999,
-            border: "1px solid var(--ssd-border)", background: "var(--ssd-surface)",
-            color: "var(--ssd-ink)", cursor: "pointer", marginBottom: 16,
-          }}
-        >
-          ← All students
-        </button>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+          <button
+            onClick={() => { setSelected(null); setRecord(null); }}
+            style={{
+              fontSize: 13, fontWeight: 600, padding: "7px 14px", borderRadius: 999,
+              border: "1px solid var(--ssd-border)", background: "var(--ssd-surface)",
+              color: "var(--ssd-ink)", cursor: "pointer",
+            }}
+          >
+            ← All students
+          </button>
+          {record ? (
+            <button
+              onClick={() => printPdf(selected, record)}
+              disabled={pdfBusy}
+              style={{
+                fontSize: 13, fontWeight: 700, padding: "8px 18px", borderRadius: 999,
+                border: "none", background: "var(--ssd-green-deep, #0F6E56)", color: "#fff",
+                cursor: pdfBusy ? "wait" : "pointer", opacity: pdfBusy ? 0.7 : 1,
+                boxShadow: "0 4px 12px rgba(15,110,86,.25)",
+              }}
+            >
+              {pdfBusy ? "Preparing PDF…" : "Print PDF ↓"}
+            </button>
+          ) : null}
+        </div>
         <h2 style={{ fontFamily: "var(--ssd-font-display), Georgia, serif", fontSize: 24, fontWeight: 500, color: "var(--ssd-ink)", margin: "0 0 16px" }}>
           {selected.display_name}
         </h2>
