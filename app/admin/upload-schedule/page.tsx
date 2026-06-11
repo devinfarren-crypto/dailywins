@@ -88,28 +88,59 @@ export default async function UploadSchedulePage() {
     schedules: (s.schedules as Schedules) ?? null,
   }));
 
+  // Same shell as every other admin tab (cream paper, 1000px container,
+  // eyebrow + serif title header, nav, then the navy band) — so the band
+  // lands in the identical spot when clicking over from Home.
   return (
-    <main style={{ padding: 40, maxWidth: 900, margin: "0 auto" }}>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
-        <SignOutButton />
-      </div>
-      {!isFounder ? <SiteAdminNav current="schedules" /> : null}
-      {schools.length === 0 ? (
-        <div
+    <main style={{ minHeight: "100vh", background: "var(--ssd-paper)", padding: "40px 20px" }}>
+      <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+        <header
           style={{
-            fontFamily: "system-ui, -apple-system, sans-serif",
-            color: "#5a6e66",
+            marginBottom: 24,
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 16,
+            flexWrap: "wrap",
           }}
         >
-          <AdminNavyBand title="Bell schedules" sub="Nothing to manage yet." />
-          <p style={{ fontSize: 15, color: "#8a9690" }}>
-            You aren&apos;t set up as an admin of any school yet, so there&apos;s
-            nothing to manage here. Ask a founder to add you as a Site Admin.
-          </p>
-        </div>
-      ) : (
-        <ScheduleUploader schools={schools} />
-      )}
+          <div>
+            <div className="ssd-eyebrow" style={{ marginBottom: 8 }}>· Bell schedules ·</div>
+            <h1
+              style={{
+                fontFamily: "var(--ssd-font-display), Georgia, serif",
+                fontSize: 32,
+                fontWeight: 500,
+                color: "var(--ssd-ink)",
+                margin: "0 0 4px",
+              }}
+            >
+              {schools.length === 1 ? schools[0].name : "Bell schedules"}
+            </h1>
+            <p style={{ fontSize: 14, color: "var(--ssd-text-muted)", margin: 0 }}>
+              The day your teachers see.
+            </p>
+          </div>
+          <SignOutButton />
+        </header>
+        {!isFounder ? <SiteAdminNav current="schedules" /> : null}
+        {schools.length === 0 ? (
+          <div
+            style={{
+              fontFamily: "system-ui, -apple-system, sans-serif",
+              color: "#5a6e66",
+            }}
+          >
+            <AdminNavyBand title="Bell schedules" sub="Nothing to manage yet." />
+            <p style={{ fontSize: 15, color: "#8a9690" }}>
+              You aren&apos;t set up as an admin of any school yet, so there&apos;s
+              nothing to manage here. Ask a founder to add you as a Site Admin.
+            </p>
+          </div>
+        ) : (
+          <ScheduleUploader schools={schools} />
+        )}
+      </div>
     </main>
   );
 }

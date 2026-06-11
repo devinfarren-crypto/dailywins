@@ -95,14 +95,23 @@ export default async function AdminAuditLogPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[var(--ssd-paper)] px-6 py-10">
-      <section className="mx-auto w-full max-w-5xl">
+    <main className="min-h-screen bg-[var(--ssd-paper)] px-5 py-10">
+      <section className="mx-auto w-full max-w-[1000px]">
         <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-[var(--ssd-green-deep)]">
+            <div className="ssd-eyebrow" style={{ marginBottom: 8 }}>· Audit log ·</div>
+            <h1
+              style={{
+                fontFamily: "var(--ssd-font-display), Georgia, serif",
+                fontSize: 32,
+                fontWeight: 500,
+                color: "var(--ssd-ink)",
+                margin: "0 0 4px",
+              }}
+            >
               Audit log
             </h1>
-            <p className="mt-1 text-sm text-[var(--ssd-text-muted)]">{subtitle}</p>
+            <p style={{ fontSize: 14, color: "var(--ssd-text-muted)", margin: 0 }}>{subtitle}</p>
           </div>
           {!isFounder ? <SignOutButton /> : null}
         </header>

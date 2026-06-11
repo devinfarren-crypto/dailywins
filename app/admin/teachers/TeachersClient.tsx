@@ -134,43 +134,85 @@ export default function TeachersClient({
   };
 
   return (
-    <main className="min-h-screen bg-[#f5f5f0] px-6 py-10">
-      <section className="mx-auto w-full max-w-4xl">
-        <div className="mb-4 flex justify-end">
-          <SignOutButton />
-        </div>
+    <main className="min-h-screen bg-[var(--ssd-paper)] px-5 py-10">
+      <section className="mx-auto w-full max-w-[1000px]">
+        {/* Site admins get the same shell rhythm as every other tab:
+            eyebrow + serif title header, then nav, then the navy band (the
+            invite button rides the band's action slot). Founders keep the
+            original flat layout. */}
+        {showSiteAdminNav ? (
+          <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div className="ssd-eyebrow" style={{ marginBottom: 8 }}>· Teachers ·</div>
+              <h1
+                style={{
+                  fontFamily: "var(--ssd-font-display), Georgia, serif",
+                  fontSize: 32,
+                  fontWeight: 500,
+                  color: "var(--ssd-ink)",
+                  margin: "0 0 4px",
+                }}
+              >
+                Teachers
+              </h1>
+              <p style={{ fontSize: 14, color: "var(--ssd-text-muted)", margin: 0 }}>
+                Teachers at your school.
+              </p>
+            </div>
+            <SignOutButton />
+          </header>
+        ) : (
+          <div className="mb-4 flex justify-end">
+            <SignOutButton />
+          </div>
+        )}
         {showSiteAdminNav ? (
           <>
             <SiteAdminNav current="teachers" />
             <AdminNavyBand
               title="Your staff, one tap from tracking."
               sub="Invite a teacher — a one-click sign-in button lands in their inbox."
+              action={
+                isSiteAdmin ? (
+                  <button
+                    onClick={() => {
+                      setInviteOpen((v) => !v);
+                      setInviteMsg("");
+                      setError("");
+                    }}
+                    className="shrink-0 rounded-full bg-[#0F6E56] px-5 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-[#1D9E75]"
+                  >
+                    {inviteOpen ? "Cancel" : "+ Invite teacher"}
+                  </button>
+                ) : null
+              }
             />
           </>
-        ) : null}
-        <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-[#2a4d42]">Teachers</h1>
-            <p className="mt-1 text-sm text-[#8a9690]">
-              {isFounder ? "All teachers across the platform." : "Teachers at your school."}
-              {isFounder
-                ? " Click Act as to view the app from a teacher’s perspective under audit."
-                : null}
-            </p>
-          </div>
-          {isSiteAdmin ? (
-            <button
-              onClick={() => {
-                setInviteOpen((v) => !v);
-                setInviteMsg("");
-                setError("");
-              }}
-              className="rounded-xl bg-[#1c5c3c] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#16263d]"
-            >
-              {inviteOpen ? "Cancel" : "+ Invite teacher"}
-            </button>
-          ) : null}
-        </header>
+        ) : (
+          <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-[#2a4d42]">Teachers</h1>
+              <p className="mt-1 text-sm text-[#8a9690]">
+                {isFounder ? "All teachers across the platform." : "Teachers at your school."}
+                {isFounder
+                  ? " Click Act as to view the app from a teacher’s perspective under audit."
+                  : null}
+              </p>
+            </div>
+            {isSiteAdmin ? (
+              <button
+                onClick={() => {
+                  setInviteOpen((v) => !v);
+                  setInviteMsg("");
+                  setError("");
+                }}
+                className="rounded-xl bg-[#1c5c3c] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#16263d]"
+              >
+                {inviteOpen ? "Cancel" : "+ Invite teacher"}
+              </button>
+            ) : null}
+          </header>
+        )}
 
         {inviteOpen ? (
           <form

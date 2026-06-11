@@ -698,6 +698,28 @@ function MissionControl({
   initial: LaunchProps["initial"];
   onReplay: () => void;
 }) {
+  const [demoBusy, setDemoBusy] = useState(false);
+  const [demoErr, setDemoErr] = useState("");
+
+  // "What teachers see": seed a [DEMO] class on the director's own teacher
+  // dashboard, then open it in a new tab so this home stays put.
+  const openDemo = async () => {
+    setDemoBusy(true);
+    setDemoErr("");
+    try {
+      const res = await fetch("/api/admin/demo-dashboard", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error ?? "Couldn't set up the demo. Try again.");
+      }
+      window.open("/dashboard", "_blank", "noopener");
+    } catch (err) {
+      setDemoErr(err instanceof Error ? err.message : "Couldn't set up the demo. Try again.");
+    } finally {
+      setDemoBusy(false);
+    }
+  };
+
   const teacherBlurb = [
     `Hi team — we're starting with DailyWins (dailywins.school), a behavior/goal tracker built by teachers.`,
     ``,
@@ -769,6 +791,57 @@ function MissionControl({
             <div style={{ fontSize: 12.5, color: "#7a7a8e" }}>{s.label}</div>
           </a>
         ))}
+      </div>
+
+      {/* What teachers see — a hands-on demo dashboard, fake students only. */}
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid var(--ssd-border)",
+          borderRadius: 18,
+          padding: "22px 24px",
+          boxShadow: "0 6px 16px rgba(26,38,61,.07)",
+          marginBottom: 18,
+          display: "flex",
+          alignItems: "center",
+          gap: 18,
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 260 }}>
+          <div
+            style={{
+              fontFamily: "var(--ssd-font-mono), monospace",
+              fontSize: 12,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              color: TEAL,
+              marginBottom: 6,
+              fontWeight: 700,
+            }}
+          >
+            What teachers see
+          </div>
+          <div style={{ fontSize: 13, color: "#7a7a8e", lineHeight: 1.55 }}>
+            Open your own teacher dashboard, pre-loaded with seven fake students and 8 weeks of
+            history — tap scores, open the charts, print a progress report. Everything is tagged{" "}
+            <strong>[DEMO]</strong> and wipeable from the dashboard&apos;s settings; no real student
+            data is touched. Opens in a new tab.
+          </div>
+          {demoErr ? (
+            <div style={{ fontSize: 13, color: "#9c3a22", fontWeight: 600, marginTop: 8 }}>
+              {demoErr}
+            </div>
+          ) : null}
+        </div>
+        <button
+          className="dw-primary"
+          style={{ ...primaryBtn, opacity: demoBusy ? 0.7 : 1, cursor: demoBusy ? "wait" : "pointer", flexShrink: 0 }}
+          onClick={openDemo}
+          disabled={demoBusy}
+        >
+          {demoBusy ? "Setting up your demo class…" : "Open the demo dashboard →"}
+        </button>
       </div>
 
       <div

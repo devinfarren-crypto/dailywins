@@ -21,7 +21,7 @@ export async function resolvePostAuthRedirect(
 
   const { data: existingTeacher } = await admin
     .from("teachers")
-    .select("id, deactivated_at")
+    .select("id, deactivated_at, preferences")
     .eq("auth_id", user.id)
     .maybeSingle();
 
@@ -31,8 +31,13 @@ export async function resolvePostAuthRedirect(
     return "/access-denied";
   }
 
-  // A teacher row means the teacher dashboard is their home.
-  if (existingTeacher) {
+  // A teacher row means the teacher dashboard is their home — unless the row
+  // was minted by the "What teachers see" demo (preferences.admin_first):
+  // directors keep landing on their admin home and reach the demo dashboard
+  // from there. Real teacher rows never carry the flag.
+  const adminFirst =
+    (existingTeacher?.preferences as { admin_first?: boolean } | null)?.admin_first === true;
+  if (existingTeacher && !adminFirst) {
     return "/dashboard";
   }
 
