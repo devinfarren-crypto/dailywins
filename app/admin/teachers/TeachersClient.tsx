@@ -84,6 +84,31 @@ export default function TeachersClient({
     }
   };
 
+  const resendSignin = async (teacher: TeacherRow) => {
+    setError("");
+    setInviteMsg("");
+    setBusyId(teacher.id);
+    try {
+      const res = await fetch("/api/admin/resend-signin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ email: teacher.email }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? "Unable to resend");
+      setInviteMsg(
+        body.email_sent
+          ? `Fresh sign-in link emailed to ${teacher.email}.`
+          : `Link created but the email didn't send (${body.warning ?? "email not configured"}).`
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Resend failed");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const toggleActive = async (teacher: TeacherRow) => {
     setError("");
     setBusyId(teacher.id);
@@ -219,6 +244,15 @@ export default function TeachersClient({
                       className="rounded-xl bg-[#3a7c6a] px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#2a4d42] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {busyId === t.auth_id ? "Starting…" : "Act as"}
+                    </button>
+                  ) : null}
+                  {canManage && !t.deactivated ? (
+                    <button
+                      onClick={() => resendSignin(t)}
+                      disabled={busyId === t.id}
+                      className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-[#2a4d42] transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Resend sign-in
                     </button>
                   ) : null}
                   {canManage ? (

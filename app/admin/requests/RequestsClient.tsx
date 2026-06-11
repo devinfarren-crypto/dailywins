@@ -196,6 +196,39 @@ export default function RequestsClient({
                         : null}
                     </div>
                   </div>
+                  {req.status === "approved" ? (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={async () => {
+                          setError("");
+                          setBusyId(req.id);
+                          try {
+                            const res = await fetch("/api/admin/resend-signin", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              credentials: "same-origin",
+                              body: JSON.stringify({ email: req.email }),
+                            });
+                            const body = await res.json().catch(() => ({}));
+                            if (!res.ok) throw new Error(body.error ?? "Unable to resend");
+                            setFlash(
+                              body.email_sent
+                                ? `Fresh sign-in link emailed to ${req.email}.`
+                                : `Link created but the email didn't send (${body.warning ?? "email not configured"}).`
+                            );
+                          } catch (err) {
+                            setError(err instanceof Error ? err.message : "Resend failed");
+                          } finally {
+                            setBusyId(null);
+                          }
+                        }}
+                        disabled={busyId === req.id}
+                        className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-[#2a4d42] transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {busyId === req.id ? "Sending…" : "Resend sign-in"}
+                      </button>
+                    </div>
+                  ) : null}
                   {req.status === "pending" ? (
                     <div className="flex gap-2">
                       <button
