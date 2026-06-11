@@ -141,6 +141,16 @@ export async function listAuditRowsByUser(
 // scoped view excludes them entirely; only the founder view may include them.
 const PII_TABLES = new Set(["behavior_scores", "notes", "students"]);
 
+// EXCEPTION: NPS-director record opens (047) are written with
+// target_table='students' but carry NO row data — just ids. They ARE the
+// access trail the records page promises ("each record you open is noted in
+// the audit log"), so hiding them broke that promise for the only person it
+// was made to (caught in the 2026-06-11 external console review).
+function isPiiHidden(row: RawAuditRow): boolean {
+  if (!row.target_table || !PII_TABLES.has(row.target_table)) return false;
+  return !row.action.startsWith("nps_record.");
+}
+
 /**
  * Scoped audit read for district/site admins: rows where the actor (or the
  * acted-as user) is someone in the admin's domain, with PII-table rows
@@ -167,7 +177,7 @@ export async function listScopedAuditRows(
     return [];
   }
   const scoped = ((data ?? []) as RawAuditRow[])
-    .filter((r) => !r.target_table || !PII_TABLES.has(r.target_table))
+    .filter((r) => !isPiiHidden(r))
     .slice(0, limit);
   return enrichWithEmails(admin, scoped);
 }

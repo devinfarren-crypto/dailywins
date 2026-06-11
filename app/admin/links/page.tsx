@@ -17,11 +17,13 @@ function Shell({
   title,
   subtitle,
   showNav,
+  footer,
   children,
 }: {
   title: string;
   subtitle: string;
   showNav: boolean;
+  footer?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -45,11 +47,11 @@ function Shell({
           </>
         ) : null}
         {children}
-        <p style={{ marginTop: 28, fontSize: 12, color: "var(--ssd-text-muted)", lineHeight: 1.5 }}>
-          Links are listed by the teacher who created them — student names are never shown to
-          administrators, by database design. Revoking takes effect immediately, is permanent for
-          that link (the teacher can always generate a new one), and is recorded in the audit log.
-        </p>
+        {footer ? (
+          <p style={{ marginTop: 28, fontSize: 12, color: "var(--ssd-text-muted)", lineHeight: 1.5 }}>
+            {footer}
+          </p>
+        ) : null}
       </div>
     </main>
   );
@@ -93,8 +95,21 @@ export default async function LinksPage({
     );
   }
 
-  const { data: schoolRow } = await admin.from("schools").select("name").eq("id", schoolId).single();
+  const { data: schoolRow } = await admin
+    .from("schools")
+    .select("name, districts(org_type)")
+    .eq("id", schoolId)
+    .single();
   const schoolName = schoolRow?.name ?? "Your school";
+  const isNps = (schoolRow?.districts as { org_type?: string } | null)?.org_type === "nps";
+
+  // The footer must match the org shape: district-shaped site admins are
+  // PII-blind here, but an NPS director can open full records one tab over —
+  // claiming "student names are never shown to administrators" to a director
+  // contradicted the Student records tab (external console review, 6/11).
+  const footer = isNps
+    ? "Links are listed by the teacher who created them. Revoking takes effect immediately, is permanent for that link (the teacher can always generate a new one), and is recorded in the audit log. As the school's director you can also open full student records under Student records — every open is audited."
+    : "Links are listed by the teacher who created them — student names are never shown to administrators, by database design. Revoking takes effect immediately, is permanent for that link (the teacher can always generate a new one), and is recorded in the audit log.";
 
   // Session client, not admin — the RPC re-checks the caller's role itself.
   const { data, error } = await supabase.rpc("list_school_magic_links", { p_school_id: schoolId });
@@ -113,6 +128,7 @@ export default async function LinksPage({
       title={schoolName}
       subtitle={`${active} active link${active === 1 ? "" : "s"} · parent, student, and co-teacher access at your school`}
       showNav={!isFounder}
+      footer={footer}
     >
       {isFounder && schoolPicker.length > 1 ? (
         <div style={{ marginBottom: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>

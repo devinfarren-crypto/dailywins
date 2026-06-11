@@ -37,7 +37,7 @@ export default async function AdminAuditLogPage() {
   let rows: EnrichedAuditRow[];
   let subtitle: string;
   let showSiteNav = false;
-  let scopedNote = false;
+  let scopedNote: string | null = null;
 
   if (isFounder) {
     rows = await listAllAuditRows(admin, 200);
@@ -91,7 +91,22 @@ export default async function AdminAuditLogPage() {
     // NPS directors hold site_admin AND district_admin — they still get the
     // school nav (hiding it left them with nothing but Sign out).
     showSiteNav = roles.includes("site_admin");
-    scopedNote = true;
+
+    // The footer must tell the truth for the org shape: an NPS director DOES
+    // see student-record access entries (their own trail — nps_record.*);
+    // district-shaped admins are PII-blind and see none. One blanket "never
+    // shown by database design" line contradicted the Student records tab.
+    let isNpsDirector = false;
+    if (districtIds.length > 0 && roles.includes("site_admin")) {
+      const { data: orgs } = await admin
+        .from("districts")
+        .select("org_type")
+        .in("id", districtIds);
+      isNpsDirector = (orgs ?? []).some((o) => o.org_type === "nps");
+    }
+    scopedNote = isNpsDirector
+      ? "This view covers administrative actions and your school's record-access trail — every student record opened under Student records appears here as an nps_record entry. The contents of scores and notes never appear in this log, only the fact of access."
+      : "This view covers administrative and configuration actions in your domain. Entries that touch individual student records are never shown to administrators — by database design.";
   }
 
   return (
@@ -135,10 +150,7 @@ export default async function AdminAuditLogPage() {
         <AuditRowList rows={rows} />
 
         {scopedNote ? (
-          <p className="mt-7 text-xs leading-relaxed text-[var(--ssd-text-muted)]">
-            This view covers administrative and configuration actions in your domain. Entries that
-            touch individual student records are never shown to administrators — by database design.
-          </p>
+          <p className="mt-7 text-xs leading-relaxed text-[var(--ssd-text-muted)]">{scopedNote}</p>
         ) : null}
       </section>
     </main>
