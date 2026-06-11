@@ -87,7 +87,9 @@ export default async function AdminAuditLogPage() {
       districtIds.length > 0
         ? "Administrative actions across your district's schools. Newest first; up to the last 200 events."
         : "Administrative actions at your school. Newest first; up to the last 200 events.";
-    showSiteNav = roles.includes("site_admin") && districtIds.length === 0;
+    // NPS directors hold site_admin AND district_admin — they still get the
+    // school nav (hiding it left them with nothing but Sign out).
+    showSiteNav = roles.includes("site_admin");
     scopedNote = true;
   }
 
@@ -104,7 +106,15 @@ export default async function AdminAuditLogPage() {
           {!isFounder ? <SignOutButton /> : null}
         </header>
 
-        {showSiteNav ? <SiteAdminNav current="audit" /> : null}
+        {showSiteNav ? (
+          <SiteAdminNav current="audit" />
+        ) : !isFounder ? (
+          <p style={{ marginBottom: 16 }}>
+            <a href="/admin/usage" style={{ fontSize: 13, fontWeight: 600, color: "var(--ssd-green)", textDecoration: "none" }}>
+              ← Back to usage
+            </a>
+          </p>
+        ) : null}
 
         <AuditRowList rows={rows} />
 

@@ -49,16 +49,21 @@ async function enrichWithEmails(
     if (r.acting_as_user_id) ids.add(r.acting_as_user_id);
   }
 
-  // auth.users is queryable via the service-role admin client.
-  const { data: users } = await admin
-    .schema("auth")
-    .from("users")
-    .select("id, email")
-    .in("id", Array.from(ids));
-
+  // The auth schema is NOT exposed through PostgREST (the old .schema("auth")
+  // query silently returned nothing → raw UUIDs in the audit UI). Resolve
+  // emails from public tables instead: every teacher and every approved
+  // admin/director has a row in teachers or access_requests.
+  const idList = Array.from(ids);
   const emailById = new Map<string, string>();
-  for (const u of users ?? []) {
-    if (u.id && u.email) emailById.set(u.id, u.email);
+  const [{ data: teacherRows }, { data: requestRows }] = await Promise.all([
+    admin.from("teachers").select("auth_id, email").in("auth_id", idList),
+    admin.from("access_requests").select("user_id, email").in("user_id", idList),
+  ]);
+  for (const r of requestRows ?? []) {
+    if (r.user_id && r.email) emailById.set(r.user_id, r.email);
+  }
+  for (const t of teacherRows ?? []) {
+    if (t.auth_id && t.email) emailById.set(t.auth_id, t.email);
   }
 
   return rows.map((r) => ({
