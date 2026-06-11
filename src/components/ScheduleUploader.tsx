@@ -103,29 +103,53 @@ export default function ScheduleUploader({
 
     try {
       setState({ kind: 'extracting', filename: file.name });
+      // Job + poll: the parse can run 60–120s, and one long-held request dies
+      // on VPNs / school proxies (the server finished; the browser saw
+      // NetworkError). POST returns a job id immediately; we poll with quick
+      // requests until the job lands. Transient poll failures are tolerated.
       const res = await fetch('/api/schedule/parse', { method: 'POST', body: formData });
-      const data = await res.json();
+      const started = await res.json();
 
-      if (!res.ok) {
-        if (data.error === 'not_a_bell_schedule') {
-          setState({
-            kind: 'error',
-            message: `This doesn't look like a bell schedule. ${data.detail || ''}`,
-          });
-        } else if (data.error === 'invalid_json_from_model' || data.error === 'schema_validation_failed') {
-          setState({
-            kind: 'error',
-            message: 'We had trouble reading this PDF. Try a different file, or build the schedule manually.',
-          });
-        } else {
-          setState({ kind: 'error', message: data.detail || 'Something went wrong. Try again.' });
+      if (!res.ok || !started.job_id) {
+        setState({ kind: 'error', message: started.detail || 'Something went wrong starting the upload. Try again.' });
+        return;
+      }
+
+      const deadline = Date.now() + 6 * 60_000;
+      let data: Record<string, unknown> | null = null;
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 2500));
+        try {
+          const poll = await fetch(`/api/schedule/parse/status?job=${started.job_id}`, { cache: 'no-store' });
+          const body = await poll.json();
+          if (body.status === 'done') {
+            data = body.result;
+            break;
+          }
+          if (body.status === 'error') {
+            if (body.error === 'not_a_bell_schedule') {
+              setState({ kind: 'error', message: `This doesn't look like a bell schedule. ${body.detail || ''}` });
+            } else if (body.error === 'invalid_json_from_model' || body.error === 'schema_validation_failed') {
+              setState({ kind: 'error', message: 'We had trouble reading this PDF. Try a different file, or build the schedule manually.' });
+            } else {
+              setState({ kind: 'error', message: body.detail || 'Something went wrong. Try again.' });
+            }
+            return;
+          }
+          // status 'working' → keep waiting
+        } catch {
+          // one dropped poll (VPN blip, sleeping laptop) is fine — keep going
         }
+      }
+
+      if (!data) {
+        setState({ kind: 'error', message: 'This is taking unusually long. Your PDF may still finish — try again in a minute, or build the schedule manually.' });
         return;
       }
 
       setSaveMode('merge');
-      setState({ kind: 'review', schedule: data });
-      setEditedSchedule(data);
+      setState({ kind: 'review', schedule: data as unknown as ExtractedSchedule });
+      setEditedSchedule(data as unknown as ExtractedSchedule);
       setExpandedVariant(0);
     } catch (err) {
       setState({

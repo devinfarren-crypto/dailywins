@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { after } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@/src/lib/supabase-server';
+import { createAdminClient } from '@/src/lib/supabase-admin';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -166,7 +168,101 @@ function validateSchedule(data: unknown): data is ExtractedSchedule {
   return true;
 }
 
-// --- Route ---
+// --- The parse itself, run AFTER the response is sent (job pattern) ---
+
+async function runParse(jobId: string, base64: string): Promise<void> {
+  const admin = createAdminClient();
+  const fail = async (code: string, detail?: string) => {
+    await admin
+      .from('schedule_parse_jobs')
+      .update({ status: 'error', error_code: code, error_detail: detail ?? null, updated_at: new Date().toISOString() })
+      .eq('id', jobId);
+  };
+  try {
+    const response = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 32768, // headroom for monster multi-variant schedules — overflow showed up as invalid_json
+      system: SYSTEM_PROMPT,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'document',
+              source: {
+                type: 'base64',
+                media_type: 'application/pdf',
+                data: base64,
+              },
+            },
+            {
+              type: 'text',
+              text: 'Extract the bell schedule(s) from this PDF and return JSON per the schema.',
+            },
+          ],
+        },
+      ],
+    });
+
+    const textBlock = response.content.find((b) => b.type === 'text');
+    if (!textBlock || textBlock.type !== 'text') {
+      console.log('=== [schedule/parse] no text block in response ===');
+      await fail('no_response_text');
+      return;
+    }
+
+    const rawText = textBlock.text;
+    console.log('\n=== [schedule/parse] raw response from Claude ===');
+    console.log(rawText.slice(0, 2000));
+    if (rawText.length > 2000) console.log(`... [truncated, total ${rawText.length} chars]`);
+    console.log('=== end raw response ===\n');
+
+    const cleaned = stripCodeFences(rawText);
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch (parseErr) {
+      console.log('=== [schedule/parse] JSON.parse failed ===');
+      console.log(parseErr);
+      await fail('invalid_json_from_model', parseErr instanceof Error ? parseErr.message : 'parse error');
+      return;
+    }
+
+    if (parsed && typeof parsed === 'object' && 'error' in parsed) {
+      console.log('=== [schedule/parse] model returned error ===');
+      console.log(parsed);
+      const e = parsed as { error?: string; detail?: string };
+      await fail(e.error ?? 'model_error', e.detail);
+      return;
+    }
+
+    if (!validateSchedule(parsed)) {
+      console.log('=== [schedule/parse] schema validation failed ===');
+      console.log('Parsed keys:', Object.keys(parsed as object));
+      await fail('schema_validation_failed', 'Model returned JSON but it did not match the expected schema');
+      return;
+    }
+
+    console.log(`=== [schedule/parse] success: ${(parsed as ExtractedSchedule).variants.length} variants extracted ===`);
+    await admin
+      .from('schedule_parse_jobs')
+      .update({ status: 'done', result: parsed, updated_at: new Date().toISOString() })
+      .eq('id', jobId);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'unknown_error';
+    console.error('=== [schedule/parse] top-level error ===');
+    console.error(err);
+    await fail('server_error', message);
+  }
+}
+
+// --- Route: start a job, return immediately, parse continues via after() ---
+//
+// Why a job instead of one long request: the parse can run 60–120s with zero
+// bytes on the wire, and VPNs / school proxies kill idle connections — the
+// server was finishing with 200 while the browser reported NetworkError.
+// The uploader polls /api/schedule/parse/status with quick requests instead.
 
 export async function POST(req: NextRequest) {
   try {
@@ -201,90 +297,25 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer());
     const base64 = buffer.toString('base64');
 
-    console.log('\n=== [schedule/parse] sending PDF to Claude ===');
-    console.log(`  file: ${file.name}, size: ${file.size} bytes, user: ${user.email ?? user.id}`);
-
-    const response = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 16384,
-      system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'document',
-              source: {
-                type: 'base64',
-                media_type: 'application/pdf',
-                data: base64,
-              },
-            },
-            {
-              type: 'text',
-              text: 'Extract the bell schedule(s) from this PDF and return JSON per the schema.',
-            },
-          ],
-        },
-      ],
-    });
-
-    const textBlock = response.content.find((b) => b.type === 'text');
-    if (!textBlock || textBlock.type !== 'text') {
-      console.log('=== [schedule/parse] no text block in response ===');
-      console.log(JSON.stringify(response.content, null, 2));
+    const admin = createAdminClient();
+    const { data: job, error: jobError } = await admin
+      .from('schedule_parse_jobs')
+      .insert({ created_by: user.id })
+      .select('id')
+      .single();
+    if (jobError || !job) {
       return NextResponse.json<ExtractionError>(
-        { error: 'no_response_text' },
+        { error: 'server_error', detail: jobError?.message ?? 'could not create job' },
         { status: 500 }
       );
     }
 
-    const rawText = textBlock.text;
-    console.log('\n=== [schedule/parse] raw response from Claude ===');
-    console.log(rawText.slice(0, 2000));
-    if (rawText.length > 2000) console.log(`... [truncated, total ${rawText.length} chars]`);
-    console.log('=== end raw response ===\n');
+    console.log('\n=== [schedule/parse] job started ===');
+    console.log(`  job: ${job.id}, file: ${file.name}, size: ${file.size} bytes, user: ${user.email ?? user.id}`);
 
-    const cleaned = stripCodeFences(rawText);
+    after(() => runParse(job.id, base64));
 
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(cleaned);
-    } catch (parseErr) {
-      console.log('=== [schedule/parse] JSON.parse failed ===');
-      console.log(parseErr);
-      return NextResponse.json<ExtractionError>(
-        {
-          error: 'invalid_json_from_model',
-          detail: parseErr instanceof Error ? parseErr.message : 'parse error',
-          raw: rawText.slice(0, 500),
-        },
-        { status: 500 }
-      );
-    }
-
-    if (parsed && typeof parsed === 'object' && 'error' in parsed) {
-      console.log('=== [schedule/parse] model returned error ===');
-      console.log(parsed);
-      return NextResponse.json(parsed, { status: 422 });
-    }
-
-    if (!validateSchedule(parsed)) {
-      console.log('=== [schedule/parse] schema validation failed ===');
-      console.log('Parsed keys:', Object.keys(parsed as object));
-      console.log('Full parsed:', JSON.stringify(parsed, null, 2).slice(0, 2000));
-      return NextResponse.json<ExtractionError>(
-        {
-          error: 'schema_validation_failed',
-          detail: 'Model returned JSON but it did not match the expected schema',
-          raw: rawText.slice(0, 500),
-        },
-        { status: 500 }
-      );
-    }
-
-    console.log(`=== [schedule/parse] success: ${(parsed as ExtractedSchedule).variants.length} variants extracted ===`);
-    return NextResponse.json(parsed);
+    return NextResponse.json({ job_id: job.id });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'unknown_error';
     console.error('=== [schedule/parse] top-level error ===');
