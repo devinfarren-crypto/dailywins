@@ -233,7 +233,27 @@ export default function ManageClient() {
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <main style={{ minHeight: "100vh", background: C.cream, padding: "36px 20px", fontFamily: "system-ui, -apple-system, sans-serif" }}>
-      <div style={{ maxWidth: 760, margin: "0 auto" }}>{children}</div>
+      <div style={{ maxWidth: 760, margin: "0 auto" }}>
+        <a
+          href="/dashboard"
+          className="no-print"
+          style={{
+            display: "inline-block",
+            marginBottom: 14,
+            fontSize: 13,
+            fontWeight: 700,
+            color: C.green,
+            textDecoration: "none",
+            border: `1px solid ${C.border}`,
+            background: "#fff",
+            borderRadius: 999,
+            padding: "7px 14px",
+          }}
+        >
+          ← Back to dashboard
+        </a>
+        {children}
+      </div>
     </main>
   );
 }
