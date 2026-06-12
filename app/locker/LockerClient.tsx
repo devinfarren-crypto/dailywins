@@ -38,7 +38,6 @@ interface LockerState {
   ledger: { id: string; entry_type: string; amount: number; ref: Record<string, unknown>; created_at: string }[];
   inventory: string[];
   layout: LockerLayout;
-  today: { variant: string; periods: { label: string; start: string; end: string; kind: string }[] } | null;
   weekProgress: { id: string; name: string; earned: number; possible: number }[];
   shelf: ShelfItem[];
 }
@@ -122,14 +121,18 @@ export default function LockerClient() {
     }
     const data = await res.json();
     setState(data);
-    // Legacy migration: the old single layout.work slot moves onto the first
-    // placed work card (links are per-card now). Persists on the next save.
+    // Legacy migrations (persist on the next save): the old single
+    // layout.work slot moves onto the first placed work card, and placed
+    // copies of the retired Today card disappear (the Month card replaced it).
     let lay = data.layout as LockerLayout;
     if (lay.work) {
       const i = lay.items.findIndex((p) => p.item_id === "crd-work" && !p.work);
       if (i >= 0) {
         lay = { ...lay, items: lay.items.map((p, j) => (j === i ? { ...p, work: lay.work! } : p)), work: null };
       }
+    }
+    if (lay.items.some((p) => p.item_id === "crd-today")) {
+      lay = { ...lay, items: lay.items.filter((p) => p.item_id !== "crd-today") };
     }
     setLayout(lay);
     layoutVersion.current = data.layoutVersion ?? null;
@@ -140,32 +143,47 @@ export default function LockerClient() {
 
   // Stale tabs re-sync when they come back into view instead of writing over
   // whatever a fresher tab did.
+  const savingRef = useRef(false);
   useEffect(() => {
     const onVisible = () => {
-      if (document.visibilityState === "visible" && !saveTimer.current) refresh();
+      if (document.visibilityState === "visible" && !saveTimer.current && !savingRef.current) refresh();
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [refresh]);
 
+  // Saves are CHAINED: a new save never fires while one is in flight, so its
+  // baseline always includes the previous response's version. Without this,
+  // rapid edits (calendar tapping) raced — save N+1 carried save N's stale
+  // baseline, got a same-tab 409, and the reload ate the newest marks.
+  const saveChain = useRef<Promise<void>>(Promise.resolve());
   const scheduleSave = useCallback(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(async () => {
+    saveTimer.current = setTimeout(() => {
       saveTimer.current = null;
-      const res = await fetch("/api/locker/layout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ layout: layoutRef.current, baseline: layoutVersion.current }),
-        keepalive: true,
+      saveChain.current = saveChain.current.then(async () => {
+        savingRef.current = true;
+        try {
+          const res = await fetch("/api/locker/layout", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ layout: layoutRef.current, baseline: layoutVersion.current }),
+            keepalive: true,
+          });
+          if (res.status === 409) {
+            // A DIFFERENT tab saved first — their arrangement wins; reload it.
+            setToast("Your locker changed in another window — reloaded.");
+            await refresh();
+            return;
+          }
+          const data = await res.json().catch(() => null);
+          if (data?.layoutVersion) layoutVersion.current = data.layoutVersion;
+        } catch {
+          /* offline blip — the next edit retries with current state */
+        } finally {
+          savingRef.current = false;
+        }
       });
-      if (res.status === 409) {
-        // Someone (another tab) saved first — their arrangement wins; reload it.
-        setToast("Your locker changed in another window — reloaded.");
-        await refresh();
-        return;
-      }
-      const data = await res.json().catch(() => null);
-      if (data?.layoutVersion) layoutVersion.current = data.layoutVersion;
     }, 600);
   }, [refresh]);
 
@@ -190,7 +208,8 @@ export default function LockerClient() {
         .filter((i): i is CatalogItem => Boolean(i))
         // crd-work never leaves the Shoebox: place one, a fresh blank one is
         // already waiting — students can show off as many works as they like.
-        .filter((i) => i.type !== "background" && (!placedIds.has(i.id) || i.id === "crd-work")),
+        // Retired items (e.g. the old Today card) stay granted but hidden.
+        .filter((i) => !i.retired && i.type !== "background" && (!placedIds.has(i.id) || i.id === "crd-work")),
     [state, placedIds]
   );
   const ownedBackgrounds = useMemo(
@@ -665,7 +684,6 @@ export default function LockerClient() {
             slap={justPlaced === idx}
             settle={settling === idx}
             live={{
-              today: state.today,
               weekProgress: state.weekProgress,
               goalCategory: layout.goal?.category ?? null,
               goalTarget: layout.goal?.target ?? 80,
@@ -1102,7 +1120,6 @@ export default function LockerClient() {
 // ── pieces ────────────────────────────────────────────────────────────────────
 
 interface LiveCardData {
-  today: LockerState["today"] | null;
   weekProgress: LockerState["weekProgress"];
   goalCategory: string | null;
   goalTarget: number;
@@ -1156,7 +1173,6 @@ function Placed({
     >
       {item.type === "card" ? (
         <div style={{ pointerEvents: "none" }}>
-          {item.id === "crd-today" ? <TodayCard data={live?.today ?? null} /> : null}
           {item.id === "crd-goal" ? (
             <GoalCard
               progress={live?.weekProgress ?? []}
@@ -1178,43 +1194,6 @@ function Placed({
 }
 
 // ── live functional cards (inline SVG — crisp at every scale) ────────────────
-
-function TodayCard({ data }: { data: LockerState["today"] | null }) {
-  const now = new Date();
-  const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-  const dayLabel = now.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-  const periods = (data?.periods ?? []).slice(0, 8);
-  const rowH = 13;
-  const h = 34 + Math.max(periods.length, 1) * rowH + 8;
-  return (
-    <svg viewBox={`0 0 120 ${h}`} style={{ width: "100%", display: "block", filter: "drop-shadow(0 1px 1px rgba(0,0,0,.2))" }}>
-      <rect x="1" y="1" width="118" height={h - 2} rx="5" fill="#FDFBF4" stroke="#D8D2BF" strokeWidth="1.5" />
-      <rect x="1" y="1" width="118" height="20" rx="5" fill="#E8485C" />
-      <rect x="1" y="14" width="118" height="7" fill="#E8485C" />
-      <text x="8" y="14.5" fontFamily="Arial" fontWeight="bold" fontSize="9" fill="#fff" letterSpacing="1">TODAY</text>
-      <text x="112" y="14.5" fontFamily="Arial" fontSize="8" fill="#fff" textAnchor="end">{dayLabel}</text>
-      {periods.length === 0 ? (
-        <text x="60" y={h / 2 + 12} fontFamily="Arial" fontSize="8" fill="#8a917e" textAnchor="middle">No schedule on file yet</text>
-      ) : (
-        periods.map((p, i) => {
-          const y = 32 + i * rowH;
-          const current = hhmm >= p.start && hhmm <= p.end;
-          return (
-            <g key={i}>
-              {current ? <rect x="4" y={y - 9} width="112" height={rowH - 1} rx="3" fill="#FFF3C4" /> : null}
-              <text x="8" y={y} fontFamily="Arial" fontSize="8" fontWeight={current ? "bold" : "normal"} fill={p.kind === "break" ? "#9aa08f" : "#2c3440"}>
-                {p.label.length > 14 ? `${p.label.slice(0, 13)}…` : p.label}
-              </text>
-              <text x="112" y={y} fontFamily="Arial" fontSize="7.5" fill="#7d8473" textAnchor="end">
-                {p.start}–{p.end}
-              </text>
-            </g>
-          );
-        })
-      )}
-    </svg>
-  );
-}
 
 function GoalCard({
   progress,

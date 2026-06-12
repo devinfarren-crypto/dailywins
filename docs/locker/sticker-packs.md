@@ -1,6 +1,11 @@
 # The Locker — Themed Sticker Packs (Prompt 2B)
 
-*Drafted 2026-06-12. Seven packs, each 8 stickers + 1 background, every item
+*Drafted 2026-06-12. ALL SEVEN PACKS SHIPPED same day (catalog v5): Arcade +
+Mixtape in the first pass, then Side Quest / Kickflip / Cryptid Club / Y2K /
+Varsity in the second. stk-skateboard moved to Kickflip per the spec. Art
+reviewed via rendered contact sheet before shipping.*
+
+*Seven packs, each 8 stickers + 1 background, every item
 original art we own. Rarity = visual treatment + price ONLY (common / foil /
 holo) — no drops, no timers, posted prices always.*
 

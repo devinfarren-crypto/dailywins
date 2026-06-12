@@ -124,6 +124,11 @@ export const PACK_NAMES: Record<string, string> = {
   classics: "Classics",
   arcade: "Arcade",
   mixtape: "Mixtape",
+  sidequest: "Side Quest",
+  kickflip: "Kickflip",
+  cryptid: "Cryptid Club",
+  y2k: "Y2K",
+  varsity: "Varsity",
 };
 
 export type PlacedItem = z.infer<typeof PlacedItemSchema>;

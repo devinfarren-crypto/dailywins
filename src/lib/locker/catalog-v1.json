@@ -1,5 +1,5 @@
 {
-  "catalog_version": 4,
+  "catalog_version": 5,
   "updated": "2026-06-12",
   "items": [
     {
@@ -563,7 +563,7 @@
       "id": "stk-skateboard",
       "name": "Kickflip",
       "type": "sticker",
-      "pack": "classics",
+      "pack": "kickflip",
       "rarity": "common",
       "price": 0,
       "starter": true,
@@ -677,7 +677,8 @@
       "tags": [
         "utility"
       ],
-      "asset": "/locker/cards/crd-today.svg"
+      "asset": "/locker/cards/crd-today.svg",
+      "retired": true
     },
     {
       "id": "crd-goal",
@@ -717,6 +718,578 @@
         "utility"
       ],
       "asset": "/locker/cards/crd-month.svg"
+    },
+    {
+      "id": "stk-sq-d20",
+      "name": "D20",
+      "type": "sticker",
+      "pack": "sidequest",
+      "rarity": "common",
+      "price": 30,
+      "starter": false,
+      "tags": [
+        "sidequest"
+      ],
+      "asset": "/locker/stickers/stk-sq-d20.svg"
+    },
+    {
+      "id": "stk-sq-potion",
+      "name": "Potion Bottle",
+      "type": "sticker",
+      "pack": "sidequest",
+      "rarity": "common",
+      "price": 30,
+      "starter": false,
+      "tags": [
+        "sidequest"
+      ],
+      "asset": "/locker/stickers/stk-sq-potion.svg"
+    },
+    {
+      "id": "stk-sq-chest",
+      "name": "Treasure Chest",
+      "type": "sticker",
+      "pack": "sidequest",
+      "rarity": "common",
+      "price": 35,
+      "starter": false,
+      "tags": [
+        "sidequest"
+      ],
+      "asset": "/locker/stickers/stk-sq-chest.svg"
+    },
+    {
+      "id": "stk-sq-xpbar",
+      "name": "XP Bar",
+      "type": "sticker",
+      "pack": "sidequest",
+      "rarity": "common",
+      "price": 25,
+      "starter": false,
+      "tags": [
+        "sidequest"
+      ],
+      "asset": "/locker/stickers/stk-sq-xpbar.svg"
+    },
+    {
+      "id": "stk-sq-scroll",
+      "name": "Quest Scroll",
+      "type": "sticker",
+      "pack": "sidequest",
+      "rarity": "common",
+      "price": 30,
+      "starter": false,
+      "tags": [
+        "sidequest"
+      ],
+      "asset": "/locker/stickers/stk-sq-scroll.svg"
+    },
+    {
+      "id": "stk-sq-crit",
+      "name": "Critical Hit",
+      "type": "sticker",
+      "pack": "sidequest",
+      "rarity": "foil",
+      "price": 95,
+      "starter": false,
+      "tags": [
+        "sidequest"
+      ],
+      "asset": "/locker/stickers/stk-sq-crit.svg"
+    },
+    {
+      "id": "stk-sq-banner",
+      "name": "Side Quest Banner",
+      "type": "sticker",
+      "pack": "sidequest",
+      "rarity": "common",
+      "price": 35,
+      "starter": false,
+      "tags": [
+        "sidequest"
+      ],
+      "asset": "/locker/stickers/stk-sq-banner.svg"
+    },
+    {
+      "id": "stk-sq-glorp",
+      "name": "Glorp",
+      "type": "sticker",
+      "pack": "sidequest",
+      "rarity": "holo",
+      "price": 140,
+      "starter": false,
+      "tags": [
+        "sidequest"
+      ],
+      "asset": "/locker/stickers/stk-sq-glorp.svg"
+    },
+    {
+      "id": "bg-parchment-map",
+      "name": "Parchment Map",
+      "type": "background",
+      "pack": "sidequest",
+      "rarity": "common",
+      "price": 200,
+      "starter": false,
+      "tags": [
+        "sidequest"
+      ],
+      "asset": "/locker/backgrounds/bg-parchment-map.svg"
+    },
+    {
+      "id": "stk-kf-cone",
+      "name": "Traffic Cone",
+      "type": "sticker",
+      "pack": "kickflip",
+      "rarity": "common",
+      "price": 28,
+      "starter": false,
+      "tags": [
+        "kickflip"
+      ],
+      "asset": "/locker/stickers/stk-kf-cone.svg"
+    },
+    {
+      "id": "stk-kf-grind",
+      "name": "Grind Script",
+      "type": "sticker",
+      "pack": "kickflip",
+      "rarity": "foil",
+      "price": 90,
+      "starter": false,
+      "tags": [
+        "kickflip"
+      ],
+      "asset": "/locker/stickers/stk-kf-grind.svg"
+    },
+    {
+      "id": "stk-kf-helmet",
+      "name": "Scuffed Helmet",
+      "type": "sticker",
+      "pack": "kickflip",
+      "rarity": "common",
+      "price": 30,
+      "starter": false,
+      "tags": [
+        "kickflip"
+      ],
+      "asset": "/locker/stickers/stk-kf-helmet.svg"
+    },
+    {
+      "id": "stk-kf-sign",
+      "name": "Skate Zone Sign",
+      "type": "sticker",
+      "pack": "kickflip",
+      "rarity": "common",
+      "price": 32,
+      "starter": false,
+      "tags": [
+        "kickflip"
+      ],
+      "asset": "/locker/stickers/stk-kf-sign.svg"
+    },
+    {
+      "id": "stk-kf-shield",
+      "name": "Dinged Shield Sign",
+      "type": "sticker",
+      "pack": "kickflip",
+      "rarity": "common",
+      "price": 30,
+      "starter": false,
+      "tags": [
+        "kickflip"
+      ],
+      "asset": "/locker/stickers/stk-kf-shield.svg"
+    },
+    {
+      "id": "stk-kf-wheels",
+      "name": "Fresh Wheels",
+      "type": "sticker",
+      "pack": "kickflip",
+      "rarity": "common",
+      "price": 26,
+      "starter": false,
+      "tags": [
+        "kickflip"
+      ],
+      "asset": "/locker/stickers/stk-kf-wheels.svg"
+    },
+    {
+      "id": "stk-kf-curb",
+      "name": "Curb",
+      "type": "sticker",
+      "pack": "kickflip",
+      "rarity": "holo",
+      "price": 140,
+      "starter": false,
+      "tags": [
+        "kickflip"
+      ],
+      "asset": "/locker/stickers/stk-kf-curb.svg"
+    },
+    {
+      "id": "bg-grip-tape",
+      "name": "Grip Tape",
+      "type": "background",
+      "pack": "kickflip",
+      "rarity": "common",
+      "price": 175,
+      "starter": false,
+      "tags": [
+        "kickflip"
+      ],
+      "asset": "/locker/backgrounds/bg-grip-tape.svg"
+    },
+    {
+      "id": "stk-cc-ufo",
+      "name": "UFO",
+      "type": "sticker",
+      "pack": "cryptid",
+      "rarity": "common",
+      "price": 32,
+      "starter": false,
+      "tags": [
+        "cryptid"
+      ],
+      "asset": "/locker/stickers/stk-cc-ufo.svg"
+    },
+    {
+      "id": "stk-cc-outthere",
+      "name": "Out There Poster",
+      "type": "sticker",
+      "pack": "cryptid",
+      "rarity": "common",
+      "price": 30,
+      "starter": false,
+      "tags": [
+        "cryptid"
+      ],
+      "asset": "/locker/stickers/stk-cc-outthere.svg"
+    },
+    {
+      "id": "stk-cc-moth",
+      "name": "Moth Friend",
+      "type": "sticker",
+      "pack": "cryptid",
+      "rarity": "foil",
+      "price": 95,
+      "starter": false,
+      "tags": [
+        "cryptid"
+      ],
+      "asset": "/locker/stickers/stk-cc-moth.svg"
+    },
+    {
+      "id": "stk-cc-flashlight",
+      "name": "Flashlight",
+      "type": "sticker",
+      "pack": "cryptid",
+      "rarity": "common",
+      "price": 28,
+      "starter": false,
+      "tags": [
+        "cryptid"
+      ],
+      "asset": "/locker/stickers/stk-cc-flashlight.svg"
+    },
+    {
+      "id": "stk-cc-footprint",
+      "name": "Footprint Cast",
+      "type": "sticker",
+      "pack": "cryptid",
+      "rarity": "common",
+      "price": 30,
+      "starter": false,
+      "tags": [
+        "cryptid"
+      ],
+      "asset": "/locker/stickers/stk-cc-footprint.svg"
+    },
+    {
+      "id": "stk-cc-polaroid",
+      "name": "Mystery Polaroid",
+      "type": "sticker",
+      "pack": "cryptid",
+      "rarity": "common",
+      "price": 32,
+      "starter": false,
+      "tags": [
+        "cryptid"
+      ],
+      "asset": "/locker/stickers/stk-cc-polaroid.svg"
+    },
+    {
+      "id": "stk-cc-isawit",
+      "name": "I Saw It Badge",
+      "type": "sticker",
+      "pack": "cryptid",
+      "rarity": "common",
+      "price": 30,
+      "starter": false,
+      "tags": [
+        "cryptid"
+      ],
+      "asset": "/locker/stickers/stk-cc-isawit.svg"
+    },
+    {
+      "id": "stk-cc-sasquish",
+      "name": "Sasquish",
+      "type": "sticker",
+      "pack": "cryptid",
+      "rarity": "holo",
+      "price": 145,
+      "starter": false,
+      "tags": [
+        "cryptid"
+      ],
+      "asset": "/locker/stickers/stk-cc-sasquish.svg"
+    },
+    {
+      "id": "bg-night-woods",
+      "name": "Night Woods",
+      "type": "background",
+      "pack": "cryptid",
+      "rarity": "common",
+      "price": 225,
+      "starter": false,
+      "tags": [
+        "cryptid"
+      ],
+      "asset": "/locker/backgrounds/bg-night-woods.svg"
+    },
+    {
+      "id": "stk-yk-smiley",
+      "name": "Chrome Smiley",
+      "type": "sticker",
+      "pack": "y2k",
+      "rarity": "foil",
+      "price": 85,
+      "starter": false,
+      "tags": [
+        "y2k"
+      ],
+      "asset": "/locker/stickers/stk-yk-smiley.svg"
+    },
+    {
+      "id": "stk-yk-flipphone",
+      "name": "Flip Phone",
+      "type": "sticker",
+      "pack": "y2k",
+      "rarity": "common",
+      "price": 32,
+      "starter": false,
+      "tags": [
+        "y2k"
+      ],
+      "asset": "/locker/stickers/stk-yk-flipphone.svg"
+    },
+    {
+      "id": "stk-yk-butterfly",
+      "name": "Butterfly Clip",
+      "type": "sticker",
+      "pack": "y2k",
+      "rarity": "common",
+      "price": 30,
+      "starter": false,
+      "tags": [
+        "y2k"
+      ],
+      "asset": "/locker/stickers/stk-yk-butterfly.svg"
+    },
+    {
+      "id": "stk-yk-checkflame",
+      "name": "Check Flame",
+      "type": "sticker",
+      "pack": "y2k",
+      "rarity": "common",
+      "price": 35,
+      "starter": false,
+      "tags": [
+        "y2k"
+      ],
+      "asset": "/locker/stickers/stk-yk-checkflame.svg"
+    },
+    {
+      "id": "stk-yk-vibes",
+      "name": "vibes",
+      "type": "sticker",
+      "pack": "y2k",
+      "rarity": "common",
+      "price": 28,
+      "starter": false,
+      "tags": [
+        "y2k"
+      ],
+      "asset": "/locker/stickers/stk-yk-vibes.svg"
+    },
+    {
+      "id": "stk-yk-sparkle",
+      "name": "Sparkle Cluster",
+      "type": "sticker",
+      "pack": "y2k",
+      "rarity": "common",
+      "price": 26,
+      "starter": false,
+      "tags": [
+        "y2k"
+      ],
+      "asset": "/locker/stickers/stk-yk-sparkle.svg"
+    },
+    {
+      "id": "stk-yk-sun",
+      "name": "Wavy Sun",
+      "type": "sticker",
+      "pack": "y2k",
+      "rarity": "common",
+      "price": 30,
+      "starter": false,
+      "tags": [
+        "y2k"
+      ],
+      "asset": "/locker/stickers/stk-yk-sun.svg"
+    },
+    {
+      "id": "stk-yk-disco",
+      "name": "Disco",
+      "type": "sticker",
+      "pack": "y2k",
+      "rarity": "holo",
+      "price": 150,
+      "starter": false,
+      "tags": [
+        "y2k"
+      ],
+      "asset": "/locker/stickers/stk-yk-disco.svg"
+    },
+    {
+      "id": "bg-chrome-sparkle",
+      "name": "Chrome Sparkle",
+      "type": "background",
+      "pack": "y2k",
+      "rarity": "common",
+      "price": 225,
+      "starter": false,
+      "tags": [
+        "y2k"
+      ],
+      "asset": "/locker/backgrounds/bg-chrome-sparkle.svg"
+    },
+    {
+      "id": "stk-vs-wpatch",
+      "name": "W Patch",
+      "type": "sticker",
+      "pack": "varsity",
+      "rarity": "common",
+      "price": 32,
+      "starter": false,
+      "tags": [
+        "varsity"
+      ],
+      "asset": "/locker/stickers/stk-vs-wpatch.svg"
+    },
+    {
+      "id": "stk-vs-foam",
+      "name": "Foam Finger",
+      "type": "sticker",
+      "pack": "varsity",
+      "rarity": "common",
+      "price": 30,
+      "starter": false,
+      "tags": [
+        "varsity"
+      ],
+      "asset": "/locker/stickers/stk-vs-foam.svg"
+    },
+    {
+      "id": "stk-vs-megaphone",
+      "name": "Megaphone",
+      "type": "sticker",
+      "pack": "varsity",
+      "rarity": "common",
+      "price": 28,
+      "starter": false,
+      "tags": [
+        "varsity"
+      ],
+      "asset": "/locker/stickers/stk-vs-megaphone.svg"
+    },
+    {
+      "id": "stk-vs-pennant",
+      "name": "Pennant",
+      "type": "sticker",
+      "pack": "varsity",
+      "rarity": "common",
+      "price": 30,
+      "starter": false,
+      "tags": [
+        "varsity"
+      ],
+      "asset": "/locker/stickers/stk-vs-pennant.svg"
+    },
+    {
+      "id": "stk-vs-mvp",
+      "name": "MVP Badge",
+      "type": "sticker",
+      "pack": "varsity",
+      "rarity": "foil",
+      "price": 90,
+      "starter": false,
+      "tags": [
+        "varsity"
+      ],
+      "asset": "/locker/stickers/stk-vs-mvp.svg"
+    },
+    {
+      "id": "stk-vs-whistle",
+      "name": "Whistle",
+      "type": "sticker",
+      "pack": "varsity",
+      "rarity": "common",
+      "price": 26,
+      "starter": false,
+      "tags": [
+        "varsity"
+      ],
+      "asset": "/locker/stickers/stk-vs-whistle.svg"
+    },
+    {
+      "id": "stk-vs-ticket",
+      "name": "Game Ticket",
+      "type": "sticker",
+      "pack": "varsity",
+      "rarity": "common",
+      "price": 30,
+      "starter": false,
+      "tags": [
+        "varsity"
+      ],
+      "asset": "/locker/stickers/stk-vs-ticket.svg"
+    },
+    {
+      "id": "stk-vs-champ",
+      "name": "Champ",
+      "type": "sticker",
+      "pack": "varsity",
+      "rarity": "holo",
+      "price": 145,
+      "starter": false,
+      "tags": [
+        "varsity"
+      ],
+      "asset": "/locker/stickers/stk-vs-champ.svg"
+    },
+    {
+      "id": "bg-banner-wall",
+      "name": "Banner Wall",
+      "type": "background",
+      "pack": "varsity",
+      "rarity": "common",
+      "price": 200,
+      "starter": false,
+      "tags": [
+        "varsity"
+      ],
+      "asset": "/locker/backgrounds/bg-banner-wall.svg"
     }
   ]
 }

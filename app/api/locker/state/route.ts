@@ -5,36 +5,10 @@ import { creditUncreditedDays, weekCategoryProgress } from "@/src/lib/locker/ear
 import { CATALOG, LayoutSchema } from "@/src/lib/locker/schema";
 import { shelfLabel } from "@/src/lib/locker/shelf";
 
-// The functional cards (Today, Goal, My Best Work, Month) are free and
-// universal — granted lazily here so students claimed BEFORE the cards
-// existed get them too.
-const CARD_IDS = ["crd-today", "crd-goal", "crd-work", "crd-month"];
-
-// Resolve today's bell-schedule variant: specific-date match wins, then
-// day-of-week, then the first variant on file.
-type Variant = {
-  periods: { label: string; start: string; end: string; type?: string }[];
-  days?: string[] | null;
-  specific_dates?: string[] | null;
-};
-function todaysPeriods(schedules: Record<string, Variant> | null) {
-  if (!schedules) return null;
-  const entries = Object.entries(schedules);
-  if (entries.length === 0) return null;
-  const now = new Date();
-  const iso = now.toISOString().slice(0, 10);
-  const dow = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"][now.getDay()];
-  const pick =
-    entries.find(([, v]) => v.specific_dates?.includes(iso)) ??
-    entries.find(([, v]) => v.days?.includes(dow)) ??
-    entries[0];
-  return {
-    variant: pick[0],
-    periods: (pick[1].periods ?? [])
-      .filter((p) => p.type !== "non_student")
-      .map((p) => ({ label: p.label, start: p.start, end: p.end, kind: p.type ?? "class" })),
-  };
-}
+// The functional cards (Goal, My Best Work, Month) are free and universal —
+// granted lazily here so students claimed BEFORE the cards existed get them
+// too. crd-today is retired (the Month card replaced it).
+const CARD_IDS = ["crd-goal", "crd-work", "crd-month"];
 
 // Everything the locker UI needs in one read — and the lazy daily-earn
 // credit happens here, so opening the locker is what mints yesterday's
@@ -83,7 +57,7 @@ export async function GET() {
     .eq("status", "redeemed")
     .lt("redeemed_at", fiveDaysAgo);
 
-  const [{ data: ledger }, { data: inventory }, { data: layoutRow }, { data: schoolRow }, { data: shelfRows }, weekProgress] = await Promise.all([
+  const [{ data: ledger }, { data: inventory }, { data: layoutRow }, { data: shelfRows }, weekProgress] = await Promise.all([
     admin
       .from("points_ledger")
       .select("id, entry_type, amount, ref, created_at")
@@ -99,7 +73,6 @@ export async function GET() {
       .select("layout, updated_at")
       .eq("student_id", identity.studentId)
       .maybeSingle(),
-    admin.from("schools").select("schedules").eq("id", identity.schoolId).maybeSingle(),
     admin
       .from("shelf_items")
       .select("id, template_id, custom_label, note, status, granted_at, redeemed_at, seen_at")
@@ -135,7 +108,6 @@ export async function GET() {
     // arrangement (the save route rejects mismatched baselines).
     layoutVersion: layoutRow?.updated_at ?? null,
     catalogVersion: CATALOG.catalog_version,
-    today: todaysPeriods((schoolRow?.schedules ?? null) as Record<string, Variant> | null),
     weekProgress,
     shelf: (shelfRows ?? []).map((r) => ({
       id: r.id,
