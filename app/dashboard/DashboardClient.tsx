@@ -2279,6 +2279,27 @@ export default function DashboardClient() {
             🎨 Customize
           </button>
 
+          {/* The Locker — teacher-side setup (combo slips, wallets) */}
+          <a
+            href="/locker/manage"
+            style={{
+              background: "#1a1a2e",
+              color: "#5DCAA5",
+              border: "none",
+              borderRadius: 6,
+              padding: "0 12px",
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: "pointer",
+              height: 32,
+              display: "inline-flex",
+              alignItems: "center",
+              textDecoration: "none",
+            }}
+          >
+            🔒 Locker
+          </a>
+
           {/* Progress Bar with Draggable Thresholds */}
           <div style={{ marginLeft: "auto", flex: 1, minWidth: 220, maxWidth: 420 }}>
             {/* Score line above bar */}
