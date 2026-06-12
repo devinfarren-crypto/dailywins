@@ -247,26 +247,44 @@ export default function LockerClient() {
     return () => clearTimeout(t);
   }, [toast]);
 
+  // While a sheet is open, the page behind must not move at all — scrolling
+  // past the sheet's end was chaining into the locker and "dragging" it.
+  useEffect(() => {
+    if (sheet) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = prev;
+      };
+    }
+  }, [sheet]);
+
   if (error) return <Centered>{error}</Centered>;
   if (!state) return <Centered>Opening your locker…</Centered>;
 
   return (
     <main
       style={{
-        minHeight: "100vh",
+        // Everything fits in one viewport — no page scroll, ever. The door
+        // sizes to whatever height remains after the top bar and hint row.
+        height: "100dvh",
+        overflow: "hidden",
         background: `radial-gradient(90% 70% at 50% 0%, #171b28 0%, ${INK} 65%)`,
         fontFamily: "ui-sans-serif, system-ui, -apple-system, sans-serif",
         color: TEXT,
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        paddingBottom: 28,
       }}
     >
       <style>{`
         button { font-family: inherit; }
         .lk-chip:focus-visible, .lk-item:focus-visible, button:focus-visible { outline: 3px solid ${ACCENT}; outline-offset: 2px; }
         .lk-item { touch-action: none; user-select: none; -webkit-user-drag: none; }
+        @keyframes lkSheetUp { from { transform: translateY(28px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+        @keyframes lkFadeIn { from { opacity: 0 } to { opacity: 1 } }
+        .lk-sheet { animation: lkSheetUp .22s cubic-bezier(.22,1,.36,1) both; }
+        .lk-backdrop { animation: lkFadeIn .18s ease both; }
         @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
       `}</style>
 
@@ -305,7 +323,9 @@ export default function LockerClient() {
         }}
         style={{
           position: "relative",
-          width: "min(92vw, 430px)",
+          // Width is also capped by remaining HEIGHT (8:11 door), so the whole
+          // experience fits one viewport: ~150px reserved for bar + hints.
+          width: "min(92vw, 430px, calc((100dvh - 150px) * 8 / 11))",
           aspectRatio: "8 / 11",
           borderRadius: 14,
           border: "10px solid #20242f",
@@ -334,20 +354,22 @@ export default function LockerClient() {
         ))}
       </div>
 
-      {/* selection controls */}
-      {selected !== null && layout.items[selected] ? (
-        <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap", justifyContent: "center" }}>
-          <Pill onClick={() => nudgeZ(selected, 1)} label="Bring forward" />
-          <Pill onClick={() => nudgeZ(selected, -1)} label="Send back" />
-          <Pill onClick={() => rotate(selected, 7)} label="⟳ Rotate" />
-          <Pill onClick={() => rotate(selected, -7)} label="⟲" />
-          <Pill onClick={() => putAway(selected)} label="Put away" warn />
-        </div>
-      ) : (
-        <p style={{ color: "#6b7288", fontSize: 12, marginTop: 12 }}>
-          Tap a sticker to move, layer, or rotate it · Shoebox holds the rest
-        </p>
-      )}
+      {/* selection controls — fixed-height slot so nothing pushes past the viewport */}
+      <div style={{ height: 58, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        {selected !== null && layout.items[selected] ? (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+            <Pill onClick={() => nudgeZ(selected, 1)} label="Bring forward" />
+            <Pill onClick={() => nudgeZ(selected, -1)} label="Send back" />
+            <Pill onClick={() => rotate(selected, 7)} label="⟳ Rotate" />
+            <Pill onClick={() => rotate(selected, -7)} label="⟲" />
+            <Pill onClick={() => putAway(selected)} label="Put away" warn />
+          </div>
+        ) : (
+          <p style={{ color: "#6b7288", fontSize: 12, margin: 0 }}>
+            Tap a sticker to move, layer, or rotate it · Shoebox holds the rest
+          </p>
+        )}
+      </div>
 
       {toast ? (
         <div
@@ -629,13 +651,15 @@ function SheetFrame({
       aria-label={title}
       style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "flex-end", justifyContent: "center" }}
     >
-      <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(5,6,10,.6)" }} />
+      <div className="lk-backdrop" onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(5,6,10,.6)" }} />
       <div
+        className="lk-sheet"
         style={{
           position: "relative",
           width: "min(560px, 100vw)",
-          maxHeight: "78vh",
+          maxHeight: "min(78vh, calc(100dvh - 56px))",
           overflowY: "auto",
+          overscrollBehavior: "contain",
           background: PANEL2,
           borderRadius: "18px 18px 0 0",
           border: `1px solid ${EDGE}`,
