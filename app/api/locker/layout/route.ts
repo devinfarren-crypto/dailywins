@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/src/lib/supabase-admin";
 import { resolveLockerIdentity } from "@/src/lib/locker/session";
-import { LayoutSchema, CATALOG_BY_ID } from "@/src/lib/locker/schema";
+import { LayoutSchema, CATALOG_BY_ID, isAllowedWorkUrl } from "@/src/lib/locker/schema";
 
 // Save the door. Validates shape (Zod, mirroring the 30-item DB CHECK) and
 // ownership: every placed item and the background must be in the student's
@@ -38,6 +38,12 @@ export async function POST(req: NextRequest) {
   const mirrors = layout.items.filter((p) => CATALOG_BY_ID.get(p.item_id)?.type === "mirror");
   if (!placeable || !bgOk || mirrors.length > 1) {
     return NextResponse.json({ ok: false, error: "not_owned" }, { status: 403 });
+  }
+
+  // Proud-work pointer: the host allowlist is enforced HERE, on every save —
+  // the client check is just a friendly message (functional-objects.md #3).
+  if (layout.work && !isAllowedWorkUrl(layout.work.url)) {
+    return NextResponse.json({ ok: false, error: "work_url_not_allowed" }, { status: 400 });
   }
 
   // Optimistic concurrency: a tab may only overwrite the version it loaded.

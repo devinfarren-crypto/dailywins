@@ -4,6 +4,7 @@
 // slips → watch wallets. Printable slip sheet uses plain print CSS.
 
 import { useCallback, useEffect, useState } from "react";
+import { SHELF_TEMPLATES } from "@/src/lib/locker/shelf";
 
 interface StudentRow {
   student_id: string;
@@ -13,11 +14,19 @@ interface StudentRow {
   balance: number;
 }
 
+interface PendingRedemption {
+  id: string;
+  student_name: string;
+  label: string;
+  requested_at: string;
+}
+
 interface TeacherState {
   enabled: boolean;
   class_code?: string;
   rate?: number;
   students?: StudentRow[];
+  shelf_pending?: PendingRedemption[];
 }
 
 const C = {
@@ -36,6 +45,12 @@ export default function ManageClient() {
   const [adjusting, setAdjusting] = useState<StudentRow | null>(null);
   const [adjAmount, setAdjAmount] = useState("");
   const [adjReason, setAdjReason] = useState("");
+  // "Give a reward" form (teacher shelf)
+  const [grantTemplate, setGrantTemplate] = useState<string>("hw-pass");
+  const [grantTargets, setGrantTargets] = useState<Set<string>>(new Set());
+  const [grantAll, setGrantAll] = useState(false);
+  const [grantLabel, setGrantLabel] = useState("");
+  const [grantNote, setGrantNote] = useState("");
 
   const refresh = useCallback(async () => {
     const res = await fetch("/api/locker/teacher");
@@ -94,6 +109,54 @@ export default function ManageClient() {
     }
   };
 
+  const shelfAction = async (action: string, payload: Record<string, unknown>, okMsg: string) => {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/locker/teacher", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, ...payload }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+      setMsg(okMsg);
+      await refresh();
+      return true;
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "That didn't go through.");
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitGrant = async () => {
+    if (grantTemplate === "custom" && grantLabel.trim().length === 0) {
+      setMsg("A custom reward needs a label.");
+      return;
+    }
+    if (!grantAll && grantTargets.size === 0) {
+      setMsg("Pick at least one student (or Everyone).");
+      return;
+    }
+    const ok = await shelfAction(
+      "shelf_grant",
+      {
+        template_id: grantTemplate,
+        student_ids: grantAll ? "all" : [...grantTargets],
+        custom_label: grantLabel.trim() || undefined,
+        note: grantNote.trim() || undefined,
+      },
+      "On their shelf — they'll see it next time they open their locker."
+    );
+    if (ok) {
+      setGrantTargets(new Set());
+      setGrantAll(false);
+      setGrantLabel("");
+      setGrantNote("");
+    }
+  };
+
   if (!state) return <Shell><p style={{ color: C.muted }}>Loading…</p></Shell>;
 
   if (!state.enabled) {
@@ -132,6 +195,35 @@ export default function ManageClient() {
         <h1 style={h1}>The Locker — your class</h1>
         {msg ? <p style={{ color: C.green, fontWeight: 600, fontSize: 13.5 }}>{msg}</p> : null}
 
+        {(state.shelf_pending ?? []).length > 0 ? (
+          <div style={{ background: "#fff8e8", border: "1.5px solid #e8c878", borderRadius: 14, padding: "14px 18px", marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#9a6b12", marginBottom: 8 }}>
+              ✋ Waiting on you — students cashing in rewards
+            </div>
+            {(state.shelf_pending ?? []).map((p) => (
+              <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderTop: "1px solid #f0e2bc", fontSize: 14, color: C.ink }}>
+                <span style={{ flex: 1 }}>
+                  <strong>{p.student_name}</strong> — {p.label}
+                </span>
+                <button
+                  onClick={() => shelfAction("shelf_confirm", { id: p.id }, "Redeemed ✓")}
+                  disabled={busy}
+                  style={{ ...smallBtn, background: C.green, color: "#fff", border: "none" }}
+                >
+                  Confirm
+                </button>
+                <button
+                  onClick={() => shelfAction("shelf_return", { id: p.id }, "Returned to their shelf.")}
+                  disabled={busy}
+                  style={smallBtn}
+                >
+                  Not yet
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
         <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 14, padding: "16px 18px", marginBottom: 16 }}>
           <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.teal, marginBottom: 6 }}>
             Class locker link — share or post it
@@ -148,6 +240,86 @@ export default function ManageClient() {
               {busy ? "…" : "Refresh combos for new students"}
             </button>
           </div>
+        </div>
+
+        <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 14, padding: "16px 18px", marginBottom: 16 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.teal, marginBottom: 10 }}>
+            Give a reward — lands on their locker shelf
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+            {SHELF_TEMPLATES.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setGrantTemplate(t.id)}
+                style={{
+                  ...smallBtn,
+                  ...(grantTemplate === t.id
+                    ? { background: C.green, color: "#fff", border: `1px solid ${C.green}` }
+                    : {}),
+                }}
+              >
+                {t.id === "custom" ? "Custom…" : t.label}
+              </button>
+            ))}
+          </div>
+          {grantTemplate === "custom" ? (
+            <input
+              value={grantLabel}
+              onChange={(e) => setGrantLabel(e.target.value.slice(0, 40))}
+              placeholder="Reward name (e.g. Pick the playlist)"
+              style={{ ...inputStyle, width: "100%", boxSizing: "border-box", marginBottom: 10 }}
+            />
+          ) : null}
+          <input
+            value={grantNote}
+            onChange={(e) => setGrantNote(e.target.value.slice(0, 280))}
+            placeholder={grantTemplate === "shoutout" ? "Your shoutout — they'll read this inside the note" : "Optional note (they'll see it when they tap the reward)"}
+            style={{ ...inputStyle, width: "100%", boxSizing: "border-box", marginBottom: 10 }}
+          />
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
+            <button
+              onClick={() => {
+                setGrantAll(!grantAll);
+                setGrantTargets(new Set());
+              }}
+              style={{
+                ...smallBtn,
+                ...(grantAll ? { background: C.green, color: "#fff", border: `1px solid ${C.green}` } : {}),
+              }}
+            >
+              Everyone
+            </button>
+            {!grantAll
+              ? students.map((s) => {
+                  const on = grantTargets.has(s.student_id);
+                  return (
+                    <button
+                      key={s.student_id}
+                      onClick={() => {
+                        const next = new Set(grantTargets);
+                        if (on) next.delete(s.student_id);
+                        else next.add(s.student_id);
+                        setGrantTargets(next);
+                      }}
+                      style={{
+                        ...smallBtn,
+                        padding: "5px 12px",
+                        ...(on ? { background: C.teal, color: "#fff", border: `1px solid ${C.teal}` } : {}),
+                      }}
+                    >
+                      {s.display_name}
+                    </button>
+                  );
+                })
+              : null}
+          </div>
+          <button onClick={submitGrant} disabled={busy} style={{ ...smallBtn, background: C.green, color: "#fff", border: "none", padding: "9px 22px" }}>
+            {busy ? "…" : "Put it on their shelf"}
+          </button>
+          <p style={{ fontSize: 12, color: C.muted, margin: "8px 0 0" }}>
+            Rewards are grants — wallets and the behavior record are untouched. Students tap
+            &ldquo;Use this&rdquo; when they cash one in, and it comes back to you to confirm.
+          </p>
         </div>
 
         <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 14, overflow: "hidden" }}>

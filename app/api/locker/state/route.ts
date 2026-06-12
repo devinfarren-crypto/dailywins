@@ -3,10 +3,11 @@ import { createAdminClient } from "@/src/lib/supabase-admin";
 import { resolveLockerIdentity, canonicalGroupIds } from "@/src/lib/locker/session";
 import { creditUncreditedDays, weekCategoryProgress } from "@/src/lib/locker/earn";
 import { CATALOG, LayoutSchema } from "@/src/lib/locker/schema";
+import { shelfLabel } from "@/src/lib/locker/shelf";
 
-// The functional cards (Today + Goal) are free and universal — granted
-// lazily here so students claimed BEFORE the cards existed get them too.
-const CARD_IDS = ["crd-today", "crd-goal"];
+// The functional cards (Today + Goal + My Best Work) are free and universal —
+// granted lazily here so students claimed BEFORE the cards existed get them too.
+const CARD_IDS = ["crd-today", "crd-goal", "crd-work"];
 
 // Resolve today's bell-schedule variant: specific-date match wins, then
 // day-of-week, then the first variant on file.
@@ -71,7 +72,17 @@ export async function GET() {
   }
 
   const groupIdsForGoal = await canonicalGroupIds(admin, identity.studentId);
-  const [{ data: ledger }, { data: inventory }, { data: layoutRow }, { data: schoolRow }, weekProgress] = await Promise.all([
+
+  // Redeemed shelf items keep their REDEEMED stamp for 5 days, then archive.
+  const fiveDaysAgo = new Date(Date.now() - 5 * 86400_000).toISOString();
+  await admin
+    .from("shelf_items")
+    .update({ status: "archived" })
+    .in("student_id", groupIdsForGoal)
+    .eq("status", "redeemed")
+    .lt("redeemed_at", fiveDaysAgo);
+
+  const [{ data: ledger }, { data: inventory }, { data: layoutRow }, { data: schoolRow }, { data: shelfRows }, weekProgress] = await Promise.all([
     admin
       .from("points_ledger")
       .select("id, entry_type, amount, ref, created_at")
@@ -88,6 +99,12 @@ export async function GET() {
       .eq("student_id", identity.studentId)
       .maybeSingle(),
     admin.from("schools").select("schedules").eq("id", identity.schoolId).maybeSingle(),
+    admin
+      .from("shelf_items")
+      .select("id, template_id, custom_label, note, status, granted_at, redeemed_at, seen_at")
+      .in("student_id", groupIdsForGoal)
+      .in("status", ["granted", "pending_redemption", "redeemed"])
+      .order("granted_at", { ascending: true }),
     weekCategoryProgress(admin, { groupIds: groupIdsForGoal, teacherId: identity.teacherId }),
   ]);
 
@@ -119,6 +136,16 @@ export async function GET() {
     catalogVersion: CATALOG.catalog_version,
     today: todaysPeriods((schoolRow?.schedules ?? null) as Record<string, Variant> | null),
     weekProgress,
+    shelf: (shelfRows ?? []).map((r) => ({
+      id: r.id,
+      template_id: r.template_id,
+      label: shelfLabel(r.template_id as string, r.custom_label as string | null),
+      note: r.note ?? null,
+      status: r.status,
+      granted_at: r.granted_at,
+      redeemed_at: r.redeemed_at ?? null,
+      seen: Boolean(r.seen_at),
+    })),
   });
 }
 

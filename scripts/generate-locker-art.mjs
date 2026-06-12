@@ -322,6 +322,16 @@ write(
   )
 );
 write(
+  "locker/cards/crd-work.svg",
+  svg(
+    { w: 100, h: 100 },
+    // gold-star paper: a proud page pinned up, star seal top-right
+    `<rect x="16" y="14" width="64" height="74" rx="4" fill="#FDFBF4" stroke="#D8D2BF" stroke-width="2" transform="rotate(-3 50 50)"/>` +
+      [30, 40, 50, 60].map((y) => `<line x1="26" y1="${y}" x2="70" y2="${y}" stroke="#C9D6E4" stroke-width="2.5" transform="rotate(-3 50 50)"/>`).join("") +
+      `<path d="M74 12 l3.2 6.5 7.2 1 -5.2 5 1.2 7.1 -6.4 -3.4 -6.4 3.4 1.2 -7.1 -5.2 -5 7.2 -1z" fill="#F0B647" stroke="#D89B2A" stroke-width="1.5"/>`
+  )
+);
+write(
   "locker/cards/crd-goal.svg",
   svg(
     { w: 100, h: 100 },

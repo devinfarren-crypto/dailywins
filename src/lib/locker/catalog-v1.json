@@ -1,5 +1,5 @@
 {
-  "catalog_version": 2,
+  "catalog_version": 3,
   "updated": "2026-06-12",
   "items": [
     {
@@ -691,6 +691,19 @@
         "utility"
       ],
       "asset": "/locker/cards/crd-goal.svg"
+    },
+    {
+      "id": "crd-work",
+      "name": "My Best Work",
+      "type": "card",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 0,
+      "starter": true,
+      "tags": [
+        "utility"
+      ],
+      "asset": "/locker/cards/crd-work.svg"
     }
   ]
 }

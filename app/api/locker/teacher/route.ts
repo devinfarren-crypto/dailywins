@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { createClient } from "@/src/lib/supabase-server";
 import { createAdminClient } from "@/src/lib/supabase-admin";
 import { writeAuditLog } from "@/src/lib/audit-log";
+import { SHELF_TEMPLATE_BY_ID, shelfLabel } from "@/src/lib/locker/shelf";
 
 // Teacher side of The Locker: activate it for your class (generates combos
 // for the roster + a class code for the locker link), read slips/balances,
@@ -76,6 +77,15 @@ export async function GET() {
     }
   }
 
+  // Shelf: redemptions waiting on this teacher, surfaced at the top of /locker/manage.
+  const nameById = new Map(rows.map((r) => [r.student_id as string, r.display_name]));
+  const { data: pending } = await admin
+    .from("shelf_items")
+    .select("id, student_id, template_id, custom_label, requested_at")
+    .eq("granted_by", ctx.teacher.id)
+    .eq("status", "pending_redemption")
+    .order("requested_at", { ascending: true });
+
   return NextResponse.json({
     ok: true,
     enabled: true,
@@ -83,6 +93,12 @@ export async function GET() {
     rate: lockerCfg.rate ?? 1,
     activated_at: lockerCfg.activated_at,
     students: rows.map((r) => ({ ...r, balance: balances.get(r.student_id as string) ?? 0 })),
+    shelf_pending: (pending ?? []).map((p) => ({
+      id: p.id,
+      student_name: nameById.get(p.student_id as string) ?? "Student",
+      label: shelfLabel(p.template_id as string, p.custom_label as string | null),
+      requested_at: p.requested_at,
+    })),
   });
 }
 
@@ -189,6 +205,88 @@ export async function POST(req: NextRequest) {
       created_by: ctx.user.id,
     });
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
+
+  if (action === "shelf_grant") {
+    const templateId = typeof body.template_id === "string" ? body.template_id : "";
+    if (!SHELF_TEMPLATE_BY_ID.has(templateId as never)) {
+      return NextResponse.json({ ok: false, error: "unknown_template" }, { status: 400 });
+    }
+    const customLabel =
+      templateId === "custom" && typeof body.custom_label === "string"
+        ? body.custom_label.trim().slice(0, 40)
+        : null;
+    if (templateId === "custom" && !customLabel) {
+      return NextResponse.json({ ok: false, error: "custom needs a label" }, { status: 400 });
+    }
+    const note = typeof body.note === "string" ? body.note.trim().slice(0, 280) || null : null;
+
+    // Resolve targets: explicit ids, or every student with a locker identity
+    // in this class. Either way, scope = THIS teacher's locker_identities.
+    const { data: identities } = await admin
+      .from("locker_identities")
+      .select("student_id")
+      .eq("teacher_id", ctx.teacher.id);
+    const classIds = new Set((identities ?? []).map((r) => r.student_id as string));
+    const requested = Array.isArray(body.student_ids)
+      ? (body.student_ids as unknown[]).filter((s): s is string => typeof s === "string")
+      : [];
+    const targets = body.student_ids === "all" ? [...classIds] : requested.filter((s) => classIds.has(s));
+    if (targets.length === 0) {
+      return NextResponse.json({ ok: false, error: "no students selected" }, { status: 400 });
+    }
+
+    const { error } = await admin.from("shelf_items").insert(
+      targets.map((student_id) => ({
+        student_id,
+        granted_by: ctx.teacher.id,
+        template_id: templateId,
+        custom_label: customLabel,
+        note,
+      }))
+    );
+    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    await writeAuditLog(admin, {
+      actor_user_id: ctx.user.id,
+      action: "locker.shelf_grant",
+      target_table: "shelf_items",
+      target_id: ctx.teacher.id as string,
+      after: { template_id: templateId, custom_label: customLabel, students: targets.length },
+    });
+    return NextResponse.json({ ok: true, granted: targets.length });
+  }
+
+  if (action === "shelf_confirm" || action === "shelf_return" || action === "shelf_revoke") {
+    const itemId = typeof body.id === "string" ? body.id : "";
+    const { data: item } = await admin
+      .from("shelf_items")
+      .select("id, status, template_id, student_id")
+      .eq("id", itemId)
+      .eq("granted_by", ctx.teacher.id) // only the granting teacher manages it
+      .maybeSingle();
+    if (!item) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
+
+    const update =
+      action === "shelf_confirm"
+        ? { status: "redeemed", redeemed_at: new Date().toISOString() }
+        : action === "shelf_return"
+          ? { status: "granted", requested_at: null }
+          : { status: "revoked" };
+    if ((action === "shelf_confirm" || action === "shelf_return") && item.status !== "pending_redemption") {
+      return NextResponse.json({ ok: false, error: "not_pending" }, { status: 409 });
+    }
+    const { error } = await admin.from("shelf_items").update(update).eq("id", itemId);
+    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    if (action === "shelf_confirm") {
+      await writeAuditLog(admin, {
+        actor_user_id: ctx.user.id,
+        action: "locker.shelf_redeem",
+        target_table: "shelf_items",
+        target_id: itemId,
+        after: { template_id: item.template_id },
+      });
+    }
     return NextResponse.json({ ok: true });
   }
 

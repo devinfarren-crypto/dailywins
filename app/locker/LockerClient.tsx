@@ -11,11 +11,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CATALOG,
   CATALOG_BY_ID,
+  GOAL_TARGETS,
   PACK_NAMES,
+  WORK_CAPTIONS,
+  isAllowedWorkUrl,
   type CatalogItem,
   type LockerLayout,
   type PlacedItem,
 } from "@/src/lib/locker/schema";
+import { SHELF_TEMPLATE_BY_ID, type ShelfItem } from "@/src/lib/locker/shelf";
 
 const INK = "#0f1118";
 const PANEL = "#161924";
@@ -36,9 +40,18 @@ interface LockerState {
   layout: LockerLayout;
   today: { variant: string; periods: { label: string; start: string; end: string; kind: string }[] } | null;
   weekProgress: { id: string; name: string; earned: number; possible: number }[];
+  shelf: ShelfItem[];
 }
 
-type Sheet = null | "shoebox" | "store" | "bank" | { confirm: CatalogItem };
+type Sheet =
+  | null
+  | "shoebox"
+  | "store"
+  | "bank"
+  | "goal"
+  | "work"
+  | { confirm: CatalogItem }
+  | { shelfDetail: ShelfItem };
 
 // Display size (fraction of CANVAS width) per item type. The canvas is the
 // whole open locker (door + cavity), so these are roughly half the old
@@ -319,6 +332,43 @@ export default function LockerClient() {
     return () => clearTimeout(t);
   }, [toast]);
 
+  // "Something new on your shelf" — one soft cue per item, then mark it seen
+  // so the glow never repeats. The ref guards against refresh() re-firing it.
+  const seenHandled = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!state || doorPhase !== "open") return;
+    const unseen = (state.shelf ?? []).filter((s) => !s.seen && !seenHandled.current.has(s.id));
+    if (unseen.length === 0) return;
+    unseen.forEach((s) => seenHandled.current.add(s.id));
+    setToast(unseen.length === 1 ? "Something new on your shelf ✨" : `${unseen.length} new things on your shelf ✨`);
+    const t = setTimeout(() => {
+      unseen.forEach((s) =>
+        fetch("/api/locker/shelf", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: s.id, action: "seen" }),
+        })
+      );
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [state, doorPhase]);
+
+  const redeemShelfItem = async (item: ShelfItem) => {
+    const res = await fetch("/api/locker/shelf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: item.id, action: "use" }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!data?.ok) {
+      setToast("Couldn't raise your hand — try again.");
+      return;
+    }
+    setToast("Hand raised! Your teacher will confirm.");
+    setSheet(null);
+    await refresh();
+  };
+
   // While a sheet is open, the page behind must not move at all — scrolling
   // past the sheet's end was chaining into the locker and "dragging" it.
   useEffect(() => {
@@ -448,6 +498,9 @@ export default function LockerClient() {
         .lk-sheen::after { content: ""; position: absolute; top: 0; bottom: 0; width: 45%;
           background: linear-gradient(105deg, transparent, rgba(255,255,255,.55), transparent);
           animation: lkSheen .6s ease .05s both; }
+        /* new-on-your-shelf glow — a few warm pulses, then quiet forever */
+        @keyframes lkGlow { 0%, 100% { filter: drop-shadow(0 3px 2px rgba(0,0,0,.5)) } 50% { filter: drop-shadow(0 0 12px rgba(240,182,71,.95)) } }
+        .lk-fresh { animation: lkGlow 1.5s ease-in-out 4; }
         @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
       `}</style>
 
@@ -576,9 +629,22 @@ export default function LockerClient() {
             selected={selected === idx}
             slap={justPlaced === idx}
             settle={settling === idx}
-            live={{ today: state.today, weekProgress: state.weekProgress, goalCategory: layout.goal?.category ?? null }}
+            live={{
+              today: state.today,
+              weekProgress: state.weekProgress,
+              goalCategory: layout.goal?.category ?? null,
+              goalTarget: layout.goal?.target ?? 80,
+              work: layout.work ?? null,
+            }}
             onPointerDown={onPointerDown}
           />
+        ))}
+
+        {/* teacher shelf objects — the one surface the student doesn't
+            control. First five sit on the shelf; overflow rests on the
+            cavity floor. Tap → detail sheet → "Use this". */}
+        {(state.shelf ?? []).map((s, i) => (
+          <ShelfObject key={s.id} item={s} index={i} fresh={!s.seen} onOpen={() => setSheet({ shelfDetail: s })} />
         ))}
       </div>
 
@@ -587,15 +653,18 @@ export default function LockerClient() {
         {selected !== null && layout.items[selected] ? (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
             {layout.items[selected]?.item_id === "crd-goal" && state.weekProgress.length > 0 ? (
-              <Pill
-                onClick={() => {
-                  const ids = state.weekProgress.map((p) => p.id);
-                  const cur = ids.indexOf(layout.goal?.category ?? "");
-                  const next = ids[(cur + 1) % ids.length];
-                  mutateLayout((l) => ({ ...l, goal: { category: next } }));
-                }}
-                label="🎯 Change goal"
-              />
+              <Pill onClick={() => setSheet("goal")} label="🎯 Set my goal" />
+            ) : null}
+            {layout.items[selected]?.item_id === "crd-work" ? (
+              <>
+                <Pill onClick={() => setSheet("work")} label="✏️ Set my work" />
+                {layout.work?.url ? (
+                  <Pill
+                    onClick={() => window.open(layout.work?.url, "_blank", "noopener,noreferrer")}
+                    label="Open ↗"
+                  />
+                ) : null}
+              </>
             ) : null}
             <Pill onClick={() => resize(selected, 1.15)} label="＋ Bigger" />
             <Pill onClick={() => resize(selected, 1 / 1.15)} label="－ Smaller" />
@@ -783,6 +852,146 @@ export default function LockerClient() {
         </SheetFrame>
       ) : null}
 
+      {sheet === "goal" ? (
+        <SheetFrame
+          title="My goal"
+          subtitle="Pick a behavior and a target — the card tracks your week"
+          onClose={() => setSheet(null)}
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {state.weekProgress.map((p) => {
+              const active = (layout.goal?.category ?? null) === p.id;
+              const pct = p.possible > 0 ? Math.round((p.earned / p.possible) * 100) : 0;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() =>
+                    mutateLayout((l) => ({ ...l, goal: { category: p.id, target: l.goal?.target ?? 80 } }))
+                  }
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "12px 14px",
+                    borderRadius: 12,
+                    border: active ? `2px solid ${ACCENT}` : `1px solid ${EDGE}`,
+                    background: active ? "rgba(90,208,162,.1)" : PANEL,
+                    color: TEXT,
+                    cursor: "pointer",
+                    fontSize: 14,
+                    fontWeight: 700,
+                    textAlign: "left",
+                  }}
+                >
+                  <span>{p.name}</span>
+                  <span style={{ color: MUTED, fontWeight: 600, fontSize: 12.5, whiteSpace: "nowrap" }}>
+                    {p.earned}/{p.possible} · {pct}%
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ marginTop: 18 }}>
+            <div style={{ fontSize: 11, letterSpacing: "0.14em", color: MUTED, textTransform: "uppercase", fontWeight: 700, marginBottom: 8 }}>
+              My target
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {GOAL_TARGETS.map((t) => {
+                const active = (layout.goal?.target ?? 80) === t;
+                return (
+                  <button
+                    key={t}
+                    disabled={!layout.goal}
+                    onClick={() =>
+                      mutateLayout((l) => (l.goal ? { ...l, goal: { ...l.goal, target: t } } : l))
+                    }
+                    style={{
+                      padding: "10px 16px",
+                      borderRadius: 999,
+                      border: active ? `2px solid ${ACCENT}` : `1px solid ${EDGE}`,
+                      background: active ? "rgba(90,208,162,.12)" : PANEL,
+                      color: !layout.goal ? "#555c72" : active ? ACCENT : TEXT,
+                      fontSize: 13.5,
+                      fontWeight: 800,
+                      cursor: layout.goal ? "pointer" : "default",
+                    }}
+                  >
+                    {t}%
+                  </button>
+                );
+              })}
+            </div>
+            {!layout.goal ? (
+              <p style={{ color: MUTED, fontSize: 12, margin: "8px 0 0" }}>Pick a behavior first.</p>
+            ) : null}
+          </div>
+          <button
+            onClick={() => setSheet(null)}
+            style={{ marginTop: 18, width: "100%", padding: "13px 0", borderRadius: 12, border: "none", background: ACCENT, color: "#08110d", fontWeight: 800, fontSize: 14.5, cursor: "pointer" }}
+          >
+            Done
+          </button>
+        </SheetFrame>
+      ) : null}
+
+      {sheet === "work" ? (
+        <WorkSheet
+          initial={layout.work ?? null}
+          onClose={() => setSheet(null)}
+          onSave={(work) => {
+            mutateLayout((l) => ({ ...l, work }));
+            setSheet(null);
+            setToast(work ? "Your work is on the door." : "Link removed.");
+          }}
+        />
+      ) : null}
+
+      {sheet && typeof sheet === "object" && "shelfDetail" in sheet ? (
+        <SheetFrame
+          title={sheet.shelfDetail.label}
+          subtitle="From your teacher"
+          onClose={() => setSheet(null)}
+        >
+          <div style={{ textAlign: "center", padding: "4px 0" }}>
+            <div style={{ width: 150, margin: "0 auto 14px" }}>
+              <ShelfArt
+                skin={SHELF_TEMPLATE_BY_ID.get(sheet.shelfDetail.template_id)?.skin ?? "ticket"}
+                color={SHELF_TEMPLATE_BY_ID.get(sheet.shelfDetail.template_id)?.color ?? "#C9B8E8"}
+                label={sheet.shelfDetail.label}
+                status={sheet.shelfDetail.status}
+              />
+            </div>
+            {sheet.shelfDetail.note ? (
+              <p style={{ background: PANEL, border: `1px solid ${EDGE}`, borderRadius: 12, padding: "12px 14px", color: TEXT, fontSize: 13.5, lineHeight: 1.5, margin: "0 0 14px", textAlign: "left" }}>
+                {sheet.shelfDetail.note}
+              </p>
+            ) : null}
+            {sheet.shelfDetail.status === "granted" ? (
+              <>
+                <button
+                  onClick={() => redeemShelfItem(sheet.shelfDetail)}
+                  style={{ padding: "13px 28px", borderRadius: 12, border: "none", background: ACCENT, color: "#08110d", fontWeight: 800, fontSize: 14.5, cursor: "pointer" }}
+                >
+                  Use this
+                </button>
+                <p style={{ color: MUTED, fontSize: 12, margin: "10px 0 0" }}>
+                  Tap when you&apos;re ready to cash it in — your teacher confirms.
+                </p>
+              </>
+            ) : sheet.shelfDetail.status === "pending_redemption" ? (
+              <p style={{ color: "#F0B647", fontWeight: 700, fontSize: 14, margin: 0 }}>
+                ✋ Hand raised — waiting for your teacher to confirm.
+              </p>
+            ) : (
+              <p style={{ color: ACCENT, fontWeight: 700, fontSize: 14, margin: 0 }}>
+                Redeemed ✓ — nice.
+              </p>
+            )}
+          </div>
+        </SheetFrame>
+      ) : null}
+
       {sheet && typeof sheet === "object" && "confirm" in sheet ? (
         <SheetFrame title={sheet.confirm.name} subtitle={`◉ ${sheet.confirm.price} · you'd have ◉ ${state.balance - sheet.confirm.price} left`} onClose={() => setSheet("store")}>
           <div style={{ textAlign: "center", padding: "8px 0 4px" }}>
@@ -827,6 +1036,8 @@ interface LiveCardData {
   today: LockerState["today"] | null;
   weekProgress: LockerState["weekProgress"];
   goalCategory: string | null;
+  goalTarget: number;
+  work: { url: string; caption: number } | null;
 }
 
 function Placed({
@@ -878,8 +1089,13 @@ function Placed({
         <div style={{ pointerEvents: "none" }}>
           {item.id === "crd-today" ? <TodayCard data={live?.today ?? null} /> : null}
           {item.id === "crd-goal" ? (
-            <GoalCard progress={live?.weekProgress ?? []} category={live?.goalCategory ?? null} />
+            <GoalCard
+              progress={live?.weekProgress ?? []}
+              category={live?.goalCategory ?? null}
+              target={live?.goalTarget ?? 80}
+            />
           ) : null}
+          {item.id === "crd-work" ? <WorkCard work={live?.work ?? null} /> : null}
         </div>
       ) : (
         // eslint-disable-next-line @next/next/no-img-element
@@ -933,35 +1149,326 @@ function TodayCard({ data }: { data: LockerState["today"] | null }) {
 function GoalCard({
   progress,
   category,
+  target,
 }: {
   progress: LockerState["weekProgress"];
   category: string | null;
+  target: number;
 }) {
   const goal = progress.find((p) => p.id === category) ?? null;
   const pct = goal && goal.possible > 0 ? Math.round((goal.earned / goal.possible) * 100) : 0;
-  const barW = 100;
+  const met = goal !== null && goal.possible > 0 && pct >= target;
+  const barW = 104;
+  const barX = (140 - barW) / 2;
+  const tickX = barX + (barW * target) / 100;
   return (
-    <svg viewBox="0 0 140 86" style={{ width: "100%", display: "block", filter: "drop-shadow(0 1px 1px rgba(0,0,0,.25))" }}>
-      <rect x="1" y="6" width="138" height="74" rx="8" fill="#16324F" stroke="#0c2238" strokeWidth="1.5" />
-      <circle cx="1" cy="43" r="6" fill="#0f1118" />
-      <circle cx="139" cy="43" r="6" fill="#0f1118" />
-      <text x="70" y="24" fontFamily="Arial" fontWeight="bold" fontSize="9" fill="#9BE7FF" textAnchor="middle" letterSpacing="1.5">MY GOAL</text>
+    <svg viewBox="0 0 140 92" style={{ width: "100%", display: "block", filter: "drop-shadow(0 1px 1px rgba(0,0,0,.25))" }}>
+      <rect x="1" y="6" width="138" height="80" rx="8" fill={met ? "#1C4D3A" : "#16324F"} stroke={met ? "#123626" : "#0c2238"} strokeWidth="1.5" />
+      <circle cx="1" cy="46" r="6" fill="#0f1118" />
+      <circle cx="139" cy="46" r="6" fill="#0f1118" />
+      <text x="70" y="22" fontFamily="Arial" fontWeight="bold" fontSize="9" fill={met ? "#A9F0C9" : "#9BE7FF"} textAnchor="middle" letterSpacing="1.5">
+        {met ? "★ GOAL MET ★" : "MY GOAL"}
+      </text>
       {goal ? (
         <>
-          <text x="70" y="40" fontFamily="Arial" fontWeight="bold" fontSize="11" fill="#fff" textAnchor="middle">
+          <text x="70" y="38" fontFamily="Arial" fontWeight="bold" fontSize="11" fill="#fff" textAnchor="middle">
             {goal.name.length > 20 ? `${goal.name.slice(0, 19)}…` : goal.name}
           </text>
-          <rect x={(140 - barW) / 2} y="48" width={barW} height="10" rx="5" fill="#0c2238" />
-          <rect x={(140 - barW) / 2} y="48" width={Math.max(4, (barW * Math.min(pct, 100)) / 100)} height="10" rx="5" fill={pct >= 80 ? "#3BD27A" : pct >= 60 ? "#FFD23B" : "#FF8A65"} />
-          <text x="70" y="72" fontFamily="Arial" fontSize="8.5" fill="#9aa1b5" textAnchor="middle">
-            {goal.earned}/{goal.possible} pts this week · {pct}%
+          <rect x={barX} y="46" width={barW} height="11" rx="5.5" fill="#0c2238" />
+          <rect
+            x={barX}
+            y="46"
+            width={Math.max(4, (barW * Math.min(pct, 100)) / 100)}
+            height="11"
+            rx="5.5"
+            fill={met ? "#3BD27A" : pct >= target - 20 ? "#FFD23B" : "#FF8A65"}
+          />
+          {/* the target tick — what they're shooting for */}
+          <line x1={tickX} y1="42" x2={tickX} y2="61" stroke="#fff" strokeWidth="1.6" strokeDasharray="2 1.6" />
+          <text x={tickX} y="69" fontFamily="Arial" fontSize="6.5" fontWeight="bold" fill="#cfd5e4" textAnchor="middle">
+            {target}%
+          </text>
+          <text x="70" y="81" fontFamily="Arial" fontSize="8.5" fill={met ? "#A9F0C9" : "#9aa1b5"} textAnchor="middle">
+            {met ? `${pct}% — you did it!` : `${goal.earned}/${goal.possible} pts · ${pct}% so far`}
           </text>
         </>
       ) : (
-        <text x="70" y="50" fontFamily="Arial" fontSize="9" fill="#9aa1b5" textAnchor="middle">
-          Select me, then “Change goal”
+        <text x="70" y="52" fontFamily="Arial" fontSize="9" fill="#9aa1b5" textAnchor="middle">
+          Select me, then “Set my goal”
         </text>
       )}
+    </svg>
+  );
+}
+
+const WORK_HOST_LABEL = (url: string): string => {
+  try {
+    const u = new URL(url);
+    if (u.hostname === "docs.google.com") {
+      return u.pathname.startsWith("/presentation") ? "Google Slides" : "Google Doc";
+    }
+    return "Google Drive";
+  } catch {
+    return "Link";
+  }
+};
+
+// The proud-work showcase: gold-star paper holding a pointer to the
+// student's own Doc/Slide. Google's sharing permissions decide who can
+// actually open it — we never store the content.
+function WorkCard({ work }: { work: { url: string; caption: number } | null }) {
+  const caption = work ? WORK_CAPTIONS[work.caption] ?? WORK_CAPTIONS[0] : null;
+  return (
+    <svg viewBox="0 0 110 130" style={{ width: "100%", display: "block", filter: "drop-shadow(0 1px 1px rgba(0,0,0,.25))" }}>
+      <g transform="rotate(-2 55 65)">
+        <rect x="8" y="10" width="94" height="112" rx="4" fill="#FDFBF4" stroke="#D8D2BF" strokeWidth="1.5" />
+        {/* tape corner */}
+        <rect x="38" y="4" width="34" height="12" rx="2" fill="#E8E0C8" opacity=".85" transform="rotate(-3 55 10)" />
+        {work ? (
+          <>
+            <path d="M86 16 l3.4 6.9 7.6 1.1 -5.5 5.3 1.3 7.5 -6.8 -3.6 -6.8 3.6 1.3 -7.5 -5.5 -5.3 7.6 -1.1z" fill="#F0B647" stroke="#D89B2A" strokeWidth="1.4" />
+            <text x="16" y="40" fontFamily="Georgia, serif" fontStyle="italic" fontWeight="bold" fontSize="10" fill="#2c3440">
+              {caption && caption.length > 17 ? `${caption.slice(0, 16)}…` : caption}
+            </text>
+            {[54, 64, 74, 84].map((y) => (
+              <line key={y} x1="16" y1={y} x2="94" y2={y} stroke="#C9D6E4" strokeWidth="2.5" />
+            ))}
+            <rect x="16" y="98" width="62" height="15" rx="7.5" fill="#16324F" />
+            <text x="47" y="108.5" fontFamily="Arial" fontWeight="bold" fontSize="7.5" fill="#9BE7FF" textAnchor="middle">
+              {WORK_HOST_LABEL(work.url)} ↗
+            </text>
+          </>
+        ) : (
+          <>
+            <rect x="20" y="34" width="70" height="64" rx="6" fill="none" stroke="#C9C2AC" strokeWidth="2" strokeDasharray="5 4" />
+            <text x="55" y="60" fontFamily="Arial" fontSize="8" fill="#8a917e" textAnchor="middle">Your best work</text>
+            <text x="55" y="72" fontFamily="Arial" fontSize="7" fill="#a8af9c" textAnchor="middle">Select me, then</text>
+            <text x="55" y="82" fontFamily="Arial" fontSize="7" fill="#a8af9c" textAnchor="middle">“Set my work”</text>
+          </>
+        )}
+      </g>
+    </svg>
+  );
+}
+
+// Edits the proud-work pointer: URL (allowlist-checked here for a friendly
+// message, re-checked server-side) + a PRESET caption — never free text.
+function WorkSheet({
+  initial,
+  onSave,
+  onClose,
+}: {
+  initial: { url: string; caption: number } | null;
+  onSave: (work: { url: string; caption: number } | null) => void;
+  onClose: () => void;
+}) {
+  const [url, setUrl] = useState(initial?.url ?? "");
+  const [caption, setCaption] = useState(initial?.caption ?? 0);
+  const [err, setErr] = useState("");
+  return (
+    <SheetFrame
+      title="My best work"
+      subtitle="Paste a link to a Google Doc or Slides you're proud of"
+      onClose={onClose}
+    >
+      <input
+        value={url}
+        onChange={(e) => {
+          setUrl(e.target.value);
+          setErr("");
+        }}
+        placeholder="https://docs.google.com/…"
+        inputMode="url"
+        autoComplete="off"
+        style={{
+          width: "100%",
+          boxSizing: "border-box",
+          padding: "12px 14px",
+          borderRadius: 12,
+          border: `1px solid ${err ? WARN : EDGE}`,
+          background: PANEL,
+          color: TEXT,
+          fontSize: 14,
+          outline: "none",
+        }}
+      />
+      {err ? <p style={{ color: WARN, fontSize: 12.5, margin: "8px 0 0", fontWeight: 600 }}>{err}</p> : null}
+      <div style={{ margin: "16px 0 0" }}>
+        <div style={{ fontSize: 11, letterSpacing: "0.14em", color: MUTED, textTransform: "uppercase", fontWeight: 700, marginBottom: 8 }}>
+          Caption
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {WORK_CAPTIONS.map((c, i) => (
+            <button
+              key={c}
+              onClick={() => setCaption(i)}
+              style={{
+                padding: "9px 14px",
+                borderRadius: 999,
+                border: caption === i ? `2px solid ${ACCENT}` : `1px solid ${EDGE}`,
+                background: caption === i ? "rgba(90,208,162,.12)" : PANEL,
+                color: caption === i ? ACCENT : TEXT,
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+      </div>
+      <p style={{ color: MUTED, fontSize: 12, lineHeight: 1.5, margin: "14px 0 0" }}>
+        Who can open it is up to the doc&apos;s own sharing settings — this just puts it on your door.
+      </p>
+      <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+        <button
+          onClick={() => {
+            const trimmed = url.trim();
+            if (!isAllowedWorkUrl(trimmed)) {
+              setErr("Links can only point to Google Docs, Slides, or Drive.");
+              return;
+            }
+            onSave({ url: trimmed, caption });
+          }}
+          style={{ flex: 1, padding: "13px 0", borderRadius: 12, border: "none", background: ACCENT, color: "#08110d", fontWeight: 800, fontSize: 14.5, cursor: "pointer" }}
+        >
+          Put it on the door
+        </button>
+        {initial ? (
+          <button
+            onClick={() => onSave(null)}
+            style={{ padding: "13px 18px", borderRadius: 12, border: "1px solid #5a3232", background: "transparent", color: WARN, fontWeight: 700, fontSize: 14, cursor: "pointer" }}
+          >
+            Remove
+          </button>
+        ) : null}
+      </div>
+    </SheetFrame>
+  );
+}
+
+// ── teacher shelf objects ─────────────────────────────────────────────────────
+
+function ShelfObject({
+  item,
+  index,
+  fresh,
+  onOpen,
+}: {
+  item: ShelfItem;
+  index: number;
+  fresh: boolean;
+  onOpen: () => void;
+}) {
+  const tpl = SHELF_TEMPLATE_BY_ID.get(item.template_id);
+  // First five sit on the shelf; the rest rest on the cavity floor.
+  const onShelf = index < 5;
+  const slot = onShelf ? index : (index - 5) % 5;
+  return (
+    <button
+      className={fresh ? "lk-fresh" : undefined}
+      onClick={onOpen}
+      aria-label={`${item.label} — from your teacher`}
+      style={{
+        position: "absolute",
+        left: `${52 + slot * 9.5}%`,
+        bottom: onShelf ? "74.3%" : "4%",
+        width: "8%",
+        zIndex: 45,
+        background: "none",
+        border: "none",
+        padding: 0,
+        cursor: "pointer",
+        filter: "drop-shadow(0 3px 2px rgba(0,0,0,.5))",
+      }}
+    >
+      <ShelfArt skin={tpl?.skin ?? "ticket"} color={tpl?.color ?? "#C9B8E8"} label={item.label} status={item.status} />
+    </button>
+  );
+}
+
+function ShelfArt({
+  skin,
+  color,
+  label,
+  status,
+}: {
+  skin: "ticket" | "punch" | "note";
+  color: string;
+  label: string;
+  status: ShelfItem["status"];
+}) {
+  // up to two short lines of the label on the object itself
+  const words = label.split(" ");
+  const lines: string[] = [];
+  for (const w of words) {
+    if (lines.length && (lines[lines.length - 1] + " " + w).length <= 10) {
+      lines[lines.length - 1] += ` ${w}`;
+    } else {
+      lines.push(w);
+    }
+  }
+  const shown = lines.slice(0, 2).map((l) => (l.length > 10 ? `${l.slice(0, 9)}…` : l));
+  return (
+    <svg viewBox="0 0 90 64" style={{ width: "100%", display: "block" }}>
+      {skin === "ticket" ? (
+        <g>
+          <rect x="3" y="16" width="84" height="42" rx="6" fill={color} stroke="rgba(0,0,0,.3)" strokeWidth="1.5" />
+          <circle cx="3" cy="37" r="5" fill="#10131c" />
+          <circle cx="87" cy="37" r="5" fill="#10131c" />
+          <line x1="68" y1="18" x2="68" y2="56" stroke="rgba(0,0,0,.35)" strokeWidth="1.6" strokeDasharray="3 3" />
+          {shown.map((l, i) => (
+            <text key={i} x="35" y={shown.length === 1 ? 41 : 35 + i * 12} fontFamily="Arial" fontWeight="bold" fontSize="9" fill="#1d2230" textAnchor="middle">
+              {l}
+            </text>
+          ))}
+          <text x="78" y="40" fontFamily="Arial" fontWeight="bold" fontSize="6" fill="rgba(0,0,0,.5)" textAnchor="middle" transform="rotate(90 78 38)">
+            ADMIT
+          </text>
+        </g>
+      ) : skin === "punch" ? (
+        <g>
+          <rect x="5" y="14" width="80" height="44" rx="7" fill={color} stroke="rgba(0,0,0,.28)" strokeWidth="1.5" />
+          {shown.map((l, i) => (
+            <text key={i} x="45" y={shown.length === 1 ? 33 : 28 + i * 11} fontFamily="Arial" fontWeight="bold" fontSize="9" fill="#3a2430" textAnchor="middle">
+              {l}
+            </text>
+          ))}
+          {[0, 1, 2, 3, 4].map((i) => (
+            <circle key={i} cx={19 + i * 13} cy="48" r="4" fill="none" stroke="#3a2430" strokeWidth="1.6" />
+          ))}
+          <path d="M16 45 l6 6 M22 45 l-6 6" stroke="#3a2430" strokeWidth="1.6" />
+        </g>
+      ) : (
+        <g>
+          <path d="M12 18 h66 v40 h-66 z" fill="#F7F2E2" stroke="#D8D2BF" strokeWidth="1.5" />
+          <path d="M12 18 h66 l-33 18 z" fill="#EFE8D2" stroke="#D8D2BF" strokeWidth="1.2" />
+          <circle cx="45" cy="40" r="8" fill="#C0392B" />
+          <circle cx="45" cy="40" r="5" fill="none" stroke="#8e2a1f" strokeWidth="1.4" />
+          {shown[0] ? (
+            <text x="45" y="56" fontFamily="Georgia, serif" fontStyle="italic" fontSize="7.5" fill="#5a5240" textAnchor="middle">
+              {shown.join(" ")}
+            </text>
+          ) : null}
+        </g>
+      )}
+      {status === "pending_redemption" ? (
+        <g>
+          <rect x="21" y="1" width="48" height="13" rx="6.5" fill="#F0B647" />
+          <text x="45" y="10.5" fontFamily="Arial" fontWeight="bold" fontSize="7.5" fill="#3a2c0a" textAnchor="middle">
+            WAITING
+          </text>
+        </g>
+      ) : null}
+      {status === "redeemed" ? (
+        <g transform="rotate(-10 45 37)">
+          <rect x="10" y="28" width="70" height="17" rx="3" fill="rgba(253,251,244,.75)" stroke="#E8485C" strokeWidth="2" />
+          <text x="45" y="40.5" fontFamily="Arial" fontWeight="bold" fontSize="9.5" fill="#E8485C" textAnchor="middle" letterSpacing="1">
+            REDEEMED
+          </text>
+        </g>
+      ) : null}
     </svg>
   );
 }

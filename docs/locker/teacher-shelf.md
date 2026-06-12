@@ -1,6 +1,14 @@
 # The Locker — Teacher Shelf (Prompt 2C)
 
-*Drafted 2026-06-12. The cavity shelf is the one surface a student doesn't
+*Drafted 2026-06-12. SHIPPED same day as migration 055 (not 054 as guessed
+below) — shared constants in src/lib/locker/shelf.ts, student transitions in
+app/api/locker/shelf, teacher actions (shelf_grant / shelf_confirm /
+shelf_return / shelf_revoke) in app/api/locker/teacher, grant + pending UI on
+/locker/manage, shelf objects rendered in LockerClient (first five on the
+shelf, overflow on the cavity floor). Redeemed items auto-archive after 5
+days via a lazy sweep in /api/locker/state.*
+
+*Original spec follows. The cavity shelf is the one surface a student doesn't
 control: teachers place real-world rewards there as physical objects —
 tickets, punch cards, folded notes. Grants, not purchases: the points ledger
 is untouched.*

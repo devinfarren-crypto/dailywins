@@ -53,10 +53,52 @@ export const PlacedItemSchema = z.object({
 export const LayoutSchema = z.object({
   background: z.string().nullable(),
   items: z.array(PlacedItemSchema).max(40), // mirrors the 054 DB CHECK
-  // The goal card's chosen behavior category — student-writable state, but
-  // only a category id, never free text.
-  goal: z.object({ category: z.string() }).nullable().optional(),
+  // The goal card's chosen behavior category + target % — student-writable
+  // state, but only a category id and a bounded number, never free text.
+  goal: z
+    .object({
+      category: z.string(),
+      target: z.number().int().min(50).max(100).optional(), // default 80 in UI
+    })
+    .nullable()
+    .optional(),
+  // Proud-work showcase (functional-objects.md #3): a pointer to the
+  // student's own Doc/Slide. Caption is a PRESET INDEX — never free text;
+  // the URL host is allowlist-checked again server-side on every save.
+  work: z
+    .object({
+      url: z.string().url().max(500),
+      caption: z.number().int().min(0).max(11),
+    })
+    .nullable()
+    .optional(),
 });
+
+export const GOAL_TARGETS = [60, 70, 80, 90, 100];
+
+// Preset captions for the proud-work card — the only "text" a student can
+// attach, chosen from this list by index (privacy: no free text surfaces).
+export const WORK_CAPTIONS = [
+  "My best work",
+  "Proud of this one",
+  "Took me forever",
+  "Personal record",
+  "Check this out",
+  "My favorite",
+];
+
+// Hosts a proud-work link may point to. Google's own sharing permissions
+// decide who can actually open it — we only hold the pointer.
+export const WORK_URL_HOSTS = ["docs.google.com", "drive.google.com"];
+
+export function isAllowedWorkUrl(raw: string): boolean {
+  try {
+    const u = new URL(raw);
+    return u.protocol === "https:" && WORK_URL_HOSTS.includes(u.hostname);
+  } catch {
+    return false;
+  }
+}
 
 export const PACK_NAMES: Record<string, string> = {
   classics: "Classics",

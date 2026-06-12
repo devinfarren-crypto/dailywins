@@ -21,15 +21,15 @@ week." Free, granted to everyone. The goal choice lives in the layout JSON
 tables. **This is the product thesis closing into a loop: the locker gives
 students a reason to care about the behavior record.**
 
-## Next (specced, not built)
+**3. Proud-work showcase (`crd-work`)** — SHIPPED 2026-06-12. Paste a Google
+Doc/Slide link → gold-star paper on the door. Guardrails as specced:
+server-enforced URL allowlist (`WORK_URL_HOSTS` in schema.ts — docs.google.com
++ drive.google.com, https only, re-checked on every layout save) and PRESET
+captions (`WORK_CAPTIONS`, chosen by index) — never free text. Pointer lives
+in `layout.work {url, caption}`; Google's sharing permissions decide who can
+open it. "Open ↗" pill opens in a new tab.
 
-**3. Proud-work showcase** — paste a Google Doc/Slide link → it becomes a
-physical object (gold-star paper on the door, report cover on the shelf).
-Guardrails: server-enforced URL allowlist (docs.google.com, drive.google.com,
-slides; district portfolio tools by config) and PRESET captions ("My best
-essay", "Proud of this one") — never free text. We hold a pointer; Google's
-sharing permissions decide who can open it. This is Tier-2 pride without
-social comparison.
+## Next (specced, not built)
 
 **4. Countdown card** — teacher sets it per class ("14 days until break").
 Trivial; beloved.
