@@ -9,9 +9,11 @@ export const CatalogItemSchema = z
     id: z.string().regex(/^(stk|btn|pat|mag|mir|bg)-[a-z0-9-]+$/),
     name: z.string().min(1).max(28),
     type: z.enum(["sticker", "button", "patch", "magnet", "mirror", "background"]),
+    pack: z.string().min(1), // collection slug ("classics", "arcade", "mixtape", …)
+    // Rarity drives visual treatment + price ONLY — never drops, never timers.
+    rarity: z.enum(["common", "foil", "holo"]),
     price: z.number().int().min(0),
     starter: z.boolean(),
-    weight: z.enum(["quiet", "medium", "loud"]),
     tags: z.array(z.string()).max(6),
     asset: z.string().startsWith("/locker/"),
     retired: z.boolean().optional(),
@@ -50,8 +52,14 @@ export const PlacedItemSchema = z.object({
 
 export const LayoutSchema = z.object({
   background: z.string().nullable(),
-  items: z.array(PlacedItemSchema).max(30),
+  items: z.array(PlacedItemSchema).max(40), // mirrors the 054 DB CHECK
 });
+
+export const PACK_NAMES: Record<string, string> = {
+  classics: "Classics",
+  arcade: "Arcade",
+  mixtape: "Mixtape",
+};
 
 export type PlacedItem = z.infer<typeof PlacedItemSchema>;
 export type LockerLayout = z.infer<typeof LayoutSchema>;

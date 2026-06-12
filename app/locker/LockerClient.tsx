@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CATALOG,
   CATALOG_BY_ID,
+  PACK_NAMES,
   type CatalogItem,
   type LockerLayout,
   type PlacedItem,
@@ -56,6 +57,8 @@ export default function LockerClient() {
   const [selected, setSelected] = useState<number | null>(null);
   const [sheet, setSheet] = useState<Sheet>(null);
   const [toast, setToast] = useState("");
+  const [justPlaced, setJustPlaced] = useState<number | null>(null);
+  const [settling, setSettling] = useState<number | null>(null);
   const doorRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ idx: number; startX: number; startY: number; origX: number; origY: number; moved: boolean } | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -122,7 +125,7 @@ export default function LockerClient() {
 
   // ── actions ───────────────────────────────────────────────────────────────
   const placeItem = (item: CatalogItem) => {
-    if (layout.items.length >= 30) {
+    if (layout.items.length >= 40) {
       setToast("Your locker's full — put something in the shoebox first.");
       return;
     }
@@ -131,14 +134,17 @@ export default function LockerClient() {
       return;
     }
     const maxZ = layout.items.reduce((m, p) => Math.max(m, p.z), 0);
+    const newIdx = layout.items.length;
     mutateLayout((l) => ({
       ...l,
       items: [
         ...l.items,
-        { item_id: item.id, x: 0.5 + (Math.random() - 0.5) * 0.1, y: 0.42 + (Math.random() - 0.5) * 0.1, z: maxZ + 1, rot: Math.round((Math.random() - 0.5) * 14) },
+        { item_id: item.id, x: 0.5 + (Math.random() - 0.5) * 0.1, y: 0.42 + (Math.random() - 0.5) * 0.1, z: maxZ + 1, rot: Math.round((Math.random() - 0.5) * 8) },
       ],
     }));
-    setSelected(layout.items.length);
+    setSelected(newIdx);
+    setJustPlaced(newIdx);
+    setTimeout(() => setJustPlaced(null), 260);
     setSheet(null);
   };
 
@@ -228,7 +234,12 @@ export default function LockerClient() {
     }));
   };
   const onPointerUp = () => {
-    if (dragRef.current?.moved) scheduleSave();
+    if (dragRef.current?.moved) {
+      scheduleSave();
+      const idx = dragRef.current.idx;
+      setSettling(idx);
+      setTimeout(() => setSettling(null), 150);
+    }
     dragRef.current = null;
   };
 
@@ -299,6 +310,18 @@ export default function LockerClient() {
         @keyframes lkFadeIn { from { opacity: 0 } to { opacity: 1 } }
         .lk-sheet { animation: lkSheetUp .22s cubic-bezier(.22,1,.36,1) both; }
         .lk-backdrop { animation: lkFadeIn .18s ease both; }
+        /* juice — all ≤250ms, transform/opacity only */
+        @keyframes lkSlap { from { scale: 1.14 } to { scale: 1 } }
+        @keyframes lkSettle { from { scale: 1.045 } to { scale: 1 } }
+        @keyframes lkPop { from { transform: translateY(8px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+        @keyframes lkSheen { from { transform: translateX(-130%) } to { transform: translateX(130%) } }
+        .lk-slap { animation: lkSlap .18s cubic-bezier(.2,1.4,.4,1) both; }
+        .lk-settle { animation: lkSettle .12s ease-out both; }
+        .lk-cell { animation: lkPop .18s ease both; }
+        .lk-sheen { position: absolute; inset: -10%; overflow: hidden; pointer-events: none; border-radius: 50%; }
+        .lk-sheen::after { content: ""; position: absolute; top: 0; bottom: 0; width: 45%;
+          background: linear-gradient(105deg, transparent, rgba(255,255,255,.55), transparent);
+          animation: lkSheen .6s ease .05s both; }
         @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
       `}</style>
 
@@ -353,6 +376,17 @@ export default function LockerClient() {
       >
         {/* ── the physical locker, drawn under the stickers ─────────────── */}
         <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+          {/* sheet-metal material: brushed verticals + one shared noise tile */}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              backgroundImage:
+                "repeating-linear-gradient(90deg, transparent 0 2px, rgba(255,255,255,.015) 2px 3px, rgba(0,0,0,.025) 3px 4px), url(/locker/textures/noise.svg)",
+            }}
+          />
+          {/* recessed door panel (embossed metal) */}
+          <div style={{ position: "absolute", left: "5%", top: "12%", bottom: "5%", width: "37%", borderRadius: 8, boxShadow: "inset 2px 2px 4px rgba(0,0,0,.28), inset -1px -1px 2px rgba(255,255,255,.07)" }} />
           {/* door panel shading (left half) — inside of the open door */}
           <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "47%", boxShadow: "inset -18px 0 28px -18px rgba(0,0,0,.55), inset 4px 0 10px -4px rgba(255,255,255,.06)" }} />
           {/* door vents */}
@@ -361,8 +395,11 @@ export default function LockerClient() {
               <div key={i} style={{ width: "min(110px, 14vw)", height: 6, borderRadius: 3, background: "rgba(0,0,0,.45)", boxShadow: "inset 0 2px 3px rgba(0,0,0,.8), 0 1px 0 rgba(255,255,255,.08)" }} />
             ))}
           </div>
-          {/* door latch (outer edge) */}
-          <div style={{ position: "absolute", left: "1.5%", top: "44%", width: 10, height: "9%", borderRadius: 4, background: "linear-gradient(90deg, #3a4152, #1c2029)", boxShadow: "0 2px 4px rgba(0,0,0,.5)" }} />
+          {/* door latch (outer edge) with screw heads */}
+          <div style={{ position: "absolute", left: "1.5%", top: "44%", width: 10, height: "9%", borderRadius: 4, background: "linear-gradient(90deg, #3a4152, #1c2029)", boxShadow: "0 2px 4px rgba(0,0,0,.5)" }}>
+            <div style={{ position: "absolute", top: 3, left: 3, width: 4, height: 4, borderRadius: "50%", background: "radial-gradient(circle at 35% 35%, #6a7388, #20242f)" }} />
+            <div style={{ position: "absolute", bottom: 3, left: 3, width: 4, height: 4, borderRadius: "50%", background: "radial-gradient(circle at 35% 35%, #6a7388, #20242f)" }} />
+          </div>
           {/* hinge strip between door and cavity */}
           <div style={{ position: "absolute", left: "47%", top: 0, bottom: 0, width: "2.4%", background: "linear-gradient(90deg, #11141c, #2c3242 45%, #11141c)", boxShadow: "0 0 10px rgba(0,0,0,.6)" }}>
             {[0.12, 0.45, 0.78].map((t) => (
@@ -377,12 +414,41 @@ export default function LockerClient() {
           <div style={{ position: "absolute", left: "49.4%", right: 0, bottom: 0, height: "7%", background: "linear-gradient(180deg, transparent, rgba(0,0,0,.5))" }} />
         </div>
 
+        {/* inspiration ghosts — only while the locker is empty */}
+        {layout.items.length === 0 ? (
+          <div aria-hidden="true" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+            {[
+              { x: "16%", y: "26%", w: "11%", r: -8 },
+              { x: "30%", y: "52%", w: "13%", r: 6 },
+              { x: "12%", y: "70%", w: "9%", r: 12 },
+              { x: "66%", y: "44%", w: "12%", r: -5 },
+              { x: "80%", y: "70%", w: "10%", r: 8 },
+            ].map((g, i) => (
+              <div
+                key={i}
+                style={{
+                  position: "absolute",
+                  left: g.x,
+                  top: g.y,
+                  width: g.w,
+                  aspectRatio: "1",
+                  borderRadius: "50%",
+                  border: "2.5px dashed rgba(255,255,255,.28)",
+                  transform: `rotate(${g.r}deg)`,
+                }}
+              />
+            ))}
+          </div>
+        ) : null}
+
         {layout.items.map((p, idx) => (
           <Placed
             key={`${p.item_id}-${idx}`}
             placed={p}
             idx={idx}
             selected={selected === idx}
+            slap={justPlaced === idx}
+            settle={settling === idx}
             onPointerDown={onPointerDown}
           />
         ))}
@@ -402,7 +468,9 @@ export default function LockerClient() {
           </div>
         ) : (
           <p style={{ color: "#6b7288", fontSize: 12, margin: 0 }}>
-            Tap a sticker to move, layer, or rotate it · Shoebox holds the rest
+            {layout.items.length === 0
+              ? "Empty locker. Open the Shoebox and make it yours."
+              : "Tap a sticker to move, layer, or rotate it · Shoebox holds the rest"}
           </p>
         )}
       </div>
@@ -439,11 +507,12 @@ export default function LockerClient() {
                 Everything you own is on the door. The Store has more.
               </p>
             ) : (
-              shoebox.map((item) => (
+              shoebox.map((item, i) => (
                 <button
                   key={item.id}
+                  className="lk-cell"
                   onClick={() => placeItem(item)}
-                  style={cellStyle}
+                  style={{ ...cellStyle, animationDelay: `${Math.min(i, 10) * 22}ms` }}
                   aria-label={`Place ${item.name}`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -481,30 +550,58 @@ export default function LockerClient() {
 
       {sheet === "store" ? (
         <SheetFrame title="Store" subtitle={`Posted prices, no surprises · you have ◉ ${state.balance}`} onClose={() => setSheet(null)}>
-          {(["background", "sticker", "button", "patch", "mirror"] as const).map((type) => {
-            const items = CATALOG.items.filter((i) => i.type === type && i.price > 0 && !i.retired);
+          {Object.entries(PACK_NAMES).map(([slug, packName]) => {
+            const items = CATALOG.items.filter((i) => i.pack === slug && i.price > 0 && !i.retired);
             if (items.length === 0) return null;
+            const ownedCount = items.filter((i) => state.inventory.includes(i.id)).length;
+            // Backgrounds last within a pack; foil/holo bubble to the end too.
+            const rank = (i: CatalogItem) =>
+              (i.type === "background" ? 100 : 0) + (i.rarity === "holo" ? 2 : i.rarity === "foil" ? 1 : 0);
+            const sorted = [...items].sort((a, b) => rank(a) - rank(b) || a.price - b.price);
             return (
-              <div key={type} style={{ marginBottom: 18 }}>
-                <div style={{ fontSize: 11, letterSpacing: "0.14em", color: MUTED, textTransform: "uppercase", fontWeight: 700, marginBottom: 8 }}>
-                  {type === "background" ? "Paint & wallpaper" : `${type}s`}
+              <div key={slug} style={{ marginBottom: 20 }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, letterSpacing: "0.14em", color: TEXT, textTransform: "uppercase", fontWeight: 800 }}>
+                    {packName}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 10.5,
+                      fontWeight: 700,
+                      color: ownedCount === items.length ? "#08110d" : MUTED,
+                      background: ownedCount === items.length ? ACCENT : PANEL,
+                      border: `1px solid ${ownedCount === items.length ? ACCENT : EDGE}`,
+                      borderRadius: 999,
+                      padding: "2px 9px",
+                    }}
+                  >
+                    {ownedCount === items.length ? "Complete ✓" : `${ownedCount}/${items.length} collected`}
+                  </span>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))", gap: 10 }}>
-                  {items.map((item) => {
+                  {sorted.map((item, i) => {
                     const owned = state.inventory.includes(item.id);
+                    const rare = item.rarity !== "common";
+                    const rareColor = item.rarity === "holo" ? "#C6A4FF" : "#E8D48B";
                     return (
                       <button
                         key={item.id}
+                        className="lk-cell"
                         onClick={() => !owned && setSheet({ confirm: item })}
                         disabled={owned}
-                        style={{ ...cellStyle, opacity: owned ? 0.55 : 1 }}
+                        style={{
+                          ...cellStyle,
+                          opacity: owned ? 0.55 : 1,
+                          animationDelay: `${Math.min(i, 10) * 22}ms`,
+                          ...(rare ? { borderColor: `${rareColor}55` } : {}),
+                        }}
                         aria-label={owned ? `${item.name} — owned` : `Buy ${item.name} for ${item.price} points`}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={item.asset} alt="" loading="lazy" style={{ width: 52, height: 52, objectFit: "contain" }} />
                         <span style={{ fontSize: 11.5, color: TEXT, fontWeight: 600 }}>{item.name}</span>
-                        <span style={{ fontSize: 11, color: owned ? MUTED : ACCENT, fontWeight: 700 }}>
-                          {owned ? "Owned" : `◉ ${item.price}`}
+                        <span style={{ fontSize: 11, color: owned ? MUTED : rare ? rareColor : ACCENT, fontWeight: 700 }}>
+                          {owned ? "Owned" : `${rare ? `${item.rarity.toUpperCase()} · ` : ""}◉ ${item.price}`}
                         </span>
                       </button>
                     );
@@ -591,11 +688,15 @@ function Placed({
   placed,
   idx,
   selected,
+  slap,
+  settle,
   onPointerDown,
 }: {
   placed: PlacedItem;
   idx: number;
   selected: boolean;
+  slap: boolean;
+  settle: boolean;
   onPointerDown: (e: React.PointerEvent, idx: number) => void;
 }) {
   const item = CATALOG_BY_ID.get(placed.item_id);
@@ -604,12 +705,14 @@ function Placed({
   // Anchored by center: left/top in door-%, translate(-50%,-50%) + rotate on
   // the inner element. Placed items are absolutely positioned, so moves
   // never reflow the document — cheap even mid-drag on a Chromebook.
+  // Slap-down on place, settle on drag end; pressed-on shadow is tighter
+  // than the lifted/selected one.
   return (
     <div
-      className="lk-item"
+      className={`lk-item${slap ? " lk-slap" : settle ? " lk-settle" : ""}`}
       role="button"
       tabIndex={0}
-      aria-label={`${item.name} — arrow keys move, [ ] layer, r rotates`}
+      aria-label={`${item.name} — arrow keys move, [ ] layer, r rotates, + - resizes`}
       onPointerDown={(e) => onPointerDown(e, idx)}
       style={{
         position: "absolute",
@@ -618,12 +721,16 @@ function Placed({
         width: `${w}%`,
         zIndex: placed.z,
         transform: `translate3d(-50%, -50%, 0) rotate(${placed.rot}deg)`,
-        filter: selected ? `drop-shadow(0 0 6px ${ACCENT})` : "drop-shadow(0 3px 4px rgba(0,0,0,.35))",
+        filter: selected
+          ? `drop-shadow(0 0 6px ${ACCENT}) drop-shadow(0 6px 8px rgba(0,0,0,.4))`
+          : "drop-shadow(0 2px 3px rgba(0,0,0,.38))",
         cursor: "grab",
       }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={item.asset} alt="" draggable={false} style={{ width: "100%", display: "block", pointerEvents: "none" }} />
+      {/* foil/holo sheen — one-shot, only when selected (perf + photosensitivity) */}
+      {selected && item.rarity !== "common" ? <div className="lk-sheen" /> : null}
     </div>
   );
 }

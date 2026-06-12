@@ -33,6 +33,69 @@ const BUTTON_TEXT = {
   "btn-vinyl": { bg: "#E84D6F", fg: "#fff", lines: ["SPIN", "RECORDS"] },
 };
 
+// Pixel art: rows of characters → squares. '.' = empty; letters map to colors.
+function pixels(rows, colors, cell = 6, ox = 0, oy = 0) {
+  let out = "";
+  rows.forEach((row, y) => {
+    [...row].forEach((ch, x) => {
+      if (ch === ".") return;
+      out += `<rect x="${ox + x * cell}" y="${oy + y * cell}" width="${cell}" height="${cell}" fill="${colors[ch]}"/>`;
+    });
+  });
+  return out;
+}
+
+const FOIL = `<linearGradient id="foil" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E8D48B"/><stop offset=".5" stop-color="#C9A227"/><stop offset="1" stop-color="#F4E3A1"/></linearGradient>`;
+const HOLO = `<linearGradient id="holo" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9BE7FF"/><stop offset=".5" stop-color="#C6A4FF"/><stop offset="1" stop-color="#FFB7E1"/></linearGradient>`;
+
+// ── Arcade pack (pixel grids, centered in the 100×100 die-cut) ──────────────
+const PX = {
+  "stk-px-heart": pixels(
+    [".RR.RR.", "RRRRRRR", "RRRRRRR", ".RRRRR.", "..RRR..", "...R..."],
+    { R: "#E8485C" }, 8, 22, 28
+  ),
+  "stk-px-sword": pixels(
+    ["......B", ".....BB", "....BB.", "...BB..", "Y.BB...", ".YY....", "YYG....", "G.Y...."],
+    { B: "#AFC6D9", Y: "#E8B23A", G: "#7A4E22" }, 8, 22, 18
+  ),
+  "stk-px-joystick": pixels(
+    ["..RR..", ".RRRR.", ".RRRR.", "..GG..", "..GG..", "DDDDDD", "DDDDDD"],
+    { R: "#E8485C", G: "#5A6378", D: "#23262E" }, 8, 26, 20
+  ),
+  "stk-px-healthbar": pixels(
+    ["OOOOOOOOOO", "OGGGGGGGGO", "OGGGGGGGGO", "OOOOOOOOOO"],
+    { O: "#23262E", G: "#3BD27A" }, 7, 15, 38
+  ),
+  "stk-px-levelup": pixels(
+    ["...FF...", "..FFFF..", ".FFFFFF.", "FFFFFFFF", "..FFFF..", "..FFFF..", "..FFFF.."],
+    { F: "url(#foil)" }, 8, 18, 20
+  ),
+  "stk-px-bitt": pixels(
+    [".HHHH.", "HHHHHH", "HWWHHH", "HWBHHH", "HHHHHH", ".HHHH.", ".F..F."],
+    { H: "url(#holo)", W: "#fff", B: "#1c2030", F: "#1c2030" }, 8, 24, 18
+  ),
+};
+
+const ARCADE_TEXT = {
+  "stk-px-highscore": { lines: ["HIGH", "SCORE"], bg: "#1c2030", fg: "#FFD23B" },
+  "stk-px-coin": { lines: ["INSERT", "COIN"], bg: "#1c2030", fg: "#3BD27A" },
+};
+
+// ── Mixtape pack ─────────────────────────────────────────────────────────────
+const MIXTAPE = {
+  "stk-mx-headphones": `<path d="M28 58 a22 22 0 0 1 44 0" stroke="#2A2D36" stroke-width="8" fill="none"/><rect x="22" y="54" width="13" height="22" rx="6" fill="#E8485C"/><rect x="65" y="54" width="13" height="22" rx="6" fill="#E8485C"/>`,
+  "stk-mx-vinyl": `<circle cx="50" cy="50" r="33" fill="#191B20"/><circle cx="50" cy="50" r="32" fill="none" stroke="#2E323C" stroke-width="2" stroke-dasharray="1 3"/><circle cx="50" cy="50" r="22" fill="none" stroke="#2E323C" stroke-width="1.4"/><circle cx="50" cy="50" r="11" fill="#E8B23A"/><circle cx="50" cy="50" r="3" fill="#191B20"/>`,
+  "stk-mx-nowplaying": null, // text card below
+  "stk-mx-noskips": null,
+  "stk-mx-eq": `<g fill="url(#foil)">${[14, 30, 46, 62, 78].map((x, i) => `<rect x="${x}" y="${[44, 28, 36, 22, 40][i]}" width="10" height="${[34, 50, 42, 56, 38][i]}" rx="3"/>`).join("")}</g>`,
+  "stk-mx-demi": `<g fill="url(#holo)"><ellipse cx="38" cy="66" rx="13" ry="10"/><rect x="47" y="22" width="7" height="46" rx="3"/><path d="M54 22 q20 4 16 20 q-2 -10 -16 -10 Z"/></g><circle cx="34" cy="63" r="2.6" fill="#1c2030"/><circle cx="44" cy="63" r="2.6" fill="#1c2030"/><path d="M35 70 q4 4 8 0" stroke="#1c2030" stroke-width="2" fill="none" stroke-linecap="round"/><rect x="28" y="78" width="10" height="5" rx="2.5" fill="#fff" stroke="#1c2030" stroke-width="1.5"/><rect x="40" y="78" width="10" height="5" rx="2.5" fill="#fff" stroke="#1c2030" stroke-width="1.5"/>`,
+};
+
+const MIX_TEXT = {
+  "stk-mx-nowplaying": { lines: ["▶ NOW", "PLAYING"], bg: "#16324F", fg: "#9BE7FF" },
+  "stk-mx-noskips": { lines: ["NO", "SKIPS"], bg: "#E8485C", fg: "#fff" },
+};
+
 const BACKGROUNDS = {
   "bg-tan-paint": { body: `<rect width="800" height="1100" fill="#C8B98F"/>${paintWear("#BBA87C")}` },
   "bg-navy-paint": { body: `<rect width="800" height="1100" fill="#2A3A55"/>${paintWear("#243149")}` },
@@ -45,7 +108,77 @@ const BACKGROUNDS = {
     body: `<rect width="800" height="1100" fill="#33507A"/><path d="${diag(800, 1100, 14)}" stroke="#2B4468" stroke-width="3"/><path d="${diag(800, 1100, 14, 7)}" stroke="#3C5C8A" stroke-width="1.6"/>`,
   },
   "bg-corkboard": { body: `<rect width="800" height="1100" fill="#C49A6C"/>${corkDots()}` },
+  "bg-matte-black": { body: `<rect width="800" height="1100" fill="#1b1d22"/>${paintWear("#15171b")}` },
+  "bg-chalkboard": {
+    body: `<rect width="800" height="1100" fill="#2e4038"/>${paintWear("#28382f")}` +
+      `<g stroke="#e8e6dc" stroke-width="3" fill="none" opacity=".5" stroke-linecap="round">` +
+      `<path d="M80 120 q40 -30 80 0"/><circle cx="640" cy="180" r="28"/><path d="M620 980 l60 0 m-30 -30 l0 60"/>` +
+      `<path d="M120 900 q30 30 60 0 q30 -30 60 0"/><path d="M600 540 l50 -40 m0 40 l-50 -40"/></g>`,
+  },
+  "bg-galaxy": {
+    body: `<rect width="800" height="1100" fill="#141327"/>` +
+      `<ellipse cx="540" cy="320" rx="320" ry="180" fill="#2a2350" opacity=".55" transform="rotate(-24 540 320)"/>` +
+      `<ellipse cx="240" cy="800" rx="280" ry="150" fill="#1d2c52" opacity=".5" transform="rotate(18 240 800)"/>` +
+      galaxyStars(),
+  },
+  "bg-grid-horizon": {
+    body: `<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#120f2e"/><stop offset=".62" stop-color="#3b1d5e"/><stop offset=".66" stop-color="#b8336a"/></linearGradient></defs>` +
+      `<rect width="800" height="1100" fill="url(#sky)"/>` + galaxyStars(380) +
+      `<circle cx="400" cy="700" r="120" fill="#ff7a59" opacity=".9"/>` +
+      `<rect y="715" width="800" height="385" fill="#16102e"/>` +
+      `<g stroke="#e051b6" stroke-width="2" opacity=".8">${gridHorizon()}</g>`,
+  },
+  "bg-poster-wall": {
+    body: `<rect width="800" height="1100" fill="#3a3f4a"/>${paintWear("#333842")}` + posterWall(),
+  },
 };
+
+function galaxyStars(maxY = 1100) {
+  let out = "";
+  let seed = 99;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 130; i++) {
+    out += `<circle cx="${(rnd() * 800) | 0}" cy="${(rnd() * maxY) | 0}" r="${(rnd() * 1.6 + 0.5).toFixed(1)}" fill="#fff" opacity="${(rnd() * 0.7 + 0.25).toFixed(2)}"/>`;
+  }
+  return out;
+}
+function gridHorizon() {
+  let d = "";
+  for (let i = 0; i <= 12; i++) {
+    const x = 400 + (i - 6) * 24;
+    const xEnd = 400 + (i - 6) * 220;
+    d += `<line x1="${x}" y1="715" x2="${xEnd}" y2="1100"/>`;
+  }
+  for (let i = 1; i <= 7; i++) {
+    const y = 715 + i * i * 8;
+    d += `<line x1="0" y1="${y}" x2="800" y2="${y}"/>`;
+  }
+  return d;
+}
+function posterWall() {
+  // Original gig posters only — invented bands, original layouts.
+  const posters = [
+    { x: 60, y: 90, w: 220, h: 300, bg: "#E8485C", t1: "THE", t2: "BELL CURVES", rot: -3 },
+    { x: 330, y: 140, w: 200, h: 270, bg: "#16324F", t1: "midnight", t2: "homeroom", rot: 2 },
+    { x: 570, y: 80, w: 180, h: 250, bg: "#E8B23A", t1: "LATE BUS", t2: "WORLD TOUR", rot: -2 },
+    { x: 100, y: 470, w: 200, h: 280, bg: "#2F5243", t1: "study", t2: "hall stars", rot: 2.5 },
+    { x: 360, y: 500, w: 230, h: 300, bg: "#4D3A66", t1: "GLORP", t2: "LIVE", rot: -1.5 },
+    { x: 560, y: 430, w: 190, h: 260, bg: "#23262E", t1: "NO", t2: "SKIPS", rot: 3 },
+    { x: 200, y: 820, w: 220, h: 240, bg: "#7A2E2E", t1: "DEMI &", t2: "THE NOTES", rot: -2 },
+    { x: 480, y: 800, w: 210, h: 260, bg: "#33507A", t1: "vibes", t2: "fest", rot: 1.5 },
+  ];
+  return posters
+    .map(
+      (p) =>
+        `<g transform="rotate(${p.rot} ${p.x + p.w / 2} ${p.y + p.h / 2})">` +
+        `<rect x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" fill="${p.bg}" stroke="#0006" stroke-width="2"/>` +
+        `<text x="${p.x + p.w / 2}" y="${p.y + p.h * 0.42}" font-family="Arial" font-weight="bold" font-size="${p.w / 7}" text-anchor="middle" fill="#fff" opacity=".92">${p.t1}</text>` +
+        `<text x="${p.x + p.w / 2}" y="${p.y + p.h * 0.6}" font-family="Arial" font-weight="bold" font-size="${p.w / 8}" text-anchor="middle" fill="#fff" opacity=".8">${p.t2}</text>` +
+        `<circle cx="${p.x + p.w / 2}" cy="${p.y + 8}" r="5" fill="#cfd4dc"/>` +
+        `</g>`
+    )
+    .join("");
+}
 
 function paintWear(c) {
   let out = "";
@@ -95,15 +228,35 @@ for (const item of catalog.items) {
     const bg = BACKGROUNDS[item.id];
     write(rel, svg({ w: 800, h: 1100 }, bg.body));
   } else if (item.type === "sticker") {
-    const glyph = GLYPHS[item.id] ?? `<circle cx="50" cy="50" r="30" fill="#888"/>`;
-    // Die-cut: white border halo behind the glyph.
-    write(
-      rel,
-      svg(
-        { w: 100, h: 100 },
-        `<g filter=""><circle cx="50" cy="50" r="44" fill="#fff"/><circle cx="50" cy="50" r="44" fill="none" stroke="#0001" stroke-width="2"/></g>${glyph}`
-      )
-    );
+    const textSpec = ARCADE_TEXT[item.id] ?? MIX_TEXT[item.id];
+    if (textSpec) {
+      // Rectangular die-cut text sticker (arcade marquee / tape-label style).
+      write(
+        rel,
+        svg(
+          { w: 120, h: 70 },
+          `<rect x="2.5" y="2.5" width="115" height="65" rx="13" fill="#fff"/><rect x="2.5" y="2.5" width="115" height="65" rx="13" fill="none" stroke="#00000018" stroke-width="1.5"/><rect x="9" y="9" width="102" height="52" rx="8" fill="${textSpec.bg}"/>` +
+            textSpec.lines
+              .map(
+                (l, i) =>
+                  `<text x="60" y="${textSpec.lines.length === 1 ? 43 : 31 + i * 21}" font-family="'Courier New', ui-monospace, monospace" font-weight="bold" font-size="15" text-anchor="middle" fill="${textSpec.fg}" letter-spacing="1.5">${l}</text>`
+              )
+              .join("")
+        )
+      );
+    } else {
+      const glyph =
+        GLYPHS[item.id] ?? PX[item.id] ?? MIXTAPE[item.id] ?? `<circle cx="50" cy="50" r="30" fill="#888"/>`;
+      // Die-cut: white border halo + faint inner stroke so the border reads
+      // on light paints too.
+      write(
+        rel,
+        svg(
+          { w: 100, h: 100 },
+          `<defs>${FOIL}${HOLO}</defs><circle cx="50" cy="50" r="44" fill="#fff"/><circle cx="50" cy="50" r="44" fill="none" stroke="#00000018" stroke-width="2"/>${glyph}`
+        )
+      );
+    }
   } else if (item.type === "button") {
     const b = BUTTON_TEXT[item.id] ?? { bg: "#555", fg: "#fff", lines: [item.name.toUpperCase()] };
     const text = b.lines
@@ -149,4 +302,10 @@ for (const item of catalog.items) {
     );
   }
 }
+// Shared noise tile — applied as a repeated background-image (the filter
+// rasterizes once when the image loads; never a live CSS filter).
+write(
+  "locker/textures/noise.svg",
+  `<svg xmlns="http://www.w3.org/2000/svg" width="140" height="140"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="7"/><feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.05 0"/></filter><rect width="140" height="140" filter="url(#n)"/></svg>\n`
+);
 console.log("done");
