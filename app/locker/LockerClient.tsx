@@ -122,7 +122,16 @@ export default function LockerClient() {
     }
     const data = await res.json();
     setState(data);
-    setLayout(data.layout);
+    // Legacy migration: the old single layout.work slot moves onto the first
+    // placed work card (links are per-card now). Persists on the next save.
+    let lay = data.layout as LockerLayout;
+    if (lay.work) {
+      const i = lay.items.findIndex((p) => p.item_id === "crd-work" && !p.work);
+      if (i >= 0) {
+        lay = { ...lay, items: lay.items.map((p, j) => (j === i ? { ...p, work: lay.work! } : p)), work: null };
+      }
+    }
+    setLayout(lay);
     layoutVersion.current = data.layoutVersion ?? null;
   }, []);
   useEffect(() => {
@@ -179,7 +188,9 @@ export default function LockerClient() {
       (state?.inventory ?? [])
         .map((id) => CATALOG_BY_ID.get(id))
         .filter((i): i is CatalogItem => Boolean(i))
-        .filter((i) => i.type !== "background" && !placedIds.has(i.id)),
+        // crd-work never leaves the Shoebox: place one, a fresh blank one is
+        // already waiting — students can show off as many works as they like.
+        .filter((i) => i.type !== "background" && (!placedIds.has(i.id) || i.id === "crd-work")),
     [state, placedIds]
   );
   const ownedBackgrounds = useMemo(
@@ -658,7 +669,6 @@ export default function LockerClient() {
               weekProgress: state.weekProgress,
               goalCategory: layout.goal?.category ?? null,
               goalTarget: layout.goal?.target ?? 80,
-              work: layout.work ?? null,
               calendarMarks: layout.calendar?.marks ?? {},
             }}
             onPointerDown={onPointerDown}
@@ -683,9 +693,9 @@ export default function LockerClient() {
             {layout.items[selected]?.item_id === "crd-work" ? (
               <>
                 <Pill onClick={() => setSheet("work")} label="✏️ Set my work" />
-                {layout.work?.url ? (
+                {layout.items[selected]?.work?.url ? (
                   <Pill
-                    onClick={() => window.open(layout.work?.url, "_blank", "noopener,noreferrer")}
+                    onClick={() => window.open(layout.items[selected]?.work?.url, "_blank", "noopener,noreferrer")}
                     label="Open ↗"
                   />
                 ) : null}
@@ -754,6 +764,9 @@ export default function LockerClient() {
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={item.asset} alt="" loading="lazy" style={{ width: 52, height: 52, objectFit: "contain" }} />
                   <span style={{ fontSize: 11, color: MUTED }}>{item.name}</span>
+                  {item.id === "crd-work" ? (
+                    <span style={{ fontSize: 9.5, color: ACCENT, fontWeight: 700 }}>∞ always more</span>
+                  ) : null}
                 </button>
               ))
             )}
@@ -963,14 +976,21 @@ export default function LockerClient() {
         </SheetFrame>
       ) : null}
 
-      {sheet === "work" ? (
+      {sheet === "work" && selected !== null ? (
         <WorkSheet
-          initial={layout.work ?? null}
+          initial={layout.items[selected]?.work ?? null}
           onClose={() => setSheet(null)}
           onSave={(work) => {
-            mutateLayout((l) => ({ ...l, work }));
+            const idx = selected;
+            mutateLayout((l) => ({
+              ...l,
+              work: null, // legacy slot retired — links live on the cards now
+              items: l.items.map((p, i) =>
+                i === idx ? (work ? { ...p, work } : { ...p, work: undefined }) : p
+              ),
+            }));
             setSheet(null);
-            setToast(work ? "Your work is on the door." : "Link removed.");
+            setToast(work ? "Your work is on the door — grab another card from the Shoebox anytime." : "Link removed.");
           }}
         />
       ) : null}
@@ -1086,7 +1106,6 @@ interface LiveCardData {
   weekProgress: LockerState["weekProgress"];
   goalCategory: string | null;
   goalTarget: number;
-  work: { url: string; caption: number } | null;
   calendarMarks: Record<string, CalMark>;
 }
 
@@ -1145,7 +1164,7 @@ function Placed({
               target={live?.goalTarget ?? 80}
             />
           ) : null}
-          {item.id === "crd-work" ? <WorkCard work={live?.work ?? null} /> : null}
+          {item.id === "crd-work" ? <WorkCard work={placed.work ?? null} /> : null}
           {item.id === "crd-month" ? <CalendarCard marks={live?.calendarMarks ?? {}} /> : null}
         </div>
       ) : (

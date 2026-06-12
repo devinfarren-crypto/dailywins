@@ -40,9 +40,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "not_owned" }, { status: 403 });
   }
 
-  // Proud-work pointer: the host allowlist is enforced HERE, on every save —
-  // the client check is just a friendly message (functional-objects.md #3).
-  if (layout.work && !isAllowedWorkUrl(layout.work.url)) {
+  // Proud-work pointers: the host allowlist is enforced HERE, on every save —
+  // the client check is just a friendly message. One check per placed card
+  // (students may show off many assignments) plus the legacy layout slot.
+  const workUrls = [
+    ...(layout.work ? [layout.work.url] : []),
+    ...layout.items.flatMap((p) => (p.work ? [p.work.url] : [])),
+  ];
+  if (workUrls.some((u) => !isAllowedWorkUrl(u))) {
     return NextResponse.json({ ok: false, error: "work_url_not_allowed" }, { status: 400 });
   }
 

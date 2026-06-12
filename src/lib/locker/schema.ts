@@ -48,6 +48,15 @@ export const PlacedItemSchema = z.object({
   z: z.number().int().min(0).max(99),
   rot: z.number().min(-45).max(45),
   scale: z.number().min(0.5).max(2).optional(), // 1 = catalog size
+  // Proud-work data rides ON the placed card so students can show off as
+  // many assignments as they like — each placed crd-work holds its own link.
+  // Host allowlist re-checked server-side per item on every save.
+  work: z
+    .object({
+      url: z.string().url().max(500),
+      caption: z.number().int().min(0).max(11),
+    })
+    .optional(),
 });
 
 export const LayoutSchema = z.object({
@@ -62,9 +71,9 @@ export const LayoutSchema = z.object({
     })
     .nullable()
     .optional(),
-  // Proud-work showcase (functional-objects.md #3): a pointer to the
-  // student's own Doc/Slide. Caption is a PRESET INDEX — never free text;
-  // the URL host is allowlist-checked again server-side on every save.
+  // LEGACY single proud-work slot — superseded by PlacedItem.work (one link
+  // per placed card). Still parsed so old saved layouts load; the client
+  // migrates it onto the first work card and clears it on the next save.
   work: z
     .object({
       url: z.string().url().max(500),
