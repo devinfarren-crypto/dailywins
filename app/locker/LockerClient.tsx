@@ -37,13 +37,15 @@ interface LockerState {
 
 type Sheet = null | "shoebox" | "store" | "bank" | { confirm: CatalogItem };
 
-// Display size (fraction of door width) per item type.
+// Display size (fraction of CANVAS width) per item type. The canvas is the
+// whole open locker (door + cavity), so these are roughly half the old
+// door-only values to keep items the same physical size.
 const SIZE: Record<CatalogItem["type"], number> = {
-  sticker: 0.2,
-  button: 0.15,
-  patch: 0.24,
-  magnet: 0.12,
-  mirror: 0.26,
+  sticker: 0.115,
+  button: 0.085,
+  patch: 0.135,
+  magnet: 0.07,
+  mirror: 0.15,
   background: 0,
 };
 
@@ -159,6 +161,16 @@ export default function LockerClient() {
       ),
     }));
 
+  const resize = (idx: number, factor: number) =>
+    mutateLayout((l) => ({
+      ...l,
+      items: l.items.map((p, i) =>
+        i === idx
+          ? { ...p, scale: Math.max(0.5, Math.min(2, (p.scale ?? 1) * factor)) }
+          : p
+      ),
+    }));
+
   const nudgeXY = (idx: number, dx: number, dy: number) =>
     mutateLayout((l) => ({
       ...l,
@@ -232,6 +244,8 @@ export default function LockerClient() {
       else if (e.key === "[") nudgeZ(selected, -1);
       else if (e.key === "]") nudgeZ(selected, 1);
       else if (e.key === "r") rotate(selected, e.shiftKey ? -7 : 7);
+      else if (e.key === "+" || e.key === "=") resize(selected, 1.12);
+      else if (e.key === "-") resize(selected, 1 / 1.12);
       else if (e.key === "Escape") setSelected(null);
       else return;
       e.preventDefault();
@@ -323,24 +337,44 @@ export default function LockerClient() {
         }}
         style={{
           position: "relative",
-          // Width is also capped by remaining HEIGHT (8:11 door), so the whole
-          // experience fits one viewport: ~150px reserved for bar + hints.
-          width: "min(92vw, 430px, calc((100dvh - 150px) * 8 / 11))",
-          aspectRatio: "8 / 11",
-          borderRadius: 14,
-          border: "10px solid #20242f",
-          boxShadow: "inset 0 0 0 2px #0a0c12, inset 0 14px 40px rgba(0,0,0,.5), 0 30px 70px rgba(0,0,0,.55)",
+          // The whole OPEN locker is one canvas: the door (left, hinged) and
+          // the cavity (right) — every inch decoratable. Width also capped by
+          // remaining height so it always fits one viewport.
+          width: "min(94vw, 760px, calc((100dvh - 150px) * 15 / 11))",
+          aspectRatio: "15 / 11",
+          borderRadius: 12,
+          border: "8px solid #20242f",
+          boxShadow: "inset 0 0 0 2px #0a0c12, 0 30px 70px rgba(0,0,0,.55)",
           overflow: "hidden",
           backgroundColor: "#2a3a55",
           backgroundImage: bg ? `url(${bg.asset})` : "url(/locker/backgrounds/bg-navy-paint.svg)",
           backgroundSize: "cover",
         }}
       >
-        {/* vents */}
-        <div style={{ position: "absolute", top: 14, left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", gap: 6, opacity: 0.85, pointerEvents: "none" }}>
-          {[0, 1, 2].map((i) => (
-            <div key={i} style={{ width: 130, height: 6, borderRadius: 3, background: "rgba(0,0,0,.45)", boxShadow: "inset 0 2px 3px rgba(0,0,0,.8), 0 1px 0 rgba(255,255,255,.08)" }} />
-          ))}
+        {/* ── the physical locker, drawn under the stickers ─────────────── */}
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+          {/* door panel shading (left half) — inside of the open door */}
+          <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "47%", boxShadow: "inset -18px 0 28px -18px rgba(0,0,0,.55), inset 4px 0 10px -4px rgba(255,255,255,.06)" }} />
+          {/* door vents */}
+          <div style={{ position: "absolute", top: "4%", left: "23.5%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", gap: 6, opacity: 0.85 }}>
+            {[0, 1, 2].map((i) => (
+              <div key={i} style={{ width: "min(110px, 14vw)", height: 6, borderRadius: 3, background: "rgba(0,0,0,.45)", boxShadow: "inset 0 2px 3px rgba(0,0,0,.8), 0 1px 0 rgba(255,255,255,.08)" }} />
+            ))}
+          </div>
+          {/* door latch (outer edge) */}
+          <div style={{ position: "absolute", left: "1.5%", top: "44%", width: 10, height: "9%", borderRadius: 4, background: "linear-gradient(90deg, #3a4152, #1c2029)", boxShadow: "0 2px 4px rgba(0,0,0,.5)" }} />
+          {/* hinge strip between door and cavity */}
+          <div style={{ position: "absolute", left: "47%", top: 0, bottom: 0, width: "2.4%", background: "linear-gradient(90deg, #11141c, #2c3242 45%, #11141c)", boxShadow: "0 0 10px rgba(0,0,0,.6)" }}>
+            {[0.12, 0.45, 0.78].map((t) => (
+              <div key={t} style={{ position: "absolute", top: `${t * 100}%`, left: "-22%", width: "144%", height: "7%", borderRadius: 4, background: "linear-gradient(180deg, #454d61, #20242f)", boxShadow: "0 2px 3px rgba(0,0,0,.55)" }} />
+            ))}
+          </div>
+          {/* cavity (right) — deeper, darker, with a shelf */}
+          <div style={{ position: "absolute", left: "49.4%", top: 0, bottom: 0, right: 0, boxShadow: "inset 22px 12px 44px rgba(0,0,0,.55), inset -10px -16px 34px rgba(0,0,0,.45)" }} />
+          {/* shelf */}
+          <div style={{ position: "absolute", left: "50.5%", right: "1%", top: "26%", height: 7, borderRadius: 2, background: "linear-gradient(180deg, rgba(255,255,255,.16), rgba(0,0,0,.35))", boxShadow: "0 6px 12px rgba(0,0,0,.45)" }} />
+          {/* cavity floor shadow */}
+          <div style={{ position: "absolute", left: "49.4%", right: 0, bottom: 0, height: "7%", background: "linear-gradient(180deg, transparent, rgba(0,0,0,.5))" }} />
         </div>
 
         {layout.items.map((p, idx) => (
@@ -358,9 +392,11 @@ export default function LockerClient() {
       <div style={{ height: 58, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
         {selected !== null && layout.items[selected] ? (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
-            <Pill onClick={() => nudgeZ(selected, 1)} label="Bring forward" />
-            <Pill onClick={() => nudgeZ(selected, -1)} label="Send back" />
-            <Pill onClick={() => rotate(selected, 7)} label="⟳ Rotate" />
+            <Pill onClick={() => resize(selected, 1.15)} label="＋ Bigger" />
+            <Pill onClick={() => resize(selected, 1 / 1.15)} label="－ Smaller" />
+            <Pill onClick={() => nudgeZ(selected, 1)} label="Forward" />
+            <Pill onClick={() => nudgeZ(selected, -1)} label="Back" />
+            <Pill onClick={() => rotate(selected, 7)} label="⟳" />
             <Pill onClick={() => rotate(selected, -7)} label="⟲" />
             <Pill onClick={() => putAway(selected)} label="Put away" warn />
           </div>
@@ -564,7 +600,7 @@ function Placed({
 }) {
   const item = CATALOG_BY_ID.get(placed.item_id);
   if (!item) return null;
-  const w = SIZE[item.type] * 100;
+  const w = SIZE[item.type] * 100 * (placed.scale ?? 1);
   // Anchored by center: left/top in door-%, translate(-50%,-50%) + rotate on
   // the inner element. Placed items are absolutely positioned, so moves
   // never reflow the document — cheap even mid-drag on a Chromebook.

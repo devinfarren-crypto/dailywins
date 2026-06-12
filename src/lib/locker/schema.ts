@@ -45,6 +45,7 @@ export const PlacedItemSchema = z.object({
   y: z.number().min(-0.15).max(1.15),
   z: z.number().int().min(0).max(99),
   rot: z.number().min(-45).max(45),
+  scale: z.number().min(0.5).max(2).optional(), // 1 = catalog size
 });
 
 export const LayoutSchema = z.object({
