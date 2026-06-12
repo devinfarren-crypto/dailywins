@@ -59,6 +59,13 @@ export default function ComboClient({ code }: { code: string }) {
         return;
       }
       setOpening(true);
+      try {
+        // The locker page reads this and swings the door open by itself —
+        // a correct combo flows straight into the opening, no second tap.
+        sessionStorage.setItem("dw-locker-fresh", "1");
+      } catch {
+        /* privacy mode — student taps the door instead */
+      }
       setTimeout(() => {
         window.location.href = "/locker";
       }, 700);

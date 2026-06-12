@@ -25,6 +25,12 @@ export default function SplashGate({ children }: { children: React.ReactNode }) 
   const [phase, setPhase] = useState<"show" | "fading" | "done">("show");
 
   useIsoLayoutEffect(() => {
+    // The Locker has its own entry ritual (the door swings open) — the
+    // Sure Step splash never shows on student locker surfaces.
+    if (typeof window !== "undefined" && window.location.pathname.startsWith("/locker")) {
+      setPhase("done");
+      return;
+    }
     let seen = false;
     try {
       seen = sessionStorage.getItem(SEEN_KEY) === "1";

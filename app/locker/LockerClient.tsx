@@ -59,7 +59,26 @@ export default function LockerClient() {
   const [toast, setToast] = useState("");
   const [justPlaced, setJustPlaced] = useState<number | null>(null);
   const [settling, setSettling] = useState<number | null>(null);
-  const [closed, setClosed] = useState(false);
+  // The entry ritual: every visit starts at the CLOSED door; tapping it (or
+  // arriving fresh from the combo) swings it open slowly, like a real locker.
+  const [doorPhase, setDoorPhase] = useState<"closed" | "opening" | "open">(() => {
+    if (typeof window === "undefined") return "closed";
+    try {
+      if (sessionStorage.getItem("dw-locker-fresh") === "1") {
+        sessionStorage.removeItem("dw-locker-fresh");
+        return "opening"; // combo just succeeded — the door opens itself
+      }
+    } catch {
+      /* privacy mode */
+    }
+    return "closed";
+  });
+  useEffect(() => {
+    if (doorPhase !== "opening") return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const t = setTimeout(() => setDoorPhase("open"), reduced ? 50 : 1150);
+    return () => clearTimeout(t);
+  }, [doorPhase]);
   const doorRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ idx: number; startX: number; startY: number; origX: number; origY: number; moved: boolean } | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -288,9 +307,10 @@ export default function LockerClient() {
   if (error) return <Centered>{error}</Centered>;
   if (!state) return <Centered>Opening your locker…</Centered>;
 
-  // The exit ritual: shut the door. Everything's already autosaved; this is
-  // pure closure (tap the door to reopen — the device stays claimed).
-  if (closed) {
+  // The entry AND exit ritual: the closed locker front. Tapping swings the
+  // door open slowly (a real locker takes a second); shutting is quicker.
+  if (doorPhase !== "open") {
+    const opening = doorPhase === "opening";
     return (
       <main
         style={{
@@ -304,16 +324,25 @@ export default function LockerClient() {
           gap: 18,
           fontFamily: "ui-sans-serif, system-ui, sans-serif",
           color: TEXT,
+          perspective: 1100,
         }}
       >
         <style>{`
           @keyframes lkShut { from { transform: perspective(900px) rotateY(-50deg); opacity: .4 } to { transform: none; opacity: 1 } }
           .lk-shut { animation: lkShut .45s cubic-bezier(.22,1,.36,1) both; transform-origin: right center; }
-          @media (prefers-reduced-motion: reduce) { .lk-shut { animation: none } }
+          /* the slow real-locker swing: heavy start, wide sweep, tiny rebound */
+          @keyframes lkSwingOpen {
+            0%   { transform: perspective(1100px) rotateY(0deg); }
+            70%  { transform: perspective(1100px) rotateY(-86deg); }
+            85%  { transform: perspective(1100px) rotateY(-72deg); }
+            100% { transform: perspective(1100px) rotateY(-80deg); opacity: .15 }
+          }
+          .lk-swing { animation: lkSwingOpen 1.15s cubic-bezier(.45,.05,.35,1) both; transform-origin: right center; pointer-events: none; }
+          @media (prefers-reduced-motion: reduce) { .lk-shut, .lk-swing { animation: none } }
         `}</style>
         <button
-          className="lk-shut"
-          onClick={() => setClosed(false)}
+          className={opening ? "lk-swing" : "lk-shut"}
+          onClick={() => !opening && setDoorPhase("opening")}
           aria-label="Open your locker"
           style={{
             position: "relative",
@@ -345,9 +374,13 @@ export default function LockerClient() {
           {/* latch */}
           <div style={{ position: "absolute", top: "58%", right: "8%", width: 7, height: "7%", borderRadius: 3, background: "linear-gradient(90deg, #3a4152, #1c2029)" }} />
         </button>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 15, fontWeight: 800 }}>Locker closed. Everything&apos;s saved.</div>
-          <div style={{ fontSize: 12.5, color: MUTED, marginTop: 4 }}>Tap the door anytime — it remembers you.</div>
+        <div style={{ textAlign: "center", opacity: opening ? 0 : 1, transition: "opacity .3s" }}>
+          <div style={{ fontSize: 15, fontWeight: 800 }}>
+            {opening ? "" : "Your locker. Everything's saved."}
+          </div>
+          <div style={{ fontSize: 12.5, color: MUTED, marginTop: 4 }}>
+            {opening ? "" : "Tap the door — it remembers you."}
+          </div>
         </div>
       </main>
     );
@@ -413,7 +446,7 @@ export default function LockerClient() {
           <Chip onClick={() => setSheet("bank")} label={`◉ ${state.balance}`} title="Bank" active={sheet === "bank"} />
           <Chip onClick={() => setSheet("store")} label="Store" active={sheet === "store"} />
           <Chip onClick={() => setSheet("shoebox")} label={`Shoebox${shoebox.length ? ` · ${shoebox.length}` : ""}`} active={sheet === "shoebox"} />
-          <Chip onClick={() => { setSheet(null); setSelected(null); setClosed(true); }} label="Shut" title="Close your locker" />
+          <Chip onClick={() => { setSheet(null); setSelected(null); setDoorPhase("closed"); }} label="Shut" title="Close your locker" />
         </div>
       </div>
 
