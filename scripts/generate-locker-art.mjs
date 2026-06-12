@@ -58,9 +58,19 @@ const PX = {
     ["......B", ".....BB", "....BB.", "...BB..", "Y.BB...", ".YY....", "YYG....", "G.Y...."],
     { B: "#AFC6D9", Y: "#E8B23A", G: "#7A4E22" }, 8, 22, 18
   ),
+  // Arcade panel: angled stick with ball top-left, two buttons on the deck —
+  // reads as a control panel, not... anything else.
   "stk-px-joystick": pixels(
-    ["..RR..", ".RRRR.", ".RRRR.", "..GG..", "..GG..", "DDDDDD", "DDDDDD"],
-    { R: "#E8485C", G: "#5A6378", D: "#23262E" }, 8, 26, 20
+    [
+      ".RR.......",
+      "RRRR......",
+      "RRRR......",
+      ".GG.......",
+      ".GG.Y..B..",
+      "DDDDDDDDDD",
+      "DDDDDDDDDD",
+    ],
+    { R: "#E8485C", G: "#8A93A6", D: "#23262E", Y: "#FFD23B", B: "#4A90D9" }, 7, 16, 26
   ),
   "stk-px-healthbar": pixels(
     ["OOOOOOOOOO", "OGGGGGGGGO", "OGGGGGGGGO", "OOOOOOOOOO"],
@@ -83,7 +93,7 @@ const ARCADE_TEXT = {
 
 // ── Mixtape pack ─────────────────────────────────────────────────────────────
 const MIXTAPE = {
-  "stk-mx-headphones": `<path d="M28 58 a22 22 0 0 1 44 0" stroke="#2A2D36" stroke-width="8" fill="none"/><rect x="22" y="54" width="13" height="22" rx="6" fill="#E8485C"/><rect x="65" y="54" width="13" height="22" rx="6" fill="#E8485C"/>`,
+  "stk-mx-headphones": `<path d="M26 58 a24 24 0 0 1 48 0" stroke="#2A2D36" stroke-width="11" fill="none"/><rect x="17" y="50" width="17" height="28" rx="8" fill="#2A2D36"/><rect x="21" y="55" width="9" height="18" rx="4.5" fill="#E8485C"/><rect x="66" y="50" width="17" height="28" rx="8" fill="#2A2D36"/><rect x="70" y="55" width="9" height="18" rx="4.5" fill="#E8485C"/>`,
   "stk-mx-vinyl": `<circle cx="50" cy="50" r="33" fill="#191B20"/><circle cx="50" cy="50" r="32" fill="none" stroke="#2E323C" stroke-width="2" stroke-dasharray="1 3"/><circle cx="50" cy="50" r="22" fill="none" stroke="#2E323C" stroke-width="1.4"/><circle cx="50" cy="50" r="11" fill="#E8B23A"/><circle cx="50" cy="50" r="3" fill="#191B20"/>`,
   "stk-mx-nowplaying": null, // text card below
   "stk-mx-noskips": null,

@@ -792,23 +792,23 @@ function SheetFrame({
     <div
       role="dialog"
       aria-label={title}
-      style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "flex-end", justifyContent: "center" }}
+      style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 14 }}
     >
-      <div className="lk-backdrop" onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(5,6,10,.6)" }} />
+      <div className="lk-backdrop" onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(5,6,10,.66)" }} />
       <div
         className="lk-sheet"
         style={{
           position: "relative",
-          width: "min(560px, 100vw)",
-          maxHeight: "min(78vh, calc(100dvh - 56px))",
+          width: "min(560px, calc(100vw - 28px))",
+          maxHeight: "calc(100dvh - 48px)",
           overflowY: "auto",
           overscrollBehavior: "contain",
           background: PANEL2,
-          borderRadius: "18px 18px 0 0",
+          borderRadius: 18,
           border: `1px solid ${EDGE}`,
-          borderBottom: "none",
-          padding: "18px 18px 26px",
+          padding: "18px 18px 22px",
           boxSizing: "border-box",
+          boxShadow: "0 30px 80px rgba(0,0,0,.6)",
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
