@@ -33,7 +33,7 @@ export function outreachText(school: OutreachSchool): string {
     "",
     `Before asking for any of your time, I wanted to give you something first: my team rebuilt your homepage as a modern concept — your mission, your colors, ${school.estLine || "your identity"} — and it's yours to keep whether or not we ever talk.`,
     "",
-    `See your new front page: ${base}/site/`,
+    `See your new front page: ${base}/site`,
     `Try the 30-second teacher workflow (no signup): ${base}#demo`,
     "",
     `If it looks like something your staff would actually use: the 60-day pilot is free (no card, we do all the setup), and as one of the first 15 California schools you'd lock in the founding rate — $149/month flat, for life, instead of $199.`,
@@ -86,12 +86,12 @@ export function outreachHtml(school: OutreachSchool): string {
         Your new front page — a working concept
       </td></tr>
       <tr><td>
-        <a href="${base}/site/" style="display:block;">
+        <a href="${base}/site" style="display:block;">
           <img src="${base}/preview.png" alt="Preview: ${esc(school.name)} homepage refresh" width="600" style="display:block;width:100%;border:0;">
         </a>
       </td></tr>
       <tr><td style="padding:16px 18px;background:#ffffff;">
-        <a href="${base}/site/" style="display:inline-block;background:#a31f24;color:#ffffff;font-family:Helvetica,Arial,sans-serif;font-weight:bold;font-size:14px;padding:12px 22px;border-radius:999px;text-decoration:none;">See your new front page →</a>
+        <a href="${base}/site" style="display:inline-block;background:#a31f24;color:#ffffff;font-family:Helvetica,Arial,sans-serif;font-weight:bold;font-size:14px;padding:12px 22px;border-radius:999px;text-decoration:none;">See your new front page →</a>
         <span style="display:inline-block;font-family:Helvetica,Arial,sans-serif;font-size:12.5px;color:#7a7a8e;padding:12px 0 0 12px;">Free. No strings. Want it live? Reply and we hand over the files.</span>
       </td></tr>
     </table>
