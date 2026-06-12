@@ -59,6 +59,7 @@ export default function LockerClient() {
   const [toast, setToast] = useState("");
   const [justPlaced, setJustPlaced] = useState<number | null>(null);
   const [settling, setSettling] = useState<number | null>(null);
+  const [closed, setClosed] = useState(false);
   const doorRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ idx: number; startX: number; startY: number; origX: number; origY: number; moved: boolean } | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -287,6 +288,71 @@ export default function LockerClient() {
   if (error) return <Centered>{error}</Centered>;
   if (!state) return <Centered>Opening your locker…</Centered>;
 
+  // The exit ritual: shut the door. Everything's already autosaved; this is
+  // pure closure (tap the door to reopen — the device stays claimed).
+  if (closed) {
+    return (
+      <main
+        style={{
+          height: "100dvh",
+          overflow: "hidden",
+          background: `radial-gradient(90% 70% at 50% 0%, #171b28 0%, ${INK} 65%)`,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 18,
+          fontFamily: "ui-sans-serif, system-ui, sans-serif",
+          color: TEXT,
+        }}
+      >
+        <style>{`
+          @keyframes lkShut { from { transform: perspective(900px) rotateY(-50deg); opacity: .4 } to { transform: none; opacity: 1 } }
+          .lk-shut { animation: lkShut .45s cubic-bezier(.22,1,.36,1) both; transform-origin: right center; }
+          @media (prefers-reduced-motion: reduce) { .lk-shut { animation: none } }
+        `}</style>
+        <button
+          className="lk-shut"
+          onClick={() => setClosed(false)}
+          aria-label="Open your locker"
+          style={{
+            position: "relative",
+            width: "min(60vw, 230px, calc((100dvh - 180px) * 8 / 22))",
+            aspectRatio: "8 / 22",
+            borderRadius: 10,
+            border: "5px solid #20242f",
+            background: "linear-gradient(180deg, #2e3950, #232c40)",
+            backgroundImage: "url(/locker/textures/noise.svg)",
+            boxShadow: "inset 0 0 0 2px #0a0c12, 0 24px 60px rgba(0,0,0,.55)",
+            cursor: "pointer",
+            padding: 0,
+          }}
+        >
+          {/* vents */}
+          <div style={{ position: "absolute", top: "5%", left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", gap: 5 }}>
+            {[0, 1, 2].map((i) => (
+              <div key={i} style={{ width: "min(90px, 11vw)", height: 5, borderRadius: 3, background: "rgba(0,0,0,.5)", boxShadow: "inset 0 2px 3px rgba(0,0,0,.8), 0 1px 0 rgba(255,255,255,.08)" }} />
+            ))}
+          </div>
+          {/* name plate */}
+          <div style={{ position: "absolute", top: "16%", left: "50%", transform: "translateX(-50%)", background: "#e8e2d0", color: "#2c3440", borderRadius: 3, padding: "3px 10px", fontSize: 11, fontWeight: 800, whiteSpace: "nowrap", maxWidth: "85%", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {state.displayName}
+          </div>
+          {/* dial */}
+          <div style={{ position: "absolute", top: "42%", left: "50%", transform: "translate(-50%, -50%)", width: "42%", aspectRatio: "1", borderRadius: "50%", background: "radial-gradient(circle at 38% 32%, #3a4156, #1d212e)", border: "4px solid #3a4156", boxShadow: "inset 0 3px 10px rgba(0,0,0,.7), 0 3px 8px rgba(0,0,0,.4)" }}>
+            <div style={{ position: "absolute", top: 4, left: "50%", width: 3, height: 10, marginLeft: -1.5, background: ACCENT, borderRadius: 2 }} />
+          </div>
+          {/* latch */}
+          <div style={{ position: "absolute", top: "58%", right: "8%", width: 7, height: "7%", borderRadius: 3, background: "linear-gradient(90deg, #3a4152, #1c2029)" }} />
+        </button>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 15, fontWeight: 800 }}>Locker closed. Everything&apos;s saved.</div>
+          <div style={{ fontSize: 12.5, color: MUTED, marginTop: 4 }}>Tap the door anytime — it remembers you.</div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main
       style={{
@@ -347,6 +413,7 @@ export default function LockerClient() {
           <Chip onClick={() => setSheet("bank")} label={`◉ ${state.balance}`} title="Bank" active={sheet === "bank"} />
           <Chip onClick={() => setSheet("store")} label="Store" active={sheet === "store"} />
           <Chip onClick={() => setSheet("shoebox")} label={`Shoebox${shoebox.length ? ` · ${shoebox.length}` : ""}`} active={sheet === "shoebox"} />
+          <Chip onClick={() => { setSheet(null); setSelected(null); setClosed(true); }} label="Shut" title="Close your locker" />
         </div>
       </div>
 
