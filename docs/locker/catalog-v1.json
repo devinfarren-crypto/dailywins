@@ -1,0 +1,43 @@
+{
+  "catalog_version": 1,
+  "updated": "2026-06-11",
+  "items": [
+    { "id": "bg-tan-paint", "name": "Fresh Paint (Tan)", "type": "background", "price": 0, "starter": true, "weight": "quiet", "tags": ["paint"], "asset": "/locker/backgrounds/bg-tan-paint.webp" },
+    { "id": "bg-navy-paint", "name": "Navy Coat", "type": "background", "price": 0, "starter": true, "weight": "quiet", "tags": ["paint"], "asset": "/locker/backgrounds/bg-navy-paint.webp" },
+    { "id": "bg-forest-paint", "name": "Forest Green", "type": "background", "price": 150, "starter": false, "weight": "quiet", "tags": ["paint"], "asset": "/locker/backgrounds/bg-forest-paint.webp" },
+    { "id": "bg-grape-paint", "name": "Grape Soda", "type": "background", "price": 150, "starter": false, "weight": "medium", "tags": ["paint"], "asset": "/locker/backgrounds/bg-grape-paint.webp" },
+    { "id": "bg-graph-paper", "name": "Graph Paper", "type": "background", "price": 200, "starter": false, "weight": "medium", "tags": ["wallpaper"], "asset": "/locker/backgrounds/bg-graph-paper.webp" },
+    { "id": "bg-denim", "name": "Denim", "type": "background", "price": 225, "starter": false, "weight": "medium", "tags": ["texture"], "asset": "/locker/backgrounds/bg-denim.webp" },
+    { "id": "bg-corkboard", "name": "Corkboard", "type": "background", "price": 250, "starter": false, "weight": "loud", "tags": ["texture"], "asset": "/locker/backgrounds/bg-corkboard.webp" },
+
+    { "id": "stk-smiley", "name": "Classic Smiley", "type": "sticker", "price": 0, "starter": true, "weight": "quiet", "tags": ["retro"], "asset": "/locker/stickers/stk-smiley.webp" },
+    { "id": "stk-lightning", "name": "Lightning Bolt", "type": "sticker", "price": 0, "starter": true, "weight": "quiet", "tags": ["shape"], "asset": "/locker/stickers/stk-lightning.webp" },
+    { "id": "stk-star-gold", "name": "Gold Star", "type": "sticker", "price": 0, "starter": true, "weight": "quiet", "tags": ["shape"], "asset": "/locker/stickers/stk-star-gold.webp" },
+    { "id": "stk-peace", "name": "Peace Sign", "type": "sticker", "price": 0, "starter": true, "weight": "quiet", "tags": ["retro"], "asset": "/locker/stickers/stk-peace.webp" },
+    { "id": "stk-skateboard", "name": "Kickflip", "type": "sticker", "price": 0, "starter": true, "weight": "medium", "tags": ["sports"], "asset": "/locker/stickers/stk-skateboard.webp" },
+
+    { "id": "stk-boombox", "name": "Boombox", "type": "sticker", "price": 30, "starter": false, "weight": "medium", "tags": ["music", "retro"], "asset": "/locker/stickers/stk-boombox.webp" },
+    { "id": "stk-cassette", "name": "Mixtape", "type": "sticker", "price": 25, "starter": false, "weight": "quiet", "tags": ["music", "retro"], "asset": "/locker/stickers/stk-cassette.webp" },
+    { "id": "stk-controller", "name": "Player One", "type": "sticker", "price": 30, "starter": false, "weight": "medium", "tags": ["games"], "asset": "/locker/stickers/stk-controller.webp" },
+    { "id": "stk-pizza", "name": "Pizza Slice", "type": "sticker", "price": 25, "starter": false, "weight": "quiet", "tags": ["food"], "asset": "/locker/stickers/stk-pizza.webp" },
+    { "id": "stk-dice", "name": "Fuzzy Dice", "type": "sticker", "price": 35, "starter": false, "weight": "medium", "tags": ["retro"], "asset": "/locker/stickers/stk-dice.webp" },
+    { "id": "stk-flame", "name": "Flames", "type": "sticker", "price": 40, "starter": false, "weight": "loud", "tags": ["shape"], "asset": "/locker/stickers/stk-flame.webp" },
+    { "id": "stk-yinyang", "name": "Yin Yang", "type": "sticker", "price": 25, "starter": false, "weight": "quiet", "tags": ["retro"], "asset": "/locker/stickers/stk-yinyang.webp" },
+    { "id": "stk-eightball", "name": "8-Ball", "type": "sticker", "price": 35, "starter": false, "weight": "medium", "tags": ["retro"], "asset": "/locker/stickers/stk-eightball.webp" },
+    { "id": "stk-holo-star", "name": "Holo Star", "type": "sticker", "price": 130, "starter": false, "weight": "loud", "tags": ["shape", "holo"], "asset": "/locker/stickers/stk-holo-star.webp" },
+    { "id": "stk-holo-saturn", "name": "Holo Saturn", "type": "sticker", "price": 140, "starter": false, "weight": "loud", "tags": ["space", "holo"], "asset": "/locker/stickers/stk-holo-saturn.webp" },
+
+    { "id": "btn-have-nice-day", "name": "Have A Nice Day", "type": "button", "price": 65, "starter": false, "weight": "quiet", "tags": ["retro"], "asset": "/locker/buttons/btn-have-nice-day.webp" },
+    { "id": "btn-question", "name": "Question Everything", "type": "button", "price": 70, "starter": false, "weight": "medium", "tags": ["text"], "asset": "/locker/buttons/btn-question.webp" },
+    { "id": "btn-86", "name": "Class of Whenever", "type": "button", "price": 60, "starter": false, "weight": "quiet", "tags": ["school"], "asset": "/locker/buttons/btn-86.webp" },
+    { "id": "btn-vinyl", "name": "Spin Records", "type": "button", "price": 75, "starter": false, "weight": "medium", "tags": ["music"], "asset": "/locker/buttons/btn-vinyl.webp" },
+
+    { "id": "pat-varsity-d", "name": "Varsity D", "type": "patch", "price": 140, "starter": false, "weight": "loud", "tags": ["school", "sports"], "asset": "/locker/patches/pat-varsity-d.webp" },
+    { "id": "pat-roadtrip", "name": "Route Patch", "type": "patch", "price": 130, "starter": false, "weight": "medium", "tags": ["retro"], "asset": "/locker/patches/pat-roadtrip.webp" },
+
+    { "id": "mir-chrome", "name": "Locker Mirror", "type": "mirror", "price": 300, "starter": false, "weight": "loud", "tags": ["classic"], "asset": "/locker/mirrors/mir-chrome.webp" },
+
+    { "id": "mag-classic-1", "name": "Black Magnet", "type": "magnet", "price": 0, "starter": true, "weight": "quiet", "tags": ["utility"], "asset": "/locker/magnets/mag-classic-1.webp" },
+    { "id": "mag-classic-2", "name": "Red Magnet", "type": "magnet", "price": 0, "starter": true, "weight": "quiet", "tags": ["utility"], "asset": "/locker/magnets/mag-classic-2.webp" }
+  ]
+}
