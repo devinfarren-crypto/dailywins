@@ -6,27 +6,34 @@ constraints, RLS as the real boundary).*
 
 ## Identity spine (the one new concept)
 
-Students have no accounts today — they're roster rows. LTI gives us a stable
-pseudonymous identity (`iss` + `sub`). One link table marries them:
+Students have no accounts today — they're roster rows, and the same kid can
+exist on multiple teachers' rosters. **Decision 2026-06-12: unify identity
+school-wide first.** A school-level student identity merges duplicate roster
+rows; the locker, wallet, and combo claim hang off the unified identity (a
+merge map table `student_links(canonical_student_id, roster_student_id)` or
+a `canonical_id` column on students — design in Phase 1). Access is
+DailyWins-native (combo claim + durable device cookie via the magic-link
+machinery); the LTI columns below are dropped from v1 and return as an
+adapter when a Canvas district appears:
 
 ### `student_identities`
 | column | type | constraint |
 |---|---|---|
 | id | uuid PK | default gen_random_uuid() |
-| student_id | uuid NOT NULL → students(id) | **UNIQUE** (one identity per student, v1) |
-| lti_issuer | text NOT NULL | |
-| lti_subject | text NOT NULL | UNIQUE(lti_issuer, lti_subject) |
+| student_id | uuid NOT NULL → students(id) | **UNIQUE** — the CANONICAL (unified) student row |
 | combo | text NOT NULL | the 3-number slip, e.g. '24-08-31'; generated with the roster |
-| claimed_at | timestamptz | NULL until the combo moment links them |
+| claimed_at | timestamptz | NULL until the first combo claim |
+| device_count | int NOT NULL default 0 | bookkeeping; each claim issues a durable signed cookie |
+| (future) lti_issuer/lti_subject | text | added by the LTI adapter migration when a Canvas district appears |
 | created_at | timestamptz NOT NULL default now() | |
 
-Combo flow: teacher prints slips (combo per roster row) → student launches
-from Canvas → enters combo once → row gets `lti_issuer/subject/claimed_at`.
-Unclaimed rows hold the combo awaiting first launch. Re-linking (new Canvas
-account) is a teacher action that clears the claim.
+Combo flow: teacher prints slips → student opens the class locker link →
+enters combo → claim binds a durable signed httpOnly cookie on that device to
+the canonical student. New device/cleared cookies → spin the combo again.
+Teacher can regenerate a combo (invalidates old slips).
 
-**FERPA note:** `lti_subject` is pseudonymous; no student email or name flows
-from LTI into our tables.
+**FERPA note:** no student email, no external identity, no PII beyond what
+the roster already holds; the cookie carries an opaque claim id only.
 
 ### `points_ledger` (append-only — the bank)
 | column | type | constraint |

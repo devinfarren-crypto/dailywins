@@ -21,14 +21,18 @@ The register is "your locker, your music, your stuff" — high-school cool.
 
 ## Entry: the combo moment
 
-Access is Canvas LTI 1.3 — identity arrives in the signed LTI token, so there
-is no login. The teacher-generated 3-number combo (printed on a paper slip,
-handed out like real locker assignments) is **first-launch theater, not
-auth**: an animated combo dial; the student spins in their three numbers; the
-door swings open onto a starter locker. The combo is verified once, links the
-LTI identity to the roster row, and is never asked for again. Wrong combo →
-the dial shakes (real-locker frustration, 2 tries then "ask your teacher").
-Returning students go straight to an open locker.
+Access is DailyWins-native (decision 2026-06-12 — Canvas cannot be relied
+on; LTI 1.3 becomes a future adapter). The teacher prints combo slips; the
+student opens the class locker link on their device and spins the
+teacher-generated 3-number combo into an animated dial. A correct combo
+claims the locker: it binds this device (durable signed cookie) to the
+student's unified school-level identity, and the door swings open onto a
+starter locker. Wrong combo → the dial shakes (real-locker frustration, 2
+tries then "ask your teacher"). Returning students on a claimed device go
+straight to an open locker; a new device or cleared cookies just means
+spinning the combo again — which is the fantasy anyway. Locker access is a
+link scope under the school's existing link policy, so a director can turn
+the feature off school-wide.
 
 ## The canvas
 

@@ -5,14 +5,13 @@ Phases assume the existing repo (Next.js/Supabase/Vercel, migrations 053+).*
 
 ## Phase 0 — Pre-build verifications (do before any code)
 
-1. **LTI 1.3 in dev.** Stand up a free Canvas instance (Instructure
-   Free-for-Teacher or canvas-lms docker) and prove the launch handshake:
-   register a dev tool, receive + verify the id_token (issuer keys, nonce,
-   deployment_id), extract a stable `sub`. This is the riskiest unknown —
-   nothing else starts until a signed launch lands in a Next.js route
-   locally. Also confirm: does EGUSD's Canvas allow teacher-level tool
-   installs per course, or is it admin-gated? (Changes the pilot path
-   entirely.)
+1. **Combo-claim access flow (replaces the LTI spike — decision #8).**
+   Design + prove the DailyWins-native entry: locker link scope on the
+   existing magic-link machinery, combo claim binding a durable signed
+   device cookie to the unified student identity, re-claim UX for new
+   devices/cleared cookies, director link-policy control over the scope.
+   LTI 1.3 is parked as a future adapter (same identity table, new columns
+   later).
 2. **Asset storage decision.** Static `public/locker/` (recommended for v1:
    versioned with the catalog, CDN-cached by Vercel, zero infra) vs Supabase
    Storage (needed only if items ever upload at runtime — they don't in v1).
@@ -100,7 +99,7 @@ class.
 6. **Where The Locker lives:** same Next.js app under `/locker/*`
    (recommended: shares schedule data, migrations, deploy) vs separate app.
    LTI's iframe/cookie requirements (SameSite=None; Partitioned) need a
-   spike either way — included in Phase 0 #1.
+   spike either way — Phase 0 #1 now covers the native flow instead.
 7. **Per-class price multiplier:** points-economy.md recommends tuning the
    EARN rate only and keeping prices universal. Confirm killing the price
    multiplier entirely.
