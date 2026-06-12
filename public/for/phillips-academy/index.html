@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#1a1a2e">
+  <title>DailyWins × The Phillips Academy — prepared for your school</title>
+  <meta name="description" content="A personalized look at DailyWins for The Phillips Academy: try the 30-second behavior tracker, see IEP-ready reports, and claim your free homepage refresh.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy: #1a1a2e; --navy-soft: #2a2b48; --forest: #0F6E56; --teal: #1D9E75;
+      --teal-light: #5DCAA5; --mist: #E1F5EE; --amber: #EF9F27; --cream: #F7F5F0;
+      --cream-deep: #EFEBE0; --surface: #FFFFFF; --ink: #1a1a2e; --ink-2: #4a4a5e;
+      --ink-3: #7a7a8e; --rule: #d9d4c5; --rule-soft: #ebe7da;
+      --status-low: #dd6b4d; --status-mid: #e3a23c; --status-good: #4fa07e; --status-high: #5e97c4;
+      --phillips-navy: #16365c; --phillips-crimson: #a31f24;
+      --radius: 12px; --radius-lg: 18px; --radius-pill: 999px;
+      --shadow-sm: 0 1px 2px rgba(26,38,61,.06);
+      --shadow-lg: 0 18px 50px rgba(26,26,46,.08);
+      --font-display: "DM Serif Display", Georgia, serif;
+      --font-body: "DM Sans", system-ui, sans-serif;
+      --font-mono: "DM Mono", ui-monospace, monospace;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--font-body); font-size: 16px; line-height: 1.55; color: var(--ink); background: var(--cream); -webkit-font-smoothing: antialiased; }
+    h1, h2, h3 { font-family: var(--font-display); font-weight: 400; line-height: 1.05; }
+    h1 { font-size: clamp(36px, 5.6vw, 72px); letter-spacing: -0.01em; }
+    h2 { font-size: clamp(30px, 4vw, 50px); }
+    h3 { font-size: clamp(20px, 2.2vw, 28px); }
+    p.lede { font-size: 18px; line-height: 1.6; color: var(--ink-2); }
+    .eyebrow { font-family: var(--font-mono); font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+    section { padding: 80px 0; }
+    .btn { display: inline-block; font-weight: 600; font-size: 16px; padding: 14px 26px; border-radius: var(--radius-pill); text-decoration: none; transition: transform .18s ease, background .18s ease; cursor: pointer; border: none; }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-teal { background: var(--teal); color: #fff; }
+    .btn-teal:hover { background: var(--forest); }
+    .btn-ghost-light { background: transparent; color: var(--cream); border: 1.5px solid rgba(255,255,255,.65); }
+    .btn-ghost { background: transparent; color: var(--navy); border: 1.5px solid var(--navy); }
+
+    /* hero */
+    .hero { background: var(--navy); color: var(--cream); padding: 90px 0 84px; }
+    .hero .eyebrow { color: var(--teal-light); display: block; margin-bottom: 20px; }
+    .hero h1 { color: #fff; margin-bottom: 22px; max-width: 17ch; }
+    .hero h1 em { font-style: normal; color: var(--teal-light); }
+    .hero p { font-size: 18px; line-height: 1.65; color: rgba(255,255,255,.78); max-width: 58ch; margin-bottom: 34px; }
+    .hero-ctas { display: flex; gap: 14px; flex-wrap: wrap; }
+    .from-line { margin-top: 40px; display: flex; align-items: center; gap: 12px; font-size: 14px; color: rgba(255,255,255,.6); }
+    .from-line .dot { width: 38px; height: 38px; border-radius: 50%; background: var(--teal); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; }
+
+    /* gift band */
+    .gift { background: var(--surface); }
+    .gift .wrap { display: grid; grid-template-columns: 1fr 1.05fr; gap: 48px; align-items: center; }
+    @media (max-width: 900px) { .gift .wrap { grid-template-columns: 1fr; } }
+    .gift .eyebrow { color: var(--phillips-crimson); display: block; margin-bottom: 14px; }
+    .gift h2 { color: var(--phillips-navy); margin-bottom: 16px; }
+    .gift p { color: var(--ink-2); margin-bottom: 14px; max-width: 52ch; }
+    .gift .keep { font-size: 14px; color: var(--ink-3); font-style: italic; margin-bottom: 24px; }
+    .browser { border-radius: 14px; overflow: hidden; border: 1px solid var(--rule); box-shadow: var(--shadow-lg); background: #fff; }
+    .browser .bar { background: #e8e4d8; padding: 9px 14px; display: flex; align-items: center; gap: 7px; }
+    .browser .bar i { width: 10px; height: 10px; border-radius: 50%; background: #cfc9b8; }
+    .browser .bar span { flex: 1; text-align: center; font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); }
+    .browser img { display: block; width: 100%; }
+    .browser a { display: block; }
+
+    /* demo (same mechanics as the marketing site) */
+    .demo-shell { background: var(--surface); border: 1px solid var(--rule-soft); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); overflow: hidden; }
+    .demo-top { background: var(--navy); color: #fff; padding: 18px 26px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+    .demo-top strong { font-family: var(--font-display); font-weight: 400; font-size: 20px; }
+    .demo-top .eyebrow { color: var(--teal-light); }
+    .demo-body { padding: 26px; overflow-x: auto; }
+    table.demo { border-collapse: collapse; width: 100%; min-width: 640px; }
+    table.demo th, table.demo td { padding: 10px 8px; text-align: center; border-bottom: 1px solid var(--rule-soft); }
+    table.demo th { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); font-weight: 500; }
+    table.demo th.period-th { cursor: pointer; color: var(--forest); }
+    table.demo td.student { text-align: left; font-weight: 600; font-size: 14.5px; white-space: nowrap; }
+    .win { width: 38px; height: 38px; border-radius: 10px; border: 1.5px solid var(--rule); background: var(--cream); cursor: pointer; font-size: 16px; line-height: 1; transition: background .15s, border-color .15s, transform .1s; }
+    .win:active { transform: scale(.92); }
+    .win.on { background: var(--mist); border-color: var(--teal); }
+    .demo-foot { padding: 20px 26px 26px; border-top: 1px solid var(--rule-soft); }
+    .meter-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .meter { flex: 1; min-width: 220px; height: 14px; border-radius: var(--radius-pill); background: var(--cream-deep); overflow: hidden; }
+    .meter > div { height: 100%; width: 0%; border-radius: var(--radius-pill); background: var(--status-low); transition: width .35s ease, background .35s ease; }
+    .meter-label { font-family: var(--font-mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+    .meter-pct { font-family: var(--font-display); font-size: 26px; min-width: 84px; text-align: right; }
+    .demo-hint { margin-top: 14px; font-size: 13.5px; color: var(--ink-3); }
+    .stopwatch { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; color: var(--teal-light); }
+    .sec-head { max-width: 720px; margin-bottom: 44px; }
+    .sec-head .eyebrow { color: var(--teal); display: block; margin-bottom: 14px; }
+    .sec-head h2 { margin-bottom: 16px; }
+
+    /* report band */
+    .band-cream-deep { background: var(--cream-deep); }
+    .report-split { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
+    @media (max-width: 900px) { .report-split { grid-template-columns: 1fr; } }
+    .report-mock { background: var(--surface); border: 1px solid var(--rule-soft); border-radius: var(--radius); box-shadow: var(--shadow-lg); padding: 26px; }
+    .report-mock .rm-head { background: var(--navy); color: #fff; border-radius: 8px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 18px; }
+    .report-mock .rm-head strong { font-family: var(--font-display); font-weight: 400; }
+    .report-mock .rm-head span { font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; opacity: .65; }
+    .rm-chart { display: flex; align-items: flex-end; gap: 12px; height: 150px; padding: 12px 8px 0; border-bottom: 2px solid var(--ink); position: relative; }
+    .rm-chart .target { position: absolute; left: 0; right: 0; top: 20%; height: 20%; background: rgba(29,158,117,.08); border-top: 1.5px dashed var(--teal); }
+    .rm-bar { flex: 1; background: var(--teal); border-radius: 4px 4px 0 0; position: relative; }
+    .rm-bar i { position: absolute; top: -22px; left: 0; right: 0; text-align: center; font-style: normal; font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-2); }
+    .rm-x { display: flex; gap: 12px; padding: 8px 8px 0; }
+    .rm-x span { flex: 1; text-align: center; font-family: var(--font-mono); font-size: 9.5px; text-transform: uppercase; color: var(--ink-3); }
+    .rm-foot { margin-top: 14px; font-size: 12.5px; color: var(--ink-3); display: flex; justify-content: space-between; }
+    .check-list { list-style: none; margin-top: 26px; }
+    .check-list li { padding-left: 34px; position: relative; margin-bottom: 16px; color: var(--ink-2); font-size: 16px; }
+    .check-list li strong { color: var(--ink); }
+    .check-list li::before { content: "✓"; position: absolute; left: 0; top: -1px; width: 23px; height: 23px; border-radius: 50%; background: var(--mist); color: var(--forest); font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+
+    /* offer */
+    .band-navy { background: var(--navy); color: var(--cream); }
+    .band-navy h2 { color: #fff; }
+    .offer-card { background: var(--navy-soft); border: 1px solid rgba(255,255,255,.1); border-radius: var(--radius-lg); padding: 38px 34px; max-width: 720px; margin: 0 auto; text-align: center; }
+    .offer-card .amount { font-family: var(--font-display); font-size: 52px; color: #fff; }
+    .offer-card .amount small { font-size: 17px; color: rgba(255,255,255,.6); font-family: var(--font-body); }
+    .offer-card .strike { text-decoration: line-through; color: rgba(255,255,255,.4); font-size: 26px; margin-right: 10px; }
+    .offer-card p { color: rgba(255,255,255,.75); margin: 14px auto 24px; max-width: 52ch; }
+    .offer-points { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 28px; }
+    .offer-points span { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); border-radius: var(--radius-pill); padding: 8px 16px; font-size: 13.5px; color: rgba(255,255,255,.85); }
+    .ps { text-align: center; margin-top: 26px; font-size: 14px; color: rgba(255,255,255,.55); }
+
+    footer { background: var(--forest); color: rgba(255,255,255,.85); padding: 40px 0; }
+    footer .wrap { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 18px; }
+    footer b { font-family: var(--font-display); font-weight: 400; font-size: 18px; color: #fff; }
+    footer a { color: #fff; text-decoration: none; font-size: 14px; }
+    footer .legal { font-family: var(--font-mono); font-size: 11px; color: rgba(255,255,255,.55); width: 100%; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+  <header class="hero">
+    <div class="wrap">
+      <span class="eyebrow">Prepared for The Phillips Academy · Est. 1971 · Go Bulldogs</span>
+      <h1>Your mission is behavioral growth. Your <em>data</em> should keep up.</h1>
+      <p>
+        Phillips runs a comprehensive, positive program for students with complex behavioral and
+        emotional needs — which means your teachers already generate the most valuable data in
+        special education, one period at a time. DailyWins catches it in thirty seconds a class
+        and turns it into the dated, graphed record your IEPs and district reviews require.
+      </p>
+      <div class="hero-ctas">
+        <a class="btn btn-teal" href="#demo">Try the teacher workflow — no signup ↓</a>
+        <a class="btn btn-ghost-light" href="#gift">See your free homepage refresh</a>
+      </div>
+      <div class="from-line">
+        <span class="dot">D</span>
+        <span>Sent personally by Devin Farren — a Sacramento classroom teacher, and the person who built this.</span>
+      </div>
+    </div>
+  </header>
+
+  <section class="gift" id="gift">
+    <div class="wrap">
+      <div>
+        <span class="eyebrow">A gift, no strings</span>
+        <h2>We rebuilt your front page. It's yours — either way.</h2>
+        <p>
+          Before asking for a minute of your time, we wanted to give you something first: a
+          modern concept of The Phillips Academy's homepage — your mission, your Bulldogs, your
+          tagline, Est. 1971 — rebuilt with the same care we put into DailyWins.
+        </p>
+        <p class="keep">
+          Keep it whether or not we ever talk. If you want it live on your domain, reply to the
+          email and we'll hand over the files — free.
+        </p>
+        <a class="btn btn-ghost" href="site/">Open your new front page →</a>
+      </div>
+      <div class="browser">
+        <div class="bar"><i></i><i></i><i></i><span>thephillipsacademy.org — concept refresh</span></div>
+        <a href="site/" aria-label="Open the Phillips Academy homepage concept">
+          <img src="preview.png" alt="Preview of The Phillips Academy homepage concept refresh" loading="lazy">
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section id="demo">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow">Try it right now — nothing to install</span>
+        <h2>This is the entire teacher workflow.</h2>
+        <p class="lede">A live mock of the DailyWins grid your staff would use. Tap cells to log wins — or hit ⚡ to quick-fill. Watch the period grade itself, and watch the clock: this is the whole job.</p>
+      </div>
+      <div class="demo-shell">
+        <div class="demo-top">
+          <div>
+            <span class="eyebrow">Demo classroom · The Bulldogs Room</span><br>
+            <strong>Period 3 — Phillips Academy</strong>
+          </div>
+          <span class="stopwatch" id="stopwatch">⏱ 0.0s of tapping</span>
+        </div>
+        <div class="demo-body">
+          <table class="demo" id="demoGrid" aria-label="Interactive demo tracking grid">
+            <thead>
+              <tr>
+                <th style="text-align:left">Student</th>
+                <th>Arrival</th>
+                <th>Following<br>directions</th>
+                <th>Positive<br>peers</th>
+                <th>On-task</th>
+                <th>Phone<br>away</th>
+                <th class="period-th" id="quickFill" title="Quick-fill: mark every goal for every student">⚡ Fill all</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="demo-foot">
+          <div class="meter-row">
+            <span class="meter-label">Goals met today</span>
+            <div class="meter"><div id="meterFill"></div></div>
+            <span class="meter-pct" id="meterPct">0%</span>
+          </div>
+          <p class="demo-hint">
+            In the real app, the goal columns are <em>your</em> labels — matched to each student's
+            actual IEP goals — across up to nine periods a day. Every tap saves instantly.
+            Nothing to submit, sync, or remember. (Students here are fictional.)
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band-cream-deep" id="reports">
+    <div class="wrap">
+      <div class="report-split">
+        <div>
+          <span class="eyebrow" style="color:var(--teal); display:block; margin-bottom:14px;">Where the taps go</span>
+          <h2 style="margin-bottom:18px;">Walk into the IEP meeting with the graph already printed.</h2>
+          <p class="lede">Progress monitoring is the legal backbone of every placement Phillips holds. DailyWins makes the defensible record a side effect of teaching.</p>
+          <ul class="check-list">
+            <li><strong>IEP-ready PDFs.</strong> Weekly and monthly charts per goal, target band drawn in, legible on a black-and-white copier.</li>
+            <li><strong>Dated &amp; contemporaneous.</strong> Captured the period it happens — never reconstructed the night before a review.</li>
+            <li><strong>Families in the loop.</strong> Secure parent &amp; student links — no account, no app — in your own goal language.</li>
+            <li><strong>Private by database design.</strong> Teachers see their students, period. Every sensitive access is audited. We'll sign your DPA.</li>
+          </ul>
+        </div>
+        <div class="report-mock" aria-hidden="true">
+          <div class="rm-head"><strong>Goal: On-task behavior</strong><span>Weekly · 8 wks</span></div>
+          <div class="rm-chart">
+            <div class="target"></div>
+            <div class="rm-bar" style="height:42%"><i>42%</i></div>
+            <div class="rm-bar" style="height:51%"><i>51%</i></div>
+            <div class="rm-bar" style="height:49%"><i>49%</i></div>
+            <div class="rm-bar" style="height:60%"><i>60%</i></div>
+            <div class="rm-bar" style="height:66%"><i>66%</i></div>
+            <div class="rm-bar" style="height:74%"><i>74%</i></div>
+            <div class="rm-bar" style="height:81%"><i>81%</i></div>
+            <div class="rm-bar" style="height:86%"><i>86%</i></div>
+          </div>
+          <div class="rm-x"><span>W1</span><span>W2</span><span>W3</span><span>W4</span><span>W5</span><span>W6</span><span>W7</span><span>W8</span></div>
+          <div class="rm-foot"><span>⭐ Student A — 8-week trend</span><span>avg 64% · target band 80–100%</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band-navy">
+    <div class="wrap">
+      <div class="sec-head" style="text-align:center; margin-left:auto; margin-right:auto;">
+        <span class="eyebrow" style="color:var(--teal-light); display:block; margin-bottom:14px;">The Phillips Academy offer</span>
+        <h2>Free for 60 days. Then less than one sub day a month.</h2>
+      </div>
+      <div class="offer-card">
+        <div class="amount"><span class="strike">$199</span>$149<small>/month — founding rate, locked for life</small></div>
+        <p>
+          Phillips would be one of the first 15 California schools on DailyWins, which locks the
+          founding rate forever — flat for the whole school, unlimited teachers and students.
+          The 60-day pilot is genuinely free: no card, no auto-convert, and we do the setup —
+          bell schedule, rosters, goal labels — for you.
+        </p>
+        <div class="offer-points">
+          <span>White-glove setup</span><span>Unlimited staff</span><span>IEP-ready reports</span>
+          <span>Parent links included</span><span>We sign your DPA</span>
+        </div>
+        <a class="btn btn-teal" href="mailto:support@surestepeducation.com?subject=Phillips%20Academy%20pilot%20—%20let%27s%20do%20it&body=Hi%20Devin%20—%20let%27s%20set%20up%20the%20free%2060-day%20pilot%20for%20The%20Phillips%20Academy.%0A%0ABest%20day%2Ftime%20for%20a%2015-minute%20walkthrough%3A%20">Start the free pilot — reply takes 10 seconds</a>
+        <p class="ps">Prefer to see it live first? The same reply books a 15-minute walkthrough with Devin — the teacher who built it, not a sales team.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <b>Sure Step Education</b>
+      <div style="display:flex; gap:22px;">
+        <a href="https://dailywins.school">dailywins.school</a>
+        <a href="mailto:support@surestepeducation.com">support@surestepeducation.com</a>
+        <a href="https://dailywins.school/privacy">Privacy</a>
+      </div>
+      <div class="legal">© 2026 Sure Step Education · Sacramento, CA · Built by teachers. Built to work. · Student names on this page are fictional. This page was prepared for The Phillips Academy and is not indexed.</div>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      var STUDENTS = ["J. Alvarez", "M. Chen", "D. Okafor", "S. Rivera", "T. Williams", "K. Nguyen"];
+      var GOALS = 5;
+      var tbody = document.querySelector("#demoGrid tbody");
+      var state = [];
+      var firstTapAt = null, lastTapAt = null;
+      STUDENTS.forEach(function (name, r) {
+        state.push(new Array(GOALS).fill(false));
+        var tr = document.createElement("tr");
+        var td = document.createElement("td");
+        td.className = "student"; td.textContent = name; tr.appendChild(td);
+        for (var c = 0; c < GOALS; c++) {
+          var cell = document.createElement("td");
+          var btn = document.createElement("button");
+          btn.className = "win"; btn.type = "button"; btn.textContent = "·";
+          btn.setAttribute("aria-label", name + " goal " + (c + 1));
+          btn.setAttribute("aria-pressed", "false");
+          (function (rr, cc, bb) { bb.addEventListener("click", function () { toggle(rr, cc, bb); }); })(r, c, btn);
+          cell.appendChild(btn); tr.appendChild(cell);
+        }
+        var fillTd = document.createElement("td");
+        var fillBtn = document.createElement("button");
+        fillBtn.className = "win"; fillBtn.type = "button"; fillBtn.textContent = "⚡";
+        fillBtn.title = "Quick-fill this student's row";
+        (function (rr, trr) {
+          fillBtn.addEventListener("click", function () {
+            var btns = trr.querySelectorAll("td:not(.student) .win");
+            for (var c = 0; c < GOALS; c++) { if (!state[rr][c]) toggle(rr, c, btns[c]); }
+          });
+        })(r, tr);
+        fillTd.appendChild(fillBtn); tr.appendChild(fillTd);
+        tbody.appendChild(tr);
+      });
+      function toggle(r, c, btn) {
+        state[r][c] = !state[r][c];
+        btn.classList.toggle("on", state[r][c]);
+        btn.textContent = state[r][c] ? "✓" : "·";
+        btn.setAttribute("aria-pressed", String(state[r][c]));
+        var now = performance.now();
+        if (firstTapAt === null) firstTapAt = now;
+        lastTapAt = now;
+        update();
+      }
+      document.getElementById("quickFill").addEventListener("click", function () {
+        tbody.querySelectorAll("tr").forEach(function (tr, r) {
+          var btns = tr.querySelectorAll("td:not(.student) .win");
+          for (var c = 0; c < GOALS; c++) { if (!state[r][c]) toggle(r, c, btns[c]); }
+        });
+      });
+      function update() {
+        var won = 0, total = STUDENTS.length * GOALS;
+        state.forEach(function (row) { row.forEach(function (v) { if (v) won++; }); });
+        var pct = Math.round((won / total) * 100);
+        var fill = document.getElementById("meterFill");
+        fill.style.width = pct + "%";
+        fill.style.background =
+          pct >= 90 ? "var(--status-high)" : pct >= 70 ? "var(--status-good)" :
+          pct >= 40 ? "var(--status-mid)" : "var(--status-low)";
+        document.getElementById("meterPct").textContent = pct + "%";
+        if (firstTapAt !== null && lastTapAt !== null) {
+          var secs = Math.max(0, (lastTapAt - firstTapAt) / 1000);
+          document.getElementById("stopwatch").textContent = "⏱ " + secs.toFixed(1) + "s of tapping";
+        }
+      }
+    })();
+  </script>
+</body>
+</html>

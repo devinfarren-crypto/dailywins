@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>The Phillips Academy — Seeing the possibilities and making them real</title>
+  <meta name="description" content="Concept homepage refresh for The Phillips Academy, prepared by Sure Step Education.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy: #16365c;
+      --navy-deep: #0e2440;
+      --crimson: #a31f24;
+      --crimson-deep: #821419;
+      --gold: #d8a13a;
+      --paper: #f8f6f1;
+      --paper-deep: #efebe1;
+      --ink: #1d2733;
+      --ink-2: #46566a;
+      --ink-3: #74839a;
+      --rule: #ddd6c6;
+      --serif: "Fraunces", Georgia, serif;
+      --sans: "Public Sans", system-ui, sans-serif;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--sans); color: var(--ink); background: var(--paper); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+    h1, h2, h3 { font-family: var(--serif); font-weight: 500; line-height: 1.08; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+    a.btn { display: inline-block; font-weight: 700; font-size: 15px; padding: 13px 26px; border-radius: 8px; text-decoration: none; transition: transform .15s ease, background .15s ease; }
+    a.btn:hover { transform: translateY(-1px); }
+    .btn-crimson { background: var(--crimson); color: #fff; }
+    .btn-crimson:hover { background: var(--crimson-deep); }
+    .btn-ghost { border: 2px solid #fff; color: #fff; }
+    .btn-navy-ghost { border: 2px solid var(--navy); color: var(--navy); }
+
+    /* utility bar */
+    .util { background: var(--navy-deep); color: rgba(255,255,255,.85); font-size: 12.5px; }
+    .util .wrap { display: flex; justify-content: space-between; align-items: center; height: 36px; }
+    .util a { color: #fff; text-decoration: none; margin-left: 18px; font-weight: 600; letter-spacing: .03em; }
+    .util a:hover { text-decoration: underline; }
+    .util .est { font-family: var(--serif); font-style: italic; letter-spacing: .04em; }
+
+    /* header */
+    header { background: #fff; border-bottom: 4px solid var(--crimson); }
+    header .wrap { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding-top: 18px; padding-bottom: 18px; flex-wrap: wrap; }
+    .crest { display: flex; align-items: center; gap: 14px; text-decoration: none; color: var(--ink); }
+    .crest .name { font-family: var(--serif); font-size: clamp(22px, 3vw, 30px); color: var(--navy); }
+    .crest .tag { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-3); display: block; margin-top: 1px; }
+    nav.main { display: flex; align-items: center; gap: 26px; }
+    nav.main a { text-decoration: none; color: var(--ink-2); font-weight: 600; font-size: 14px; letter-spacing: .05em; text-transform: uppercase; padding: 6px 0; border-bottom: 2.5px solid transparent; }
+    nav.main a:hover, nav.main a.here { color: var(--navy); border-bottom-color: var(--crimson); }
+    nav.main .btn { padding: 11px 22px; font-size: 13.5px; }
+    @media (max-width: 880px) { nav.main a:not(.btn) { display: none; } }
+
+    /* hero */
+    .hero { background: linear-gradient(165deg, var(--navy) 0%, var(--navy-deep) 100%); color: #fff; overflow: hidden; }
+    .hero .wrap { display: grid; grid-template-columns: 1.05fr .95fr; gap: 54px; align-items: center; padding-top: 84px; padding-bottom: 84px; }
+    @media (max-width: 880px) { .hero .wrap { grid-template-columns: 1fr; padding-top: 56px; padding-bottom: 56px; } }
+    .hero h1 { font-size: clamp(38px, 5.4vw, 62px); margin-bottom: 22px; }
+    .hero h1 em { font-style: italic; color: var(--gold); }
+    .hero p { font-size: 18px; color: rgba(255,255,255,.82); max-width: 50ch; margin-bottom: 32px; }
+    .hero-ctas { display: flex; gap: 14px; flex-wrap: wrap; }
+    .hero .since { margin-top: 38px; font-size: 12.5px; letter-spacing: .16em; text-transform: uppercase; color: rgba(255,255,255,.5); }
+
+    /* photo slot — replaced with the school's own photo; deliberately beautiful empty */
+    .photo-slot { aspect-ratio: 4/3; border-radius: 14px; position: relative; overflow: hidden; box-shadow: 0 24px 60px rgba(0,0,0,.35); background:
+      radial-gradient(120% 90% at 20% 10%, #2a4d78 0%, transparent 55%),
+      radial-gradient(100% 80% at 85% 90%, #1c3a60 0%, transparent 50%),
+      linear-gradient(150deg, #234a74, #122c4c); }
+    .photo-slot::before { content: ""; position: absolute; inset: 0;
+      background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.025) 0 2px, transparent 2px 14px); }
+    .photo-slot .ps-label { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 24px; }
+    .photo-slot .ps-frame { width: 64px; height: 52px; border: 2.5px dashed rgba(255,255,255,.5); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+    .photo-slot .ps-label span { font-size: 13px; color: rgba(255,255,255,.75); max-width: 30ch; line-height: 1.5; }
+    .photo-slot.small { aspect-ratio: 16/10; box-shadow: 0 10px 28px rgba(13,30,53,.18); }
+
+    /* mission band */
+    .mission { background: #fff; }
+    .mission .wrap { padding-top: 72px; padding-bottom: 72px; display: grid; grid-template-columns: auto 1fr; gap: 38px; align-items: start; }
+    @media (max-width: 880px) { .mission .wrap { grid-template-columns: 1fr; } }
+    .mission .mark { width: 5px; align-self: stretch; background: var(--crimson); border-radius: 3px; }
+    .mission .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--crimson); display: block; margin-bottom: 14px; }
+    .mission blockquote { font-family: var(--serif); font-size: clamp(22px, 2.8vw, 30px); line-height: 1.4; color: var(--navy); max-width: 30ch; }
+
+    /* what we do tiles */
+    .tiles { padding: 80px 0; }
+    .tiles .head { max-width: 640px; margin-bottom: 44px; }
+    .tiles .head .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--crimson); display: block; margin-bottom: 12px; }
+    .tiles h2 { font-size: clamp(30px, 3.8vw, 44px); color: var(--navy); }
+    .tile-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+    @media (max-width: 880px) { .tile-grid { grid-template-columns: 1fr; } }
+    .tile { background: #fff; border: 1px solid var(--rule); border-radius: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(13,30,53,.05); display: flex; flex-direction: column; }
+    .tile .tile-art { height: 124px; background: linear-gradient(135deg, var(--navy), #244a76); position: relative; display: flex; align-items: flex-end; }
+    .tile:nth-child(2) .tile-art { background: linear-gradient(135deg, var(--crimson), #c24b46); }
+    .tile:nth-child(3) .tile-art { background: linear-gradient(135deg, #2c5a45, #44806a); }
+    .tile .tile-art svg { position: absolute; right: 14px; top: 14px; opacity: .35; }
+    .tile .tile-art h3 { color: #fff; font-size: 22px; padding: 0 20px 14px; }
+    .tile p { padding: 18px 20px 22px; color: var(--ink-2); font-size: 15px; flex: 1; }
+    .tile a { display: block; padding: 0 20px 20px; color: var(--crimson); font-weight: 700; font-size: 14px; text-decoration: none; }
+    .tile a:hover { text-decoration: underline; }
+
+    /* announcements */
+    .annc { background: var(--paper-deep); padding: 78px 0; }
+    .annc .head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 10px; margin-bottom: 36px; }
+    .annc h2 { font-size: clamp(30px, 3.8vw, 44px); color: var(--navy); }
+    .annc .head a { color: var(--crimson); font-weight: 700; text-decoration: none; font-size: 14.5px; }
+    .annc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+    @media (max-width: 880px) { .annc-grid { grid-template-columns: 1fr; } }
+    .annc-card { background: #fff; border: 1px solid var(--rule); border-radius: 14px; padding: 26px 24px; }
+    .annc-card .date { font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); display: block; margin-bottom: 12px; }
+    .annc-card h3 { font-size: 21px; color: var(--navy); margin-bottom: 10px; }
+    .annc-card p { font-size: 14.5px; color: var(--ink-2); margin-bottom: 14px; }
+    .annc-card a { color: var(--crimson); font-weight: 700; font-size: 14px; text-decoration: none; }
+    .annc-card.give { background: var(--navy); border-color: var(--navy); }
+    .annc-card.give h3, .annc-card.give .date { color: #fff; }
+    .annc-card.give .date { color: var(--gold); }
+    .annc-card.give p { color: rgba(255,255,255,.78); }
+    .annc-card.give .btn { margin-top: 4px; }
+
+    /* tagline band */
+    .tagline { background: var(--crimson); color: #fff; text-align: center; padding: 54px 24px; }
+    .tagline p { font-family: var(--serif); font-style: italic; font-size: clamp(24px, 3.4vw, 38px); line-height: 1.3; }
+    .tagline span { display: block; margin-top: 14px; font-family: var(--sans); font-style: normal; font-size: 12.5px; letter-spacing: .18em; text-transform: uppercase; color: rgba(255,255,255,.7); }
+
+    /* visit band */
+    .visit { background: #fff; }
+    .visit .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; padding-top: 80px; padding-bottom: 80px; }
+    @media (max-width: 880px) { .visit .wrap { grid-template-columns: 1fr; } }
+    .visit h2 { font-size: clamp(30px, 3.8vw, 44px); color: var(--navy); margin-bottom: 16px; }
+    .visit p { color: var(--ink-2); margin-bottom: 26px; max-width: 48ch; }
+
+    footer { background: var(--navy-deep); color: rgba(255,255,255,.8); padding: 50px 0 38px; }
+    footer .wrap { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 36px; }
+    @media (max-width: 880px) { footer .wrap { grid-template-columns: 1fr; } }
+    footer .fname { font-family: var(--serif); font-size: 22px; color: #fff; margin-bottom: 8px; }
+    footer .fsmall { font-size: 13px; line-height: 1.7; }
+    footer h4 { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--gold); margin-bottom: 12px; }
+    footer a { color: #fff; text-decoration: none; display: block; font-size: 14px; padding: 3px 0; }
+    footer a:hover { text-decoration: underline; }
+    footer .credit { border-top: 1px solid rgba(255,255,255,.12); margin-top: 36px; padding-top: 18px; font-size: 12px; color: rgba(255,255,255,.45); text-align: center; }
+    footer .credit a { display: inline; color: rgba(255,255,255,.65); font-size: 12px; }
+
+    /* concept chip */
+    .concept-chip { position: fixed; bottom: 18px; right: 18px; z-index: 50; background: #fff; border: 1px solid var(--rule); border-radius: 999px; box-shadow: 0 10px 30px rgba(13,30,53,.18); padding: 10px 16px; font-size: 12.5px; color: var(--ink-2); display: flex; gap: 8px; align-items: center; }
+    .concept-chip a { color: var(--crimson); font-weight: 700; text-decoration: none; }
+    @media print { .concept-chip { display: none; } }
+  </style>
+</head>
+<body>
+
+  <div class="util">
+    <div class="wrap">
+      <span class="est">Est. 1971 · Home of the Bulldogs</span>
+      <span>
+        <a href="#announcements">Calendar</a>
+        <a href="#give">Donate</a>
+        <a href="#visit">Contact</a>
+      </span>
+    </div>
+  </div>
+
+  <header>
+    <div class="wrap">
+      <a class="crest" href="#" aria-label="The Phillips Academy home">
+        <svg width="52" height="52" viewBox="0 0 100 100" aria-hidden="true">
+          <path d="M50 4 L92 20 L92 52 Q92 82 50 97 Q8 82 8 52 L8 20 Z" fill="#16365c"/>
+          <path d="M50 11 L85 24.5 L85 52 Q85 77 50 90 Q15 77 15 52 L15 24.5 Z" fill="none" stroke="#d8a13a" stroke-width="2.5"/>
+          <text x="50" y="64" text-anchor="middle" font-family="Georgia, serif" font-size="42" font-weight="bold" fill="#fff">P</text>
+        </svg>
+        <span>
+          <span class="name">The Phillips Academy</span>
+          <span class="tag">Seeing the possibilities · Making them real</span>
+        </span>
+      </a>
+      <nav class="main">
+        <a href="#" class="here">Home</a>
+        <a href="#mission">Who we are</a>
+        <a href="#whatwedo">What we do</a>
+        <a href="#visit">Admissions</a>
+        <a class="btn btn-crimson" href="#give">Donate</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="wrap">
+      <div>
+        <h1>Seeing the <em>possibilities</em> — and making them real.</h1>
+        <p>
+          Since 1971, The Phillips Academy has been the school where students with complex
+          behavioral, social, emotional, and educational needs are met with a comprehensive,
+          positive program — and a community that believes in them.
+        </p>
+        <div class="hero-ctas">
+          <a class="btn btn-crimson" href="#visit">Begin admissions</a>
+          <a class="btn btn-ghost" href="#mission">Meet our school</a>
+        </div>
+        <div class="since">Serving our students &amp; families for 55 years</div>
+      </div>
+      <div class="photo-slot" role="img" aria-label="Placeholder for a campus photo">
+        <div class="ps-label">
+          <div class="ps-frame">🖼</div>
+          <span>Your favorite campus photo goes here — this layout was built to make it the hero.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="mission" id="mission">
+    <div class="wrap">
+      <div class="mark" aria-hidden="true"></div>
+      <div>
+        <span class="eyebrow">Our mission</span>
+        <blockquote>
+          To provide a comprehensive, positive, educational program for youth with complex
+          behavioral, social, emotional, and educational needs.
+        </blockquote>
+      </div>
+    </div>
+  </section>
+
+  <section class="tiles" id="whatwedo">
+    <div class="wrap">
+      <div class="head">
+        <span class="eyebrow">What we do</span>
+        <h2>One school. The whole student.</h2>
+      </div>
+      <div class="tile-grid">
+        <div class="tile">
+          <div class="tile-art">
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V4H6.5A2.5 2.5 0 0 0 4 6.5v13zM4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>
+            <h3>Academics that adapt</h3>
+          </div>
+          <p>Small classes, individualized instruction, and IEP goals woven into every school day — so academic progress and personal growth move together.</p>
+          <a href="#visit">Our program →</a>
+        </div>
+        <div class="tile">
+          <div class="tile-art">
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><path d="M12 21s-7-4.6-9.5-9A5.5 5.5 0 0 1 12 6.5 5.5 5.5 0 0 1 21.5 12c-2.5 4.4-9.5 9-9.5 9z"/></svg>
+            <h3>Behavioral &amp; emotional support</h3>
+          </div>
+          <p>Positive behavior support is the heart of Phillips — daily goals, caring structure, and progress families can see, every step of the way.</p>
+          <a href="#visit">How we support →</a>
+        </div>
+        <div class="tile">
+          <div class="tile-art">
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <h3>A community that shows up</h3>
+          </div>
+          <p>Bulldogs look out for each other. Families, staff, and districts work as one team — from the first tour to graduation day.</p>
+          <a href="#visit">Meet the Bulldogs →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="annc" id="announcements">
+    <div class="wrap">
+      <div class="head">
+        <h2>Announcements</h2>
+        <a href="#">View the calendar →</a>
+      </div>
+      <div class="annc-grid">
+        <div class="annc-card give" id="give">
+          <span class="date">Spring 2026</span>
+          <h3>Spring Fundraising 2026</h3>
+          <p>Support the valuable community work of The Phillips Academy. Your gift is tax-deductible — thank you!</p>
+          <a class="btn btn-crimson" href="#">Give today</a>
+        </div>
+        <div class="annc-card">
+          <span class="date">This month</span>
+          <h3>Your next announcement</h3>
+          <p>This space holds whatever your families need to know this week — events, schedule changes, celebrations.</p>
+          <a href="#">Read more →</a>
+        </div>
+        <div class="annc-card">
+          <span class="date">Bulldogs news</span>
+          <h3>Student &amp; staff spotlights</h3>
+          <p>Celebrate the wins — a student milestone, a staff anniversary, a community thank-you. Small stories, big culture.</p>
+          <a href="#">Read more →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="tagline">
+    <p>“Seeing the possibilities and making them real.”</p>
+    <span>The Phillips Academy · Est. 1971</span>
+  </div>
+
+  <section class="visit" id="visit">
+    <div class="wrap">
+      <div>
+        <h2>Come see Phillips for yourself.</h2>
+        <p>
+          Whether you're a family, a case manager, or a district placement team — the best way
+          to understand Phillips is to walk through it. Tours weekly; admissions conversations
+          any time.
+        </p>
+        <div style="display:flex; gap:14px; flex-wrap:wrap;">
+          <a class="btn btn-crimson" href="#">Schedule a tour</a>
+          <a class="btn btn-navy-ghost" href="#">Contact our team</a>
+        </div>
+      </div>
+      <div class="photo-slot small" role="img" aria-label="Placeholder for a second campus photo">
+        <div class="ps-label">
+          <div class="ps-frame">🖼</div>
+          <span>Second photo slot — the courtyard, the gym, game day.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <div>
+        <div class="fname">The Phillips Academy</div>
+        <p class="fsmall">A nonpublic school providing a comprehensive, positive, educational
+        program for youth with complex behavioral, social, emotional, and educational needs.
+        Est. 1971.</p>
+      </div>
+      <div>
+        <h4>Visit</h4>
+        <a href="#mission">Who we are</a>
+        <a href="#whatwedo">What we do</a>
+        <a href="#visit">Admissions</a>
+        <a href="#announcements">Calendar</a>
+      </div>
+      <div>
+        <h4>Connect</h4>
+        <a href="#give">Donate</a>
+        <a href="#visit">Contact</a>
+        <a href="#">Family resources</a>
+      </div>
+    </div>
+    <div class="wrap"><div class="credit">
+      Concept refresh prepared as a gift for The Phillips Academy by
+      <a href="https://dailywins.school/for/phillips-academy">Sure Step Education</a> —
+      yours to keep, no strings attached. Photos are placeholders; all content is editable.
+    </div></div>
+  </footer>
+
+  <div class="concept-chip">
+    🎁 A free concept — yours either way.
+    <a href="/for/phillips-academy">Back to your DailyWins page →</a>
+  </div>
+
+</body>
+</html>
