@@ -25,9 +25,13 @@ export default function SplashGate({ children }: { children: React.ReactNode }) 
   const [phase, setPhase] = useState<"show" | "fading" | "done">("show");
 
   useIsoLayoutEffect(() => {
-    // The Locker has its own entry ritual (the door swings open) — the
-    // Sure Step splash never shows on student locker surfaces.
-    if (typeof window !== "undefined" && window.location.pathname.startsWith("/locker")) {
+    // The Locker has its own entry ritual (the door swings open) and the
+    // public /demo sandbox must be instant for cold-email prospects — the
+    // Sure Step splash never shows on either.
+    if (
+      typeof window !== "undefined" &&
+      (window.location.pathname.startsWith("/locker") || window.location.pathname.startsWith("/demo"))
+    ) {
       setPhase("done");
       return;
     }

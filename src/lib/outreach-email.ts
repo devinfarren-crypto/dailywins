@@ -34,7 +34,7 @@ export function outreachText(school: OutreachSchool): string {
     `Before asking for any of your time, I wanted to give you something first: my team rebuilt your homepage as a modern concept — your mission, your colors, ${school.estLine || "your identity"} — and it's yours to keep whether or not we ever talk.`,
     "",
     `See your new front page: ${base}/site`,
-    `Try the 30-second teacher workflow (no signup): ${base}#demo`,
+    `Try the REAL dashboard — live sandbox, no signup: ${ORIGIN}/demo?school=${school.slug}`,
     "",
     `If it looks like something your staff would actually use: the 60-day pilot is free (no card, we do all the setup), and as one of the first 15 California schools you'd lock in the founding rate — $149/month flat, for life, instead of $199.`,
     "",
@@ -96,10 +96,11 @@ export function outreachHtml(school: OutreachSchool): string {
       </td></tr>
     </table>
 
-    <p style="margin:24px 0 16px;">And here's the actual product — <strong>the entire teacher workflow, live in
-    your browser, no signup</strong>. Tap a few wins and watch the period grade itself:</p>
+    <p style="margin:24px 0 16px;">And here's the actual product — <strong>the real dashboard, live in your
+    browser, no signup</strong>. Score a class period, rename the goals to your IEP language, flip through
+    eight weeks of charts, and print the progress report:</p>
     <p style="margin:0 0 24px;">
-      <a href="${base}#demo" style="display:inline-block;background:#1D9E75;color:#ffffff;font-family:Helvetica,Arial,sans-serif;font-weight:bold;font-size:15px;padding:13px 26px;border-radius:999px;text-decoration:none;">Try DailyWins — 30 seconds, nothing to install →</a>
+      <a href="${ORIGIN}/demo?school=${school.slug}" style="display:inline-block;background:#1D9E75;color:#ffffff;font-family:Helvetica,Arial,sans-serif;font-weight:bold;font-size:15px;padding:13px 26px;border-radius:999px;text-decoration:none;">Open the live dashboard — nothing to install →</a>
     </p>
 
     <p style="margin:0 0 16px;">If it looks like something your staff would actually use: the
