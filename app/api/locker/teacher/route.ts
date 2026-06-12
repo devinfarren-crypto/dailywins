@@ -109,13 +109,15 @@ export async function POST(req: NextRequest) {
       .update({ preferences: { ...prefs, locker: lockerCfg } })
       .eq("id", ctx.teacher.id);
 
-    // Combos for every active, non-demo roster student who lacks one.
+    // Combos for every active roster student who lacks one. [DEMO] students
+    // ARE included — the locker is part of the demo story ("here's what Ava
+    // sees"), and a demo wipe cascades cleanly through locker_identities,
+    // points_ledger, inventory, and layouts, so nothing orphans.
     const { data: roster } = await admin
       .from("students")
       .select("id, display_name, canonical_id")
       .eq("school_id", ctx.teacher.school_id)
-      .is("archived_at", null)
-      .not("display_name", "like", "[DEMO] %");
+      .is("archived_at", null);
     const { data: existingIds } = await admin
       .from("locker_identities")
       .select("student_id, combo")
