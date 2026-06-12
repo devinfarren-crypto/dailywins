@@ -84,7 +84,7 @@ export async function GET() {
       .eq("student_id", identity.studentId),
     admin
       .from("locker_layouts")
-      .select("layout")
+      .select("layout, updated_at")
       .eq("student_id", identity.studentId)
       .maybeSingle(),
     admin.from("schools").select("schedules").eq("id", identity.schoolId).maybeSingle(),
@@ -113,6 +113,9 @@ export async function GET() {
     ledger: rows.slice(0, 40),
     inventory: (inventory ?? []).map((r) => r.item_id),
     layout: layout.success ? layout.data : { items: [], background: null },
+    // Optimistic-concurrency baseline: a stale tab can never clobber a newer
+    // arrangement (the save route rejects mismatched baselines).
+    layoutVersion: layoutRow?.updated_at ?? null,
     catalogVersion: CATALOG.catalog_version,
     today: todaysPeriods((schoolRow?.schedules ?? null) as Record<string, Variant> | null),
     weekProgress,

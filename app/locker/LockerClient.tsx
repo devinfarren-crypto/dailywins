@@ -87,6 +87,10 @@ export default function LockerClient() {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const layoutRef = useRef(layout);
   layoutRef.current = layout;
+  // Optimistic-concurrency token: the layout version this tab loaded. A save
+  // carrying a stale token is rejected (409) instead of clobbering — and this
+  // tab re-syncs. Multi-tab testing ate a decorated locker once.
+  const layoutVersion = useRef<string | null>(null);
 
   // ── data ──────────────────────────────────────────────────────────────────
   const refresh = useCallback(async () => {
@@ -98,22 +102,42 @@ export default function LockerClient() {
     const data = await res.json();
     setState(data);
     setLayout(data.layout);
+    layoutVersion.current = data.layoutVersion ?? null;
   }, []);
   useEffect(() => {
     refresh();
   }, [refresh]);
 
+  // Stale tabs re-sync when they come back into view instead of writing over
+  // whatever a fresher tab did.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && !saveTimer.current) refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [refresh]);
+
   const scheduleSave = useCallback(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
-      await fetch("/api/locker/layout", {
+      saveTimer.current = null;
+      const res = await fetch("/api/locker/layout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(layoutRef.current),
+        body: JSON.stringify({ layout: layoutRef.current, baseline: layoutVersion.current }),
         keepalive: true,
       });
+      if (res.status === 409) {
+        // Someone (another tab) saved first — their arrangement wins; reload it.
+        setToast("Your locker changed in another window — reloaded.");
+        await refresh();
+        return;
+      }
+      const data = await res.json().catch(() => null);
+      if (data?.layoutVersion) layoutVersion.current = data.layoutVersion;
     }, 600);
-  }, []);
+  }, [refresh]);
 
   const mutateLayout = useCallback(
     (fn: (l: LockerLayout) => LockerLayout) => {
