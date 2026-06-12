@@ -322,6 +322,23 @@ write(
   )
 );
 write(
+  "locker/cards/crd-month.svg",
+  svg(
+    { w: 100, h: 100 },
+    `<rect x="14" y="16" width="72" height="68" rx="6" fill="#FDFBF4" stroke="#D8D2BF" stroke-width="2"/><rect x="14" y="16" width="72" height="16" rx="6" fill="#3A7CC2"/><rect x="14" y="26" width="72" height="6" fill="#3A7CC2"/>` +
+      `<rect x="26" y="11" width="5" height="10" rx="2.5" fill="#8a917e"/><rect x="69" y="11" width="5" height="10" rx="2.5" fill="#8a917e"/>` +
+      [0, 1, 2].map((r) =>
+        [0, 1, 2, 3].map((col) => {
+          const x = 22 + col * 15, y = 40 + r * 14;
+          const done = (r * 4 + col) % 3 === 0;
+          return done
+            ? `<rect x="${x}" y="${y}" width="11" height="10" rx="3" fill="#3BD27A"/><path d="M${x + 2.5} ${y + 5} l2.2 2.4 4-4.8" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round"/>`
+            : `<rect x="${x}" y="${y}" width="11" height="10" rx="3" fill="none" stroke="#C9C2AC" stroke-width="1.5"/>`;
+        }).join("")
+      ).join("")
+  )
+);
+write(
   "locker/cards/crd-work.svg",
   svg(
     { w: 100, h: 100 },

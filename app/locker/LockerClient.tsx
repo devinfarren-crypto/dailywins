@@ -50,8 +50,16 @@ type Sheet =
   | "bank"
   | "goal"
   | "work"
+  | "calendar"
   | { confirm: CatalogItem }
   | { shelfDetail: ShelfItem };
+
+type CalMark = "done" | "off";
+
+// One YYYY-MM-DD in the student's local time (the locker is client-rendered).
+function localISO(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 // Display size (fraction of CANVAS width) per item type. The canvas is the
 // whole open locker (door + cavity), so these are roughly half the old
@@ -246,6 +254,22 @@ export default function LockerClient() {
           : p
       ),
     }));
+
+  // Month card: tap a day to cycle blank → done → no-school → blank. Old
+  // months are pruned on every edit so the marks record never grows past
+  // this month + last month (the schema's 80-key cap is just the backstop).
+  const cycleCalMark = (date: string) =>
+    mutateLayout((l) => {
+      const marks = { ...(l.calendar?.marks ?? {}) } as Record<string, CalMark>;
+      const cur = marks[date];
+      if (!cur) marks[date] = "done";
+      else if (cur === "done") marks[date] = "off";
+      else delete marks[date];
+      const now = new Date();
+      const floor = localISO(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+      for (const k of Object.keys(marks)) if (k < floor) delete marks[k];
+      return { ...l, calendar: { marks } };
+    });
 
   const buy = async (item: CatalogItem) => {
     const res = await fetch("/api/locker/purchase", {
@@ -635,6 +659,7 @@ export default function LockerClient() {
               goalCategory: layout.goal?.category ?? null,
               goalTarget: layout.goal?.target ?? 80,
               work: layout.work ?? null,
+              calendarMarks: layout.calendar?.marks ?? {},
             }}
             onPointerDown={onPointerDown}
           />
@@ -665,6 +690,9 @@ export default function LockerClient() {
                   />
                 ) : null}
               </>
+            ) : null}
+            {layout.items[selected]?.item_id === "crd-month" ? (
+              <Pill onClick={() => setSheet("calendar")} label="📅 Edit calendar" />
             ) : null}
             <Pill onClick={() => resize(selected, 1.15)} label="＋ Bigger" />
             <Pill onClick={() => resize(selected, 1 / 1.15)} label="－ Smaller" />
@@ -947,6 +975,27 @@ export default function LockerClient() {
         />
       ) : null}
 
+      {sheet === "calendar" ? (
+        <SheetFrame
+          title={new Date().toLocaleDateString(undefined, { month: "long", year: "numeric" })}
+          subtitle="Tap a day — once for ✓ done, twice for no school, again to clear"
+          onClose={() => setSheet(null)}
+        >
+          <CalendarEditor marks={layout.calendar?.marks ?? {}} onTap={cycleCalMark} />
+          <div style={{ display: "flex", gap: 14, justifyContent: "center", marginTop: 14, fontSize: 12, color: MUTED }}>
+            <span><span style={{ color: "#3BD27A", fontWeight: 800 }}>■</span> school day done</span>
+            <span><span style={{ color: "#F0B647", fontWeight: 800 }}>■</span> no school</span>
+            <span><span style={{ color: ACCENT, fontWeight: 800 }}>○</span> today</span>
+          </div>
+          <button
+            onClick={() => setSheet(null)}
+            style={{ marginTop: 16, width: "100%", padding: "13px 0", borderRadius: 12, border: "none", background: ACCENT, color: "#08110d", fontWeight: 800, fontSize: 14.5, cursor: "pointer" }}
+          >
+            Done
+          </button>
+        </SheetFrame>
+      ) : null}
+
       {sheet && typeof sheet === "object" && "shelfDetail" in sheet ? (
         <SheetFrame
           title={sheet.shelfDetail.label}
@@ -1038,6 +1087,7 @@ interface LiveCardData {
   goalCategory: string | null;
   goalTarget: number;
   work: { url: string; caption: number } | null;
+  calendarMarks: Record<string, CalMark>;
 }
 
 function Placed({
@@ -1096,6 +1146,7 @@ function Placed({
             />
           ) : null}
           {item.id === "crd-work" ? <WorkCard work={live?.work ?? null} /> : null}
+          {item.id === "crd-month" ? <CalendarCard marks={live?.calendarMarks ?? {}} /> : null}
         </div>
       ) : (
         // eslint-disable-next-line @next/next/no-img-element
@@ -1345,6 +1396,132 @@ function WorkSheet({
         ) : null}
       </div>
     </SheetFrame>
+  );
+}
+
+// ── month card (functional-objects.md: a calendar that's THEIRS) ─────────────
+
+function monthShape() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const startDow = new Date(year, month, 1).getDay(); // 0 = Sunday
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const weeks = Math.ceil((startDow + daysInMonth) / 7);
+  return { year, month, startDow, daysInMonth, weeks, todayISO: localISO(now) };
+}
+
+const dateISO = (year: number, month: number, day: number) =>
+  `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+function CalendarCard({ marks }: { marks: Record<string, CalMark> }) {
+  const { year, month, startDow, daysInMonth, weeks, todayISO } = monthShape();
+  const title = new Date(year, month, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  const cellW = 15.7;
+  const cellH = 13;
+  const gridTop = 30;
+  const h = gridTop + weeks * cellH + 5;
+  const done = Object.entries(marks).filter(([d, m]) => m === "done" && d.startsWith(dateISO(year, month, 1).slice(0, 8))).length;
+  return (
+    <svg viewBox={`0 0 118 ${h}`} style={{ width: "100%", display: "block", filter: "drop-shadow(0 1px 1px rgba(0,0,0,.2))" }}>
+      <rect x="1" y="1" width="116" height={h - 2} rx="5" fill="#FDFBF4" stroke="#D8D2BF" strokeWidth="1.5" />
+      <rect x="1" y="1" width="116" height="15" rx="5" fill="#3A7CC2" />
+      <rect x="1" y="10" width="116" height="6" fill="#3A7CC2" />
+      <text x="6" y="11.5" fontFamily="Arial" fontWeight="bold" fontSize="7.5" fill="#fff" letterSpacing=".5">
+        {title.toUpperCase()}
+      </text>
+      {done > 0 ? (
+        <text x="112" y="11.5" fontFamily="Arial" fontWeight="bold" fontSize="7" fill="#CDE4FA" textAnchor="end">
+          {done} ✓
+        </text>
+      ) : null}
+      {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+        <text key={i} x={4.5 + i * cellW + cellW / 2} y="24" fontFamily="Arial" fontSize="5.5" fontWeight="bold" fill="#9aa08f" textAnchor="middle">
+          {d}
+        </text>
+      ))}
+      {Array.from({ length: daysInMonth }, (_, d0) => {
+        const day = d0 + 1;
+        const pos = startDow + d0;
+        const col = pos % 7;
+        const row = Math.floor(pos / 7);
+        const x = 4.5 + col * cellW;
+        const y = gridTop + row * cellH;
+        const iso = dateISO(year, month, day);
+        const mark = marks[iso];
+        const weekend = col === 0 || col === 6;
+        const fill = mark === "done" ? "#3BD27A" : mark === "off" ? "#F0B647" : weekend ? "#F0ECDD" : "none";
+        return (
+          <g key={day}>
+            {fill !== "none" ? <rect x={x + 1} y={y - 1} width={cellW - 2.5} height={cellH - 2} rx="3" fill={fill} /> : null}
+            {iso === todayISO ? (
+              <rect x={x + 0.5} y={y - 1.5} width={cellW - 1.5} height={cellH - 1} rx="3.5" fill="none" stroke={ACCENT} strokeWidth="1.4" />
+            ) : null}
+            <text
+              x={x + cellW / 2}
+              y={y + 7.5}
+              fontFamily="Arial"
+              fontSize="6.5"
+              fontWeight={mark ? "bold" : "normal"}
+              fill={mark === "done" ? "#0b3a22" : mark === "off" ? "#5c4408" : "#2c3440"}
+              textAnchor="middle"
+            >
+              {day}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+// The editing grid inside the sheet — same month, big tappable cells.
+function CalendarEditor({ marks, onTap }: { marks: Record<string, CalMark>; onTap: (date: string) => void }) {
+  const { year, month, startDow, daysInMonth, todayISO } = monthShape();
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6, marginBottom: 6 }}>
+        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+          <div key={d} style={{ textAlign: "center", fontSize: 10.5, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: ".06em" }}>
+            {d}
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6 }}>
+        {Array.from({ length: startDow }, (_, i) => (
+          <div key={`pad-${i}`} />
+        ))}
+        {Array.from({ length: daysInMonth }, (_, d0) => {
+          const day = d0 + 1;
+          const iso = dateISO(year, month, day);
+          const mark = marks[iso];
+          const col = (startDow + d0) % 7;
+          const weekend = col === 0 || col === 6;
+          return (
+            <button
+              key={day}
+              onClick={() => onTap(iso)}
+              aria-label={`${iso}${mark === "done" ? " — done" : mark === "off" ? " — no school" : ""}`}
+              style={{
+                aspectRatio: "1",
+                borderRadius: 10,
+                border: iso === todayISO ? `2px solid ${ACCENT}` : `1px solid ${EDGE}`,
+                background: mark === "done" ? "#3BD27A" : mark === "off" ? "#F0B647" : weekend ? "#20253694" : PANEL,
+                color: mark === "done" ? "#0b3a22" : mark === "off" ? "#5c4408" : TEXT,
+                fontSize: 14,
+                fontWeight: 800,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {mark === "done" ? "✓" : day}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

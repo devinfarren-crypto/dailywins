@@ -72,6 +72,17 @@ export const LayoutSchema = z.object({
     })
     .nullable()
     .optional(),
+  // Month card marks: the student checks off finished school days and colors
+  // no-school days. Date keys + a two-value enum — bounded, never free text.
+  // The client prunes marks older than last month; the cap is the backstop.
+  calendar: z
+    .object({
+      marks: z
+        .record(z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.enum(["done", "off"]))
+        .refine((m) => Object.keys(m).length <= 80, "too many marks"),
+    })
+    .nullable()
+    .optional(),
 });
 
 export const GOAL_TARGETS = [60, 70, 80, 90, 100];

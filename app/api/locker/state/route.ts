@@ -5,9 +5,10 @@ import { creditUncreditedDays, weekCategoryProgress } from "@/src/lib/locker/ear
 import { CATALOG, LayoutSchema } from "@/src/lib/locker/schema";
 import { shelfLabel } from "@/src/lib/locker/shelf";
 
-// The functional cards (Today + Goal + My Best Work) are free and universal —
-// granted lazily here so students claimed BEFORE the cards existed get them too.
-const CARD_IDS = ["crd-today", "crd-goal", "crd-work"];
+// The functional cards (Today, Goal, My Best Work, Month) are free and
+// universal — granted lazily here so students claimed BEFORE the cards
+// existed get them too.
+const CARD_IDS = ["crd-today", "crd-goal", "crd-work", "crd-month"];
 
 // Resolve today's bell-schedule variant: specific-date match wins, then
 // day-of-week, then the first variant on file.

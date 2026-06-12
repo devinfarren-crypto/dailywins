@@ -1,5 +1,5 @@
 {
-  "catalog_version": 3,
+  "catalog_version": 4,
   "updated": "2026-06-12",
   "items": [
     {
@@ -704,6 +704,19 @@
         "utility"
       ],
       "asset": "/locker/cards/crd-work.svg"
+    },
+    {
+      "id": "crd-month",
+      "name": "Month Card",
+      "type": "card",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 0,
+      "starter": true,
+      "tags": [
+        "utility"
+      ],
+      "asset": "/locker/cards/crd-month.svg"
     }
   ]
 }
