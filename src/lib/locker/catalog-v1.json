@@ -2,59 +2,695 @@
   "catalog_version": 2,
   "updated": "2026-06-12",
   "items": [
-    { "id": "bg-tan-paint", "name": "Fresh Paint (Tan)", "type": "background", "pack": "classics", "rarity": "common", "price": 0, "starter": true, "tags": ["paint"], "asset": "/locker/backgrounds/bg-tan-paint.svg" },
-    { "id": "bg-navy-paint", "name": "Navy Coat", "type": "background", "pack": "classics", "rarity": "common", "price": 0, "starter": true, "tags": ["paint"], "asset": "/locker/backgrounds/bg-navy-paint.svg" },
-    { "id": "bg-forest-paint", "name": "Forest Green", "type": "background", "pack": "classics", "rarity": "common", "price": 150, "starter": false, "tags": ["paint"], "asset": "/locker/backgrounds/bg-forest-paint.svg" },
-    { "id": "bg-grape-paint", "name": "Grape Soda", "type": "background", "pack": "classics", "rarity": "common", "price": 150, "starter": false, "tags": ["paint"], "asset": "/locker/backgrounds/bg-grape-paint.svg" },
-    { "id": "bg-graph-paper", "name": "Graph Paper", "type": "background", "pack": "classics", "rarity": "common", "price": 200, "starter": false, "tags": ["wallpaper"], "asset": "/locker/backgrounds/bg-graph-paper.svg" },
-    { "id": "bg-denim", "name": "Denim", "type": "background", "pack": "classics", "rarity": "common", "price": 225, "starter": false, "tags": ["texture"], "asset": "/locker/backgrounds/bg-denim.svg" },
-    { "id": "bg-corkboard", "name": "Corkboard", "type": "background", "pack": "classics", "rarity": "common", "price": 250, "starter": false, "tags": ["texture"], "asset": "/locker/backgrounds/bg-corkboard.svg" },
-    { "id": "bg-matte-black", "name": "Matte Black", "type": "background", "pack": "classics", "rarity": "common", "price": 175, "starter": false, "tags": ["paint"], "asset": "/locker/backgrounds/bg-matte-black.svg" },
-    { "id": "bg-chalkboard", "name": "Chalkboard", "type": "background", "pack": "classics", "rarity": "common", "price": 250, "starter": false, "tags": ["texture"], "asset": "/locker/backgrounds/bg-chalkboard.svg" },
-    { "id": "bg-galaxy", "name": "Galaxy", "type": "background", "pack": "classics", "rarity": "common", "price": 275, "starter": false, "tags": ["texture"], "asset": "/locker/backgrounds/bg-galaxy.svg" },
-
-    { "id": "stk-smiley", "name": "Classic Smiley", "type": "sticker", "pack": "classics", "rarity": "common", "price": 0, "starter": true, "tags": ["retro"], "asset": "/locker/stickers/stk-smiley.svg" },
-    { "id": "stk-lightning", "name": "Lightning Bolt", "type": "sticker", "pack": "classics", "rarity": "common", "price": 0, "starter": true, "tags": ["shape"], "asset": "/locker/stickers/stk-lightning.svg" },
-    { "id": "stk-star-gold", "name": "Gold Star", "type": "sticker", "pack": "classics", "rarity": "common", "price": 0, "starter": true, "tags": ["shape"], "asset": "/locker/stickers/stk-star-gold.svg" },
-    { "id": "stk-peace", "name": "Peace Sign", "type": "sticker", "pack": "classics", "rarity": "common", "price": 0, "starter": true, "tags": ["retro"], "asset": "/locker/stickers/stk-peace.svg" },
-    { "id": "stk-pizza", "name": "Pizza Slice", "type": "sticker", "pack": "classics", "rarity": "common", "price": 25, "starter": false, "tags": ["food"], "asset": "/locker/stickers/stk-pizza.svg" },
-    { "id": "stk-controller", "name": "Player One", "type": "sticker", "pack": "classics", "rarity": "common", "price": 30, "starter": false, "tags": ["games"], "asset": "/locker/stickers/stk-controller.svg" },
-    { "id": "stk-dice", "name": "Fuzzy Dice", "type": "sticker", "pack": "classics", "rarity": "common", "price": 35, "starter": false, "tags": ["retro"], "asset": "/locker/stickers/stk-dice.svg" },
-    { "id": "stk-flame", "name": "Flames", "type": "sticker", "pack": "classics", "rarity": "common", "price": 40, "starter": false, "tags": ["shape"], "asset": "/locker/stickers/stk-flame.svg" },
-    { "id": "stk-yinyang", "name": "Yin Yang", "type": "sticker", "pack": "classics", "rarity": "common", "price": 25, "starter": false, "tags": ["retro"], "asset": "/locker/stickers/stk-yinyang.svg" },
-    { "id": "stk-eightball", "name": "8-Ball", "type": "sticker", "pack": "classics", "rarity": "common", "price": 35, "starter": false, "tags": ["retro"], "asset": "/locker/stickers/stk-eightball.svg" },
-    { "id": "stk-holo-star", "name": "Holo Star", "type": "sticker", "pack": "classics", "rarity": "holo", "price": 130, "starter": false, "tags": ["shape", "holo"], "asset": "/locker/stickers/stk-holo-star.svg" },
-    { "id": "stk-holo-saturn", "name": "Holo Saturn", "type": "sticker", "pack": "classics", "rarity": "holo", "price": 140, "starter": false, "tags": ["space", "holo"], "asset": "/locker/stickers/stk-holo-saturn.svg" },
-
-    { "id": "btn-have-nice-day", "name": "Have A Nice Day", "type": "button", "pack": "classics", "rarity": "common", "price": 65, "starter": false, "tags": ["retro"], "asset": "/locker/buttons/btn-have-nice-day.svg" },
-    { "id": "btn-question", "name": "Question Everything", "type": "button", "pack": "classics", "rarity": "common", "price": 70, "starter": false, "tags": ["text"], "asset": "/locker/buttons/btn-question.svg" },
-    { "id": "btn-86", "name": "Class of Whenever", "type": "button", "pack": "classics", "rarity": "common", "price": 60, "starter": false, "tags": ["school"], "asset": "/locker/buttons/btn-86.svg" },
-    { "id": "btn-vinyl", "name": "Spin Records", "type": "button", "pack": "classics", "rarity": "common", "price": 75, "starter": false, "tags": ["music"], "asset": "/locker/buttons/btn-vinyl.svg" },
-    { "id": "pat-varsity-d", "name": "Varsity D", "type": "patch", "pack": "classics", "rarity": "foil", "price": 140, "starter": false, "tags": ["school"], "asset": "/locker/patches/pat-varsity-d.svg" },
-    { "id": "pat-roadtrip", "name": "Route Patch", "type": "patch", "pack": "classics", "rarity": "common", "price": 130, "starter": false, "tags": ["retro"], "asset": "/locker/patches/pat-roadtrip.svg" },
-    { "id": "mir-chrome", "name": "Locker Mirror", "type": "mirror", "pack": "classics", "rarity": "foil", "price": 300, "starter": false, "tags": ["classic"], "asset": "/locker/mirrors/mir-chrome.svg" },
-    { "id": "mag-classic-1", "name": "Black Magnet", "type": "magnet", "pack": "classics", "rarity": "common", "price": 0, "starter": true, "tags": ["utility"], "asset": "/locker/magnets/mag-classic-1.svg" },
-    { "id": "mag-classic-2", "name": "Red Magnet", "type": "magnet", "pack": "classics", "rarity": "common", "price": 0, "starter": true, "tags": ["utility"], "asset": "/locker/magnets/mag-classic-2.svg" },
-
-    { "id": "stk-px-heart", "name": "Pixel Heart", "type": "sticker", "pack": "arcade", "rarity": "common", "price": 30, "starter": false, "tags": ["games", "pixel"], "asset": "/locker/stickers/stk-px-heart.svg" },
-    { "id": "stk-px-sword", "name": "Pixel Sword", "type": "sticker", "pack": "arcade", "rarity": "common", "price": 35, "starter": false, "tags": ["games", "pixel"], "asset": "/locker/stickers/stk-px-sword.svg" },
-    { "id": "stk-px-highscore", "name": "High Score", "type": "sticker", "pack": "arcade", "rarity": "common", "price": 35, "starter": false, "tags": ["games", "text"], "asset": "/locker/stickers/stk-px-highscore.svg" },
-    { "id": "stk-px-joystick", "name": "Joystick", "type": "sticker", "pack": "arcade", "rarity": "common", "price": 30, "starter": false, "tags": ["games"], "asset": "/locker/stickers/stk-px-joystick.svg" },
-    { "id": "stk-px-coin", "name": "Insert Coin", "type": "sticker", "pack": "arcade", "rarity": "common", "price": 25, "starter": false, "tags": ["games", "text"], "asset": "/locker/stickers/stk-px-coin.svg" },
-    { "id": "stk-px-healthbar", "name": "Full Health", "type": "sticker", "pack": "arcade", "rarity": "common", "price": 30, "starter": false, "tags": ["games", "pixel"], "asset": "/locker/stickers/stk-px-healthbar.svg" },
-    { "id": "stk-px-levelup", "name": "Level Up", "type": "sticker", "pack": "arcade", "rarity": "foil", "price": 90, "starter": false, "tags": ["games", "pixel"], "asset": "/locker/stickers/stk-px-levelup.svg" },
-    { "id": "stk-px-bitt", "name": "Bitt", "type": "sticker", "pack": "arcade", "rarity": "holo", "price": 150, "starter": false, "tags": ["games", "mascot"], "asset": "/locker/stickers/stk-px-bitt.svg" },
-    { "id": "bg-grid-horizon", "name": "Grid Horizon", "type": "background", "pack": "arcade", "rarity": "common", "price": 250, "starter": false, "tags": ["games"], "asset": "/locker/backgrounds/bg-grid-horizon.svg" },
-
-    { "id": "stk-cassette", "name": "Mixtape", "type": "sticker", "pack": "mixtape", "rarity": "common", "price": 25, "starter": false, "tags": ["music", "retro"], "asset": "/locker/stickers/stk-cassette.svg" },
-    { "id": "stk-boombox", "name": "Boombox", "type": "sticker", "pack": "mixtape", "rarity": "common", "price": 30, "starter": false, "tags": ["music", "retro"], "asset": "/locker/stickers/stk-boombox.svg" },
-    { "id": "stk-skateboard", "name": "Kickflip", "type": "sticker", "pack": "classics", "rarity": "common", "price": 0, "starter": true, "tags": ["sports"], "asset": "/locker/stickers/stk-skateboard.svg" },
-    { "id": "stk-mx-headphones", "name": "Headphones", "type": "sticker", "pack": "mixtape", "rarity": "common", "price": 30, "starter": false, "tags": ["music"], "asset": "/locker/stickers/stk-mx-headphones.svg" },
-    { "id": "stk-mx-vinyl", "name": "Vinyl", "type": "sticker", "pack": "mixtape", "rarity": "common", "price": 35, "starter": false, "tags": ["music"], "asset": "/locker/stickers/stk-mx-vinyl.svg" },
-    { "id": "stk-mx-nowplaying", "name": "Now Playing", "type": "sticker", "pack": "mixtape", "rarity": "common", "price": 30, "starter": false, "tags": ["music", "text"], "asset": "/locker/stickers/stk-mx-nowplaying.svg" },
-    { "id": "stk-mx-noskips", "name": "No Skips", "type": "sticker", "pack": "mixtape", "rarity": "common", "price": 25, "starter": false, "tags": ["music", "text"], "asset": "/locker/stickers/stk-mx-noskips.svg" },
-    { "id": "stk-mx-eq", "name": "Equalizer", "type": "sticker", "pack": "mixtape", "rarity": "foil", "price": 85, "starter": false, "tags": ["music"], "asset": "/locker/stickers/stk-mx-eq.svg" },
-    { "id": "stk-mx-demi", "name": "Demi", "type": "sticker", "pack": "mixtape", "rarity": "holo", "price": 150, "starter": false, "tags": ["music", "mascot"], "asset": "/locker/stickers/stk-mx-demi.svg" },
-    { "id": "bg-poster-wall", "name": "Poster Wall", "type": "background", "pack": "mixtape", "rarity": "common", "price": 250, "starter": false, "tags": ["music"], "asset": "/locker/backgrounds/bg-poster-wall.svg" }
+    {
+      "id": "bg-tan-paint",
+      "name": "Fresh Paint (Tan)",
+      "type": "background",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 0,
+      "starter": true,
+      "tags": [
+        "paint"
+      ],
+      "asset": "/locker/backgrounds/bg-tan-paint.svg"
+    },
+    {
+      "id": "bg-navy-paint",
+      "name": "Navy Coat",
+      "type": "background",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 0,
+      "starter": true,
+      "tags": [
+        "paint"
+      ],
+      "asset": "/locker/backgrounds/bg-navy-paint.svg"
+    },
+    {
+      "id": "bg-forest-paint",
+      "name": "Forest Green",
+      "type": "background",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 150,
+      "starter": false,
+      "tags": [
+        "paint"
+      ],
+      "asset": "/locker/backgrounds/bg-forest-paint.svg"
+    },
+    {
+      "id": "bg-grape-paint",
+      "name": "Grape Soda",
+      "type": "background",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 150,
+      "starter": false,
+      "tags": [
+        "paint"
+      ],
+      "asset": "/locker/backgrounds/bg-grape-paint.svg"
+    },
+    {
+      "id": "bg-graph-paper",
+      "name": "Graph Paper",
+      "type": "background",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 200,
+      "starter": false,
+      "tags": [
+        "wallpaper"
+      ],
+      "asset": "/locker/backgrounds/bg-graph-paper.svg"
+    },
+    {
+      "id": "bg-denim",
+      "name": "Denim",
+      "type": "background",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 225,
+      "starter": false,
+      "tags": [
+        "texture"
+      ],
+      "asset": "/locker/backgrounds/bg-denim.svg"
+    },
+    {
+      "id": "bg-corkboard",
+      "name": "Corkboard",
+      "type": "background",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 250,
+      "starter": false,
+      "tags": [
+        "texture"
+      ],
+      "asset": "/locker/backgrounds/bg-corkboard.svg"
+    },
+    {
+      "id": "bg-matte-black",
+      "name": "Matte Black",
+      "type": "background",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 175,
+      "starter": false,
+      "tags": [
+        "paint"
+      ],
+      "asset": "/locker/backgrounds/bg-matte-black.svg"
+    },
+    {
+      "id": "bg-chalkboard",
+      "name": "Chalkboard",
+      "type": "background",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 250,
+      "starter": false,
+      "tags": [
+        "texture"
+      ],
+      "asset": "/locker/backgrounds/bg-chalkboard.svg"
+    },
+    {
+      "id": "bg-galaxy",
+      "name": "Galaxy",
+      "type": "background",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 275,
+      "starter": false,
+      "tags": [
+        "texture"
+      ],
+      "asset": "/locker/backgrounds/bg-galaxy.svg"
+    },
+    {
+      "id": "stk-smiley",
+      "name": "Classic Smiley",
+      "type": "sticker",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 0,
+      "starter": true,
+      "tags": [
+        "retro"
+      ],
+      "asset": "/locker/stickers/stk-smiley.svg"
+    },
+    {
+      "id": "stk-lightning",
+      "name": "Lightning Bolt",
+      "type": "sticker",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 0,
+      "starter": true,
+      "tags": [
+        "shape"
+      ],
+      "asset": "/locker/stickers/stk-lightning.svg"
+    },
+    {
+      "id": "stk-star-gold",
+      "name": "Gold Star",
+      "type": "sticker",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 0,
+      "starter": true,
+      "tags": [
+        "shape"
+      ],
+      "asset": "/locker/stickers/stk-star-gold.svg"
+    },
+    {
+      "id": "stk-peace",
+      "name": "Peace Sign",
+      "type": "sticker",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 0,
+      "starter": true,
+      "tags": [
+        "retro"
+      ],
+      "asset": "/locker/stickers/stk-peace.svg"
+    },
+    {
+      "id": "stk-pizza",
+      "name": "Pizza Slice",
+      "type": "sticker",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 25,
+      "starter": false,
+      "tags": [
+        "food"
+      ],
+      "asset": "/locker/stickers/stk-pizza.svg"
+    },
+    {
+      "id": "stk-controller",
+      "name": "Player One",
+      "type": "sticker",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 30,
+      "starter": false,
+      "tags": [
+        "games"
+      ],
+      "asset": "/locker/stickers/stk-controller.svg"
+    },
+    {
+      "id": "stk-dice",
+      "name": "Fuzzy Dice",
+      "type": "sticker",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 35,
+      "starter": false,
+      "tags": [
+        "retro"
+      ],
+      "asset": "/locker/stickers/stk-dice.svg"
+    },
+    {
+      "id": "stk-flame",
+      "name": "Flames",
+      "type": "sticker",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 40,
+      "starter": false,
+      "tags": [
+        "shape"
+      ],
+      "asset": "/locker/stickers/stk-flame.svg"
+    },
+    {
+      "id": "stk-yinyang",
+      "name": "Yin Yang",
+      "type": "sticker",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 25,
+      "starter": false,
+      "tags": [
+        "retro"
+      ],
+      "asset": "/locker/stickers/stk-yinyang.svg"
+    },
+    {
+      "id": "stk-eightball",
+      "name": "8-Ball",
+      "type": "sticker",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 35,
+      "starter": false,
+      "tags": [
+        "retro"
+      ],
+      "asset": "/locker/stickers/stk-eightball.svg"
+    },
+    {
+      "id": "stk-holo-star",
+      "name": "Holo Star",
+      "type": "sticker",
+      "pack": "classics",
+      "rarity": "holo",
+      "price": 130,
+      "starter": false,
+      "tags": [
+        "shape",
+        "holo"
+      ],
+      "asset": "/locker/stickers/stk-holo-star.svg"
+    },
+    {
+      "id": "stk-holo-saturn",
+      "name": "Holo Saturn",
+      "type": "sticker",
+      "pack": "classics",
+      "rarity": "holo",
+      "price": 140,
+      "starter": false,
+      "tags": [
+        "space",
+        "holo"
+      ],
+      "asset": "/locker/stickers/stk-holo-saturn.svg"
+    },
+    {
+      "id": "btn-have-nice-day",
+      "name": "Have A Nice Day",
+      "type": "button",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 65,
+      "starter": false,
+      "tags": [
+        "retro"
+      ],
+      "asset": "/locker/buttons/btn-have-nice-day.svg"
+    },
+    {
+      "id": "btn-question",
+      "name": "Question Everything",
+      "type": "button",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 70,
+      "starter": false,
+      "tags": [
+        "text"
+      ],
+      "asset": "/locker/buttons/btn-question.svg"
+    },
+    {
+      "id": "btn-86",
+      "name": "Class of Whenever",
+      "type": "button",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 60,
+      "starter": false,
+      "tags": [
+        "school"
+      ],
+      "asset": "/locker/buttons/btn-86.svg"
+    },
+    {
+      "id": "btn-vinyl",
+      "name": "Spin Records",
+      "type": "button",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 75,
+      "starter": false,
+      "tags": [
+        "music"
+      ],
+      "asset": "/locker/buttons/btn-vinyl.svg"
+    },
+    {
+      "id": "pat-varsity-d",
+      "name": "Varsity D",
+      "type": "patch",
+      "pack": "classics",
+      "rarity": "foil",
+      "price": 140,
+      "starter": false,
+      "tags": [
+        "school"
+      ],
+      "asset": "/locker/patches/pat-varsity-d.svg"
+    },
+    {
+      "id": "pat-roadtrip",
+      "name": "Route Patch",
+      "type": "patch",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 130,
+      "starter": false,
+      "tags": [
+        "retro"
+      ],
+      "asset": "/locker/patches/pat-roadtrip.svg"
+    },
+    {
+      "id": "mir-chrome",
+      "name": "Locker Mirror",
+      "type": "mirror",
+      "pack": "classics",
+      "rarity": "foil",
+      "price": 300,
+      "starter": false,
+      "tags": [
+        "classic"
+      ],
+      "asset": "/locker/mirrors/mir-chrome.svg"
+    },
+    {
+      "id": "mag-classic-1",
+      "name": "Black Magnet",
+      "type": "magnet",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 0,
+      "starter": true,
+      "tags": [
+        "utility"
+      ],
+      "asset": "/locker/magnets/mag-classic-1.svg"
+    },
+    {
+      "id": "mag-classic-2",
+      "name": "Red Magnet",
+      "type": "magnet",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 0,
+      "starter": true,
+      "tags": [
+        "utility"
+      ],
+      "asset": "/locker/magnets/mag-classic-2.svg"
+    },
+    {
+      "id": "stk-px-heart",
+      "name": "Pixel Heart",
+      "type": "sticker",
+      "pack": "arcade",
+      "rarity": "common",
+      "price": 30,
+      "starter": false,
+      "tags": [
+        "games",
+        "pixel"
+      ],
+      "asset": "/locker/stickers/stk-px-heart.svg"
+    },
+    {
+      "id": "stk-px-sword",
+      "name": "Pixel Sword",
+      "type": "sticker",
+      "pack": "arcade",
+      "rarity": "common",
+      "price": 35,
+      "starter": false,
+      "tags": [
+        "games",
+        "pixel"
+      ],
+      "asset": "/locker/stickers/stk-px-sword.svg"
+    },
+    {
+      "id": "stk-px-highscore",
+      "name": "High Score",
+      "type": "sticker",
+      "pack": "arcade",
+      "rarity": "common",
+      "price": 35,
+      "starter": false,
+      "tags": [
+        "games",
+        "text"
+      ],
+      "asset": "/locker/stickers/stk-px-highscore.svg"
+    },
+    {
+      "id": "stk-px-joystick",
+      "name": "Joystick",
+      "type": "sticker",
+      "pack": "arcade",
+      "rarity": "common",
+      "price": 30,
+      "starter": false,
+      "tags": [
+        "games"
+      ],
+      "asset": "/locker/stickers/stk-px-joystick.svg"
+    },
+    {
+      "id": "stk-px-coin",
+      "name": "Insert Coin",
+      "type": "sticker",
+      "pack": "arcade",
+      "rarity": "common",
+      "price": 25,
+      "starter": false,
+      "tags": [
+        "games",
+        "text"
+      ],
+      "asset": "/locker/stickers/stk-px-coin.svg"
+    },
+    {
+      "id": "stk-px-healthbar",
+      "name": "Full Health",
+      "type": "sticker",
+      "pack": "arcade",
+      "rarity": "common",
+      "price": 30,
+      "starter": false,
+      "tags": [
+        "games",
+        "pixel"
+      ],
+      "asset": "/locker/stickers/stk-px-healthbar.svg"
+    },
+    {
+      "id": "stk-px-levelup",
+      "name": "Level Up",
+      "type": "sticker",
+      "pack": "arcade",
+      "rarity": "foil",
+      "price": 90,
+      "starter": false,
+      "tags": [
+        "games",
+        "pixel"
+      ],
+      "asset": "/locker/stickers/stk-px-levelup.svg"
+    },
+    {
+      "id": "stk-px-bitt",
+      "name": "Bitt",
+      "type": "sticker",
+      "pack": "arcade",
+      "rarity": "holo",
+      "price": 150,
+      "starter": false,
+      "tags": [
+        "games",
+        "mascot"
+      ],
+      "asset": "/locker/stickers/stk-px-bitt.svg"
+    },
+    {
+      "id": "bg-grid-horizon",
+      "name": "Grid Horizon",
+      "type": "background",
+      "pack": "arcade",
+      "rarity": "common",
+      "price": 250,
+      "starter": false,
+      "tags": [
+        "games"
+      ],
+      "asset": "/locker/backgrounds/bg-grid-horizon.svg"
+    },
+    {
+      "id": "stk-cassette",
+      "name": "Mixtape",
+      "type": "sticker",
+      "pack": "mixtape",
+      "rarity": "common",
+      "price": 25,
+      "starter": false,
+      "tags": [
+        "music",
+        "retro"
+      ],
+      "asset": "/locker/stickers/stk-cassette.svg"
+    },
+    {
+      "id": "stk-boombox",
+      "name": "Boombox",
+      "type": "sticker",
+      "pack": "mixtape",
+      "rarity": "common",
+      "price": 30,
+      "starter": false,
+      "tags": [
+        "music",
+        "retro"
+      ],
+      "asset": "/locker/stickers/stk-boombox.svg"
+    },
+    {
+      "id": "stk-skateboard",
+      "name": "Kickflip",
+      "type": "sticker",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 0,
+      "starter": true,
+      "tags": [
+        "sports"
+      ],
+      "asset": "/locker/stickers/stk-skateboard.svg"
+    },
+    {
+      "id": "stk-mx-headphones",
+      "name": "Headphones",
+      "type": "sticker",
+      "pack": "mixtape",
+      "rarity": "common",
+      "price": 30,
+      "starter": false,
+      "tags": [
+        "music"
+      ],
+      "asset": "/locker/stickers/stk-mx-headphones.svg"
+    },
+    {
+      "id": "stk-mx-vinyl",
+      "name": "Vinyl",
+      "type": "sticker",
+      "pack": "mixtape",
+      "rarity": "common",
+      "price": 35,
+      "starter": false,
+      "tags": [
+        "music"
+      ],
+      "asset": "/locker/stickers/stk-mx-vinyl.svg"
+    },
+    {
+      "id": "stk-mx-nowplaying",
+      "name": "Now Playing",
+      "type": "sticker",
+      "pack": "mixtape",
+      "rarity": "common",
+      "price": 30,
+      "starter": false,
+      "tags": [
+        "music",
+        "text"
+      ],
+      "asset": "/locker/stickers/stk-mx-nowplaying.svg"
+    },
+    {
+      "id": "stk-mx-noskips",
+      "name": "No Skips",
+      "type": "sticker",
+      "pack": "mixtape",
+      "rarity": "common",
+      "price": 25,
+      "starter": false,
+      "tags": [
+        "music",
+        "text"
+      ],
+      "asset": "/locker/stickers/stk-mx-noskips.svg"
+    },
+    {
+      "id": "stk-mx-eq",
+      "name": "Equalizer",
+      "type": "sticker",
+      "pack": "mixtape",
+      "rarity": "foil",
+      "price": 85,
+      "starter": false,
+      "tags": [
+        "music"
+      ],
+      "asset": "/locker/stickers/stk-mx-eq.svg"
+    },
+    {
+      "id": "stk-mx-demi",
+      "name": "Demi",
+      "type": "sticker",
+      "pack": "mixtape",
+      "rarity": "holo",
+      "price": 150,
+      "starter": false,
+      "tags": [
+        "music",
+        "mascot"
+      ],
+      "asset": "/locker/stickers/stk-mx-demi.svg"
+    },
+    {
+      "id": "bg-poster-wall",
+      "name": "Poster Wall",
+      "type": "background",
+      "pack": "mixtape",
+      "rarity": "common",
+      "price": 250,
+      "starter": false,
+      "tags": [
+        "music"
+      ],
+      "asset": "/locker/backgrounds/bg-poster-wall.svg"
+    },
+    {
+      "id": "crd-today",
+      "name": "Today Card",
+      "type": "card",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 0,
+      "starter": true,
+      "tags": [
+        "utility"
+      ],
+      "asset": "/locker/cards/crd-today.svg"
+    },
+    {
+      "id": "crd-goal",
+      "name": "Goal Card",
+      "type": "card",
+      "pack": "classics",
+      "rarity": "common",
+      "price": 0,
+      "starter": true,
+      "tags": [
+        "utility"
+      ],
+      "asset": "/locker/cards/crd-goal.svg"
+    }
   ]
 }

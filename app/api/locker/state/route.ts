@@ -1,8 +1,38 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/src/lib/supabase-admin";
 import { resolveLockerIdentity, canonicalGroupIds } from "@/src/lib/locker/session";
-import { creditUncreditedDays } from "@/src/lib/locker/earn";
+import { creditUncreditedDays, weekCategoryProgress } from "@/src/lib/locker/earn";
 import { CATALOG, LayoutSchema } from "@/src/lib/locker/schema";
+
+// The functional cards (Today + Goal) are free and universal — granted
+// lazily here so students claimed BEFORE the cards existed get them too.
+const CARD_IDS = ["crd-today", "crd-goal"];
+
+// Resolve today's bell-schedule variant: specific-date match wins, then
+// day-of-week, then the first variant on file.
+type Variant = {
+  periods: { label: string; start: string; end: string; type?: string }[];
+  days?: string[] | null;
+  specific_dates?: string[] | null;
+};
+function todaysPeriods(schedules: Record<string, Variant> | null) {
+  if (!schedules) return null;
+  const entries = Object.entries(schedules);
+  if (entries.length === 0) return null;
+  const now = new Date();
+  const iso = now.toISOString().slice(0, 10);
+  const dow = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"][now.getDay()];
+  const pick =
+    entries.find(([, v]) => v.specific_dates?.includes(iso)) ??
+    entries.find(([, v]) => v.days?.includes(dow)) ??
+    entries[0];
+  return {
+    variant: pick[0],
+    periods: (pick[1].periods ?? [])
+      .filter((p) => p.type !== "non_student")
+      .map((p) => ({ label: p.label, start: p.start, end: p.end, kind: p.type ?? "class" })),
+  };
+}
 
 // Everything the locker UI needs in one read — and the lazy daily-earn
 // credit happens here, so opening the locker is what mints yesterday's
@@ -13,6 +43,12 @@ export async function GET() {
   if (!identity) {
     return NextResponse.json({ ok: false, error: "no_locker_session" }, { status: 401 });
   }
+
+  // Free universal cards — idempotent lazy grant.
+  await admin.from("student_inventory").upsert(
+    CARD_IDS.map((id) => ({ student_id: identity.studentId, item_id: id, acquired_via: "grant" })),
+    { onConflict: "student_id,item_id", ignoreDuplicates: true }
+  );
 
   // Lazy credit settled days for the activating class.
   const { data: teacher } = await admin
@@ -34,7 +70,8 @@ export async function GET() {
     });
   }
 
-  const [{ data: ledger }, { data: inventory }, { data: layoutRow }] = await Promise.all([
+  const groupIdsForGoal = await canonicalGroupIds(admin, identity.studentId);
+  const [{ data: ledger }, { data: inventory }, { data: layoutRow }, { data: schoolRow }, weekProgress] = await Promise.all([
     admin
       .from("points_ledger")
       .select("id, entry_type, amount, ref, created_at")
@@ -50,6 +87,8 @@ export async function GET() {
       .select("layout")
       .eq("student_id", identity.studentId)
       .maybeSingle(),
+    admin.from("schools").select("schedules").eq("id", identity.schoolId).maybeSingle(),
+    weekCategoryProgress(admin, { groupIds: groupIdsForGoal, teacherId: identity.teacherId }),
   ]);
 
   const rows = ledger ?? [];
@@ -75,6 +114,8 @@ export async function GET() {
     inventory: (inventory ?? []).map((r) => r.item_id),
     layout: layout.success ? layout.data : { items: [], background: null },
     catalogVersion: CATALOG.catalog_version,
+    today: todaysPeriods((schoolRow?.schedules ?? null) as Record<string, Variant> | null),
+    weekProgress,
   });
 }
 

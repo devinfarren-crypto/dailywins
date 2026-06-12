@@ -6,9 +6,9 @@ import rawCatalog from "./catalog-v1.json";
 
 export const CatalogItemSchema = z
   .object({
-    id: z.string().regex(/^(stk|btn|pat|mag|mir|bg)-[a-z0-9-]+$/),
+    id: z.string().regex(/^(stk|btn|pat|mag|mir|bg|crd)-[a-z0-9-]+$/),
     name: z.string().min(1).max(28),
-    type: z.enum(["sticker", "button", "patch", "magnet", "mirror", "background"]),
+    type: z.enum(["sticker", "button", "patch", "magnet", "mirror", "background", "card"]),
     pack: z.string().min(1), // collection slug ("classics", "arcade", "mixtape", …)
     // Rarity drives visual treatment + price ONLY — never drops, never timers.
     rarity: z.enum(["common", "foil", "holo"]),
@@ -53,6 +53,9 @@ export const PlacedItemSchema = z.object({
 export const LayoutSchema = z.object({
   background: z.string().nullable(),
   items: z.array(PlacedItemSchema).max(40), // mirrors the 054 DB CHECK
+  // The goal card's chosen behavior category — student-writable state, but
+  // only a category id, never free text.
+  goal: z.object({ category: z.string() }).nullable().optional(),
 });
 
 export const PACK_NAMES: Record<string, string> = {

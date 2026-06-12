@@ -312,6 +312,23 @@ for (const item of catalog.items) {
     );
   }
 }
+// Card thumbnails (shoebox/store only — on the door these render LIVE).
+write(
+  "locker/cards/crd-today.svg",
+  svg(
+    { w: 100, h: 100 },
+    `<rect x="14" y="18" width="72" height="64" rx="5" fill="#FDFBF4" stroke="#D8D2BF" stroke-width="2"/><rect x="14" y="18" width="72" height="14" rx="5" fill="#E8485C"/><text x="50" y="28.5" font-family="Arial" font-weight="bold" font-size="9" text-anchor="middle" fill="#fff" letter-spacing="1">TODAY</text>` +
+      [42, 52, 62, 72].map((y) => `<line x1="22" y1="${y}" x2="78" y2="${y}" stroke="#C9D6E4" stroke-width="2"/>`).join("")
+  )
+);
+write(
+  "locker/cards/crd-goal.svg",
+  svg(
+    { w: 100, h: 100 },
+    `<rect x="12" y="26" width="76" height="48" rx="7" fill="#16324F"/><circle cx="12" cy="50" r="5" fill="#0f1118"/><circle cx="88" cy="50" r="5" fill="#0f1118"/><text x="50" y="44" font-family="Arial" font-weight="bold" font-size="10" text-anchor="middle" fill="#9BE7FF" letter-spacing="1">MY GOAL</text><rect x="22" y="52" width="56" height="9" rx="4.5" fill="#0c2238"/><rect x="22" y="52" width="38" height="9" rx="4.5" fill="#3BD27A"/>`
+  )
+);
+
 // Shared noise tile — applied as a repeated background-image (the filter
 // rasterizes once when the image loads; never a live CSS filter).
 write(

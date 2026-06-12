@@ -34,6 +34,8 @@ interface LockerState {
   ledger: { id: string; entry_type: string; amount: number; ref: Record<string, unknown>; created_at: string }[];
   inventory: string[];
   layout: LockerLayout;
+  today: { variant: string; periods: { label: string; start: string; end: string; kind: string }[] } | null;
+  weekProgress: { id: string; name: string; earned: number; possible: number }[];
 }
 
 type Sheet = null | "shoebox" | "store" | "bank" | { confirm: CatalogItem };
@@ -47,6 +49,7 @@ const SIZE: Record<CatalogItem["type"], number> = {
   patch: 0.135,
   magnet: 0.07,
   mirror: 0.15,
+  card: 0.17,
   background: 0,
 };
 
@@ -549,6 +552,7 @@ export default function LockerClient() {
             selected={selected === idx}
             slap={justPlaced === idx}
             settle={settling === idx}
+            live={{ today: state.today, weekProgress: state.weekProgress, goalCategory: layout.goal?.category ?? null }}
             onPointerDown={onPointerDown}
           />
         ))}
@@ -558,6 +562,17 @@ export default function LockerClient() {
       <div style={{ height: 58, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
         {selected !== null && layout.items[selected] ? (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+            {layout.items[selected]?.item_id === "crd-goal" && state.weekProgress.length > 0 ? (
+              <Pill
+                onClick={() => {
+                  const ids = state.weekProgress.map((p) => p.id);
+                  const cur = ids.indexOf(layout.goal?.category ?? "");
+                  const next = ids[(cur + 1) % ids.length];
+                  mutateLayout((l) => ({ ...l, goal: { category: next } }));
+                }}
+                label="🎯 Change goal"
+              />
+            ) : null}
             <Pill onClick={() => resize(selected, 1.15)} label="＋ Bigger" />
             <Pill onClick={() => resize(selected, 1 / 1.15)} label="－ Smaller" />
             <Pill onClick={() => nudgeZ(selected, 1)} label="Forward" />
@@ -784,12 +799,19 @@ export default function LockerClient() {
 
 // ── pieces ────────────────────────────────────────────────────────────────────
 
+interface LiveCardData {
+  today: LockerState["today"] | null;
+  weekProgress: LockerState["weekProgress"];
+  goalCategory: string | null;
+}
+
 function Placed({
   placed,
   idx,
   selected,
   slap,
   settle,
+  live,
   onPointerDown,
 }: {
   placed: PlacedItem;
@@ -797,6 +819,7 @@ function Placed({
   selected: boolean;
   slap: boolean;
   settle: boolean;
+  live?: LiveCardData;
   onPointerDown: (e: React.PointerEvent, idx: number) => void;
 }) {
   const item = CATALOG_BY_ID.get(placed.item_id);
@@ -827,11 +850,95 @@ function Placed({
         cursor: "grab",
       }}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={item.asset} alt="" draggable={false} style={{ width: "100%", display: "block", pointerEvents: "none" }} />
+      {item.type === "card" ? (
+        <div style={{ pointerEvents: "none" }}>
+          {item.id === "crd-today" ? <TodayCard data={live?.today ?? null} /> : null}
+          {item.id === "crd-goal" ? (
+            <GoalCard progress={live?.weekProgress ?? []} category={live?.goalCategory ?? null} />
+          ) : null}
+        </div>
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={item.asset} alt="" draggable={false} style={{ width: "100%", display: "block", pointerEvents: "none" }} />
+      )}
       {/* foil/holo sheen — one-shot, only when selected (perf + photosensitivity) */}
       {selected && item.rarity !== "common" ? <div className="lk-sheen" /> : null}
     </div>
+  );
+}
+
+// ── live functional cards (inline SVG — crisp at every scale) ────────────────
+
+function TodayCard({ data }: { data: LockerState["today"] | null }) {
+  const now = new Date();
+  const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  const dayLabel = now.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  const periods = (data?.periods ?? []).slice(0, 8);
+  const rowH = 13;
+  const h = 34 + Math.max(periods.length, 1) * rowH + 8;
+  return (
+    <svg viewBox={`0 0 120 ${h}`} style={{ width: "100%", display: "block", filter: "drop-shadow(0 1px 1px rgba(0,0,0,.2))" }}>
+      <rect x="1" y="1" width="118" height={h - 2} rx="5" fill="#FDFBF4" stroke="#D8D2BF" strokeWidth="1.5" />
+      <rect x="1" y="1" width="118" height="20" rx="5" fill="#E8485C" />
+      <rect x="1" y="14" width="118" height="7" fill="#E8485C" />
+      <text x="8" y="14.5" fontFamily="Arial" fontWeight="bold" fontSize="9" fill="#fff" letterSpacing="1">TODAY</text>
+      <text x="112" y="14.5" fontFamily="Arial" fontSize="8" fill="#fff" textAnchor="end">{dayLabel}</text>
+      {periods.length === 0 ? (
+        <text x="60" y={h / 2 + 12} fontFamily="Arial" fontSize="8" fill="#8a917e" textAnchor="middle">No schedule on file yet</text>
+      ) : (
+        periods.map((p, i) => {
+          const y = 32 + i * rowH;
+          const current = hhmm >= p.start && hhmm <= p.end;
+          return (
+            <g key={i}>
+              {current ? <rect x="4" y={y - 9} width="112" height={rowH - 1} rx="3" fill="#FFF3C4" /> : null}
+              <text x="8" y={y} fontFamily="Arial" fontSize="8" fontWeight={current ? "bold" : "normal"} fill={p.kind === "break" ? "#9aa08f" : "#2c3440"}>
+                {p.label.length > 14 ? `${p.label.slice(0, 13)}…` : p.label}
+              </text>
+              <text x="112" y={y} fontFamily="Arial" fontSize="7.5" fill="#7d8473" textAnchor="end">
+                {p.start}–{p.end}
+              </text>
+            </g>
+          );
+        })
+      )}
+    </svg>
+  );
+}
+
+function GoalCard({
+  progress,
+  category,
+}: {
+  progress: LockerState["weekProgress"];
+  category: string | null;
+}) {
+  const goal = progress.find((p) => p.id === category) ?? null;
+  const pct = goal && goal.possible > 0 ? Math.round((goal.earned / goal.possible) * 100) : 0;
+  const barW = 100;
+  return (
+    <svg viewBox="0 0 140 86" style={{ width: "100%", display: "block", filter: "drop-shadow(0 1px 1px rgba(0,0,0,.25))" }}>
+      <rect x="1" y="6" width="138" height="74" rx="8" fill="#16324F" stroke="#0c2238" strokeWidth="1.5" />
+      <circle cx="1" cy="43" r="6" fill="#0f1118" />
+      <circle cx="139" cy="43" r="6" fill="#0f1118" />
+      <text x="70" y="24" fontFamily="Arial" fontWeight="bold" fontSize="9" fill="#9BE7FF" textAnchor="middle" letterSpacing="1.5">MY GOAL</text>
+      {goal ? (
+        <>
+          <text x="70" y="40" fontFamily="Arial" fontWeight="bold" fontSize="11" fill="#fff" textAnchor="middle">
+            {goal.name.length > 20 ? `${goal.name.slice(0, 19)}…` : goal.name}
+          </text>
+          <rect x={(140 - barW) / 2} y="48" width={barW} height="10" rx="5" fill="#0c2238" />
+          <rect x={(140 - barW) / 2} y="48" width={Math.max(4, (barW * Math.min(pct, 100)) / 100)} height="10" rx="5" fill={pct >= 80 ? "#3BD27A" : pct >= 60 ? "#FFD23B" : "#FF8A65"} />
+          <text x="70" y="72" fontFamily="Arial" fontSize="8.5" fill="#9aa1b5" textAnchor="middle">
+            {goal.earned}/{goal.possible} pts this week · {pct}%
+          </text>
+        </>
+      ) : (
+        <text x="70" y="50" fontFamily="Arial" fontSize="9" fill="#9aa1b5" textAnchor="middle">
+          Select me, then “Change goal”
+        </text>
+      )}
+    </svg>
   );
 }
 

@@ -41,6 +41,45 @@ function rowEarned(scores: Record<string, number | null> | null, cats: Cat[]): n
 
 const SCAN_DAYS = 60; // how far back the lazy credit will ever look
 
+/**
+ * Goal-card data: this week's (Mon–today) per-category earned/possible for
+ * the student, computed against the teacher's own category config.
+ */
+export async function weekCategoryProgress(
+  admin: SupabaseClient,
+  opts: { groupIds: string[]; teacherId: string }
+): Promise<{ id: string; name: string; earned: number; possible: number }[]> {
+  const now = new Date();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  const from = monday.toISOString().slice(0, 10);
+
+  const [{ data: teacher }, { data: rows }] = await Promise.all([
+    admin.from("teachers").select("categories").eq("id", opts.teacherId).maybeSingle(),
+    admin
+      .from("behavior_scores")
+      .select("scores")
+      .in("student_id", opts.groupIds)
+      .eq("teacher_id", opts.teacherId)
+      .gte("score_date", from),
+  ]);
+  const cats = ((teacher?.categories ?? []) as Cat[]).filter((c) => !c.noPoints);
+
+  return cats.map((cat) => {
+    let earned = 0;
+    let possible = 0;
+    for (const r of rows ?? []) {
+      const scores = r.scores as Record<string, number | null> | null;
+      if (!scores) continue;
+      const raw = scores[cat.id];
+      if (typeof raw !== "number" || !Number.isFinite(raw)) continue;
+      earned += cat.type === "arrival" ? arrivalPointValues(cat)[raw] ?? 0 : raw;
+      possible += cat.maxPoints ?? 3;
+    }
+    return { id: cat.id, name: (cat as { name?: string }).name ?? cat.id, earned, possible };
+  });
+}
+
 export async function creditUncreditedDays(
   admin: SupabaseClient,
   opts: {
