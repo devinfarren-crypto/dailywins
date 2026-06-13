@@ -285,8 +285,72 @@ const PACKS = {
     `<path d="M30 78 q-4 6 2 8 M70 78 q4 6 -2 8" stroke="#C6A4FF" stroke-width="3.4" fill="none" stroke-linecap="round"/>`,
 };
 
+// Unicorns & Rainbows — pastel, sparkly, gradient-rich. Same die-cut style.
+const RAINBOW_STOPS = ["#FF8FA3", "#FFB86C", "#FFE66D", "#8FE39A", "#6CC8FF", "#B79CFF"];
+Object.assign(PACKS, {
+  "stk-un-rainbow":
+    `<defs><clipPath id="rbclip"><path d="M14 70 a36 36 0 0 1 72 0 l-12 0 a24 24 0 0 0 -48 0 Z"/></clipPath></defs>` +
+    RAINBOW_STOPS.map((c, i) => `<path d="M${14 + i * 6} 70 a${36 - i * 6} ${36 - i * 6} 0 0 1 ${(36 - i * 6) * 2} 0 l-6 0 a${30 - i * 6} ${30 - i * 6} 0 0 0 ${-(30 - i * 6) * 2} 0 Z" fill="${c}"/>`).join("") +
+    `<ellipse cx="20" cy="72" rx="9" ry="6" fill="#fff"/><ellipse cx="80" cy="72" rx="9" ry="6" fill="#fff"/>` +
+    `<circle cx="74" cy="30" r="3" fill="#FFE66D"/><circle cx="26" cy="28" r="2.4" fill="#FFB7E1"/>`,
+  "stk-un-unicorn":
+    `<defs><linearGradient id="unmane" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF8FA3"/><stop offset=".5" stop-color="#B79CFF"/><stop offset="1" stop-color="#6CC8FF"/></linearGradient></defs>` +
+    // head + muzzle
+    `<path d="M40 80 q-10 -14 -6 -30 q4 -18 22 -22 q16 -3 22 8 q5 8 1 16 l-6 26 q-2 8 -10 8 Z" fill="#FFF7FB" stroke="#E6C6E0" stroke-width="2"/>` +
+    // horn
+    `<path d="M58 26 l6 -20 4 20 Z" fill="url(#foil)" stroke="#D9A93A" stroke-width="1.4"/>` +
+    // ear
+    `<path d="M44 30 l-4 -12 10 8 Z" fill="#FFF7FB" stroke="#E6C6E0" stroke-width="1.6"/>` +
+    // mane
+    `<path d="M48 22 q-18 6 -16 30 q6 -10 12 -10 q-8 10 -4 22 q6 -12 12 -12 q-4 12 2 20 q4 -14 12 -16 Z" fill="url(#unmane)"/>` +
+    // eye + cheek
+    `<circle cx="64" cy="50" r="3.4" fill="#5b4a6e"/><circle cx="65.5" cy="48.5" r="1" fill="#fff"/>` +
+    `<circle cx="74" cy="58" r="3.4" fill="#FFB7CE" opacity=".7"/>` +
+    `<path d="M78 66 q-3 3 -7 2" stroke="#E6A6C6" stroke-width="1.6" fill="none" stroke-linecap="round"/>`,
+  "stk-un-shootingstar":
+    `<defs><linearGradient id="sstrail" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#B79CFF" stop-opacity="0"/><stop offset="1" stop-color="#FFE66D"/></linearGradient></defs>` +
+    `<path d="M16 78 q24 -10 44 -34" stroke="url(#sstrail)" stroke-width="7" fill="none" stroke-linecap="round"/>` +
+    `<path d="M22 72 q18 -8 32 -26" stroke="#FFB7E1" stroke-width="3.4" fill="none" stroke-linecap="round" opacity=".8"/>` +
+    `<path d="M66 18 l5 14 15 1 -11.5 9.5 4 14.5 -12.5 -8 -12.5 8 4 -14.5 -11.5 -9.5 15 -1 Z" fill="#FFE66D" stroke="#E8B23A" stroke-width="1.6"/>`,
+  "stk-un-cloud":
+    `<defs><linearGradient id="uncl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E6F0FF"/></linearGradient></defs>` +
+    `<g fill="url(#uncl)" stroke="#CBDDF2" stroke-width="2"><circle cx="38" cy="52" r="16"/><circle cx="58" cy="46" r="20"/><circle cx="72" cy="56" r="14"/><rect x="34" y="56" width="44" height="16" rx="8" stroke="none"/></g>` +
+    `<rect x="34" y="58" width="44" height="12" rx="6" fill="url(#uncl)"/>` +
+    `<circle cx="48" cy="58" r="2.6" fill="#9BB8D9"/><circle cx="66" cy="58" r="2.6" fill="#9BB8D9"/><path d="M52 64 q4 4 8 0" stroke="#9BB8D9" stroke-width="2" fill="none" stroke-linecap="round"/>`,
+  "stk-un-heart":
+    `<defs><linearGradient id="unh" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFB7D5"/><stop offset="1" stop-color="#FF6F9C"/></linearGradient></defs>` +
+    `<path d="M50 80 C18 56 22 30 40 30 q10 0 10 12 q0 -12 10 -12 c18 0 22 26 -10 50 Z" fill="url(#unh)" stroke="#E84D7F" stroke-width="2"/>` +
+    `<path d="M36 44 q4 -8 11 -6" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" opacity=".8"/>` +
+    `<path d="M70 30 l1.6 5 5 1.6 -5 1.6 -1.6 5 -1.6 -5 -5 -1.6 5 -1.6 Z" fill="#FFF6B0"/>`,
+  "stk-un-gem":
+    `<path d="M50 16 L72 38 L50 86 L28 38 Z" fill="url(#foil)" stroke="#D9A93A" stroke-width="2"/>` +
+    `<path d="M50 16 L62 38 L50 86 L38 38 Z" fill="#FFF0C2" opacity=".55"/>` +
+    `<path d="M28 38 L72 38 M38 38 L50 16 M62 38 L50 16 M38 38 L50 86 M62 38 L50 86" stroke="#D9A93A" stroke-width="1.4" opacity=".8"/>` +
+    `<path d="M40 28 l3 6 -6 1 Z" fill="#fff" opacity=".7"/>`,
+  "stk-un-sparkle":
+    // mascot: the unicorn, holo body + rainbow mane + a halo of sparkles
+    `<defs><linearGradient id="spmane" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF8FA3"/><stop offset=".4" stop-color="#FFE66D"/><stop offset=".7" stop-color="#8FE39A"/><stop offset="1" stop-color="#6CC8FF"/></linearGradient></defs>` +
+    // head + muzzle (holo)
+    `<path d="M40 82 q-10 -14 -6 -30 q4 -18 22 -22 q16 -3 22 8 q5 8 1 16 l-6 26 q-2 8 -10 8 Z" fill="url(#holo)" stroke="#C6A4FF" stroke-width="2"/>` +
+    // horn (gold foil)
+    `<path d="M58 26 l6 -20 4 20 Z" fill="url(#foil)" stroke="#D9A93A" stroke-width="1.4"/>` +
+    // ear
+    `<path d="M44 30 l-4 -12 10 8 Z" fill="url(#holo)" stroke="#C6A4FF" stroke-width="1.4"/>` +
+    // flowing rainbow mane
+    `<path d="M48 22 q-18 6 -16 32 q6 -11 12 -11 q-8 11 -4 24 q6 -13 12 -13 q-4 13 2 21 q4 -15 12 -17 Z" fill="url(#spmane)"/>` +
+    // eye + blush
+    `<circle cx="64" cy="50" r="3.6" fill="#4a3a5e"/><circle cx="65.6" cy="48.4" r="1.1" fill="#fff"/>` +
+    `<circle cx="74" cy="58" r="3.4" fill="#FFB7CE" opacity=".7"/>` +
+    `<path d="M78 66 q-3 3 -7 2" stroke="#B98ACE" stroke-width="1.6" fill="none" stroke-linecap="round"/>` +
+    // sparkle halo
+    `<path d="M82 24 l1.6 5 5 1.6 -5 1.6 -1.6 5 -1.6 -5 -5 -1.6 5 -1.6 Z" fill="#fff"/>` +
+    `<path d="M24 40 l1.2 3.8 3.8 1.2 -3.8 1.2 -1.2 3.8 -1.2 -3.8 -3.8 -1.2 3.8 -1.2 Z" fill="#FFE66D"/>` +
+    `<circle cx="30" cy="74" r="2" fill="#fff"/>`,
+});
+
 const PACK_TEXT = {
   "stk-sq-banner": { lines: ["⚔ SIDE", "QUEST"], bg: "#4A2F96", fg: "#E8DBFF" },
+  "stk-un-magic": { lines: ["✨ STAY", "MAGIC ✨"], bg: "#B79CFF", fg: "#fff" },
 };
 
 const BACKGROUNDS = {
@@ -358,6 +422,20 @@ const BACKGROUNDS = {
       `<path d="M0 1020 q400 50 800 -30 l0 110 l-800 0 Z" fill="#7E8CA4" opacity=".4"/>` +
       chromeGlints(),
   },
+  "bg-pastel-sky": {
+    body: `<defs><linearGradient id="psky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE3F1"/><stop offset=".4" stop-color="#E9D8FF"/><stop offset=".75" stop-color="#D6ECFF"/><stop offset="1" stop-color="#FCEFD8"/></linearGradient></defs>` +
+      `<rect width="800" height="1100" fill="url(#psky)"/>` +
+      // big soft rainbow arc top-right
+      ["#FF8FA3", "#FFB86C", "#FFE66D", "#8FE39A", "#6CC8FF", "#B79CFF"]
+        .map((c, i) => `<path d="M${520 + i * 26} 1100 a${300 - i * 26} ${300 - i * 26} 0 0 1 ${(300 - i * 26) * 2} 0" fill="none" stroke="${c}" stroke-width="26" opacity=".7"/>`)
+        .join("") +
+      // fluffy clouds
+      [[140, 300, 1], [620, 220, 0.8], [300, 720, 0.9], [560, 880, 0.7]]
+        .map(([x, y, s]) => `<g opacity=".92"><ellipse cx="${x}" cy="${y}" rx="${70 * s}" ry="${42 * s}" fill="#fff"/><ellipse cx="${x + 50 * s}" cy="${y + 8 * s}" rx="${50 * s}" ry="${34 * s}" fill="#fff"/><ellipse cx="${x - 46 * s}" cy="${y + 10 * s}" rx="${42 * s}" ry="${30 * s}" fill="#fff"/></g>`)
+        .join("") +
+      // sparkle stars
+      pastelStars(),
+  },
   "bg-banner-wall": {
     body: `<rect width="800" height="1100" fill="#2B3340"/>${paintWear("#252c38")}` +
       [
@@ -380,6 +458,20 @@ const BACKGROUNDS = {
   },
 };
 
+function pastelStars() {
+  let out = "";
+  let seed = 555;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const tints = ["#fff", "#FFE66D", "#FFB7E1", "#B79CFF"];
+  for (let i = 0; i < 34; i++) {
+    const x = (rnd() * 760 + 20) | 0;
+    const y = (rnd() * 1060 + 20) | 0;
+    const s = rnd() * 12 + 5;
+    const c = tints[(rnd() * tints.length) | 0];
+    out += `<path d="M${x} ${y - s} L${x + s * 0.24} ${y - s * 0.24} L${x + s} ${y} L${x + s * 0.24} ${y + s * 0.24} L${x} ${y + s} L${x - s * 0.24} ${y + s * 0.24} L${x - s} ${y} L${x - s * 0.24} ${y - s * 0.24} Z" fill="${c}" opacity="${(rnd() * 0.4 + 0.55).toFixed(2)}"/>`;
+  }
+  return out;
+}
 function gripGrit() {
   let out = "";
   let seed = 31;

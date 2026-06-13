@@ -1,5 +1,5 @@
 {
-  "catalog_version": 5,
+  "catalog_version": 6,
   "updated": "2026-06-12",
   "items": [
     {
@@ -1290,6 +1290,123 @@
         "varsity"
       ],
       "asset": "/locker/backgrounds/bg-banner-wall.svg"
+    },
+    {
+      "id": "stk-un-rainbow",
+      "name": "Rainbow",
+      "type": "sticker",
+      "pack": "unicorns",
+      "rarity": "common",
+      "price": 30,
+      "starter": false,
+      "tags": [
+        "unicorns"
+      ],
+      "asset": "/locker/stickers/stk-un-rainbow.svg"
+    },
+    {
+      "id": "stk-un-unicorn",
+      "name": "Unicorn",
+      "type": "sticker",
+      "pack": "unicorns",
+      "rarity": "common",
+      "price": 35,
+      "starter": false,
+      "tags": [
+        "unicorns"
+      ],
+      "asset": "/locker/stickers/stk-un-unicorn.svg"
+    },
+    {
+      "id": "stk-un-shootingstar",
+      "name": "Shooting Star",
+      "type": "sticker",
+      "pack": "unicorns",
+      "rarity": "common",
+      "price": 28,
+      "starter": false,
+      "tags": [
+        "unicorns"
+      ],
+      "asset": "/locker/stickers/stk-un-shootingstar.svg"
+    },
+    {
+      "id": "stk-un-cloud",
+      "name": "Fluffy Cloud",
+      "type": "sticker",
+      "pack": "unicorns",
+      "rarity": "common",
+      "price": 26,
+      "starter": false,
+      "tags": [
+        "unicorns"
+      ],
+      "asset": "/locker/stickers/stk-un-cloud.svg"
+    },
+    {
+      "id": "stk-un-heart",
+      "name": "Sparkle Heart",
+      "type": "sticker",
+      "pack": "unicorns",
+      "rarity": "common",
+      "price": 28,
+      "starter": false,
+      "tags": [
+        "unicorns"
+      ],
+      "asset": "/locker/stickers/stk-un-heart.svg"
+    },
+    {
+      "id": "stk-un-gem",
+      "name": "Crystal Gem",
+      "type": "sticker",
+      "pack": "unicorns",
+      "rarity": "foil",
+      "price": 90,
+      "starter": false,
+      "tags": [
+        "unicorns"
+      ],
+      "asset": "/locker/stickers/stk-un-gem.svg"
+    },
+    {
+      "id": "stk-un-magic",
+      "name": "Magic Banner",
+      "type": "sticker",
+      "pack": "unicorns",
+      "rarity": "common",
+      "price": 32,
+      "starter": false,
+      "tags": [
+        "unicorns"
+      ],
+      "asset": "/locker/stickers/stk-un-magic.svg"
+    },
+    {
+      "id": "stk-un-sparkle",
+      "name": "Sparkle",
+      "type": "sticker",
+      "pack": "unicorns",
+      "rarity": "holo",
+      "price": 150,
+      "starter": false,
+      "tags": [
+        "unicorns"
+      ],
+      "asset": "/locker/stickers/stk-un-sparkle.svg"
+    },
+    {
+      "id": "bg-pastel-sky",
+      "name": "Pastel Sky",
+      "type": "background",
+      "pack": "unicorns",
+      "rarity": "common",
+      "price": 200,
+      "starter": false,
+      "tags": [
+        "unicorns"
+      ],
+      "asset": "/locker/backgrounds/bg-pastel-sky.svg"
     }
   ]
 }

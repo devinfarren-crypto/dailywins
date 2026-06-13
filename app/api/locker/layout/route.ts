@@ -14,14 +14,13 @@ export async function POST(req: NextRequest) {
   }
 
   const body = (await req.json().catch(() => null)) as
-    | { layout?: unknown; baseline?: string | null }
+    | { layout?: unknown }
     | null;
   const parsed = LayoutSchema.safeParse(body?.layout ?? body); // tolerate the old flat shape
   if (!parsed.success) {
     return NextResponse.json({ ok: false, error: "bad_layout" }, { status: 400 });
   }
   const layout = parsed.data;
-  const baseline = typeof body?.baseline === "string" ? body.baseline : body?.baseline === null ? null : undefined;
 
   const { data: inv } = await admin
     .from("student_inventory")
@@ -51,32 +50,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "work_url_not_allowed" }, { status: 400 });
   }
 
-  // Optimistic concurrency: a tab may only overwrite the version it loaded.
-  // A stale tab (older baseline) gets a 409 and refetches instead of
-  // clobbering a newer arrangement — multi-tab testing ate a layout once.
-  if (baseline !== undefined) {
-    const { data: current } = await admin
-      .from("locker_layouts")
-      .select("updated_at")
-      .eq("student_id", identity.studentId)
-      .maybeSingle();
-    const currentVersion = current?.updated_at ?? null;
-    if (currentVersion !== baseline) {
-      return NextResponse.json(
-        { ok: false, error: "stale", layoutVersion: currentVersion },
-        { status: 409 }
-      );
-    }
-  }
-
-  const now = new Date().toISOString();
+  // Last-write-wins. A locker is ONE student decorating their own device, so
+  // plain upsert is correct — and it avoids the trap that bit us before:
+  // using a timestamptz string as a version token. Postgres serializes the
+  // stored timestamp ("…123000+00:00") differently from the JS ISO string we
+  // wrote ("…123Z"), so a baseline comparison 409'd on every second save and
+  // the client's revert ate the edit (stickers snapped back, calendar marks
+  // didn't hold). No version token, no false conflict.
   const { error } = await admin.from("locker_layouts").upsert({
     student_id: identity.studentId,
     layout,
-    updated_at: now,
+    updated_at: new Date().toISOString(),
   });
   if (error) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, layoutVersion: now });
+  return NextResponse.json({ ok: true });
 }

@@ -107,10 +107,6 @@ export default function LockerClient() {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const layoutRef = useRef(layout);
   layoutRef.current = layout;
-  // Optimistic-concurrency token: the layout version this tab loaded. A save
-  // carrying a stale token is rejected (409) instead of clobbering — and this
-  // tab re-syncs. Multi-tab testing ate a decorated locker once.
-  const layoutVersion = useRef<string | null>(null);
 
   // ── data ──────────────────────────────────────────────────────────────────
   const refresh = useCallback(async () => {
@@ -135,57 +131,35 @@ export default function LockerClient() {
       lay = { ...lay, items: lay.items.filter((p) => p.item_id !== "crd-today") };
     }
     setLayout(lay);
-    layoutVersion.current = data.layoutVersion ?? null;
   }, []);
   useEffect(() => {
     refresh();
   }, [refresh]);
 
-  // Stale tabs re-sync when they come back into view instead of writing over
-  // whatever a fresher tab did.
-  const savingRef = useRef(false);
-  useEffect(() => {
-    const onVisible = () => {
-      if (document.visibilityState === "visible" && !saveTimer.current && !savingRef.current) refresh();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [refresh]);
-
-  // Saves are CHAINED: a new save never fires while one is in flight, so its
-  // baseline always includes the previous response's version. Without this,
-  // rapid edits (calendar tapping) raced — save N+1 carried save N's stale
-  // baseline, got a same-tab 409, and the reload ate the newest marks.
+  // Save is last-write-wins and fire-and-forget. The locker is ONE student on
+  // their own device, so the client is the source of truth for the whole
+  // session — we never refetch and overwrite the layout mid-session (doing so
+  // on window-focus used to revert in-progress edits). Chained so writes land
+  // in order; a failed write just retries on the next edit.
   const saveChain = useRef<Promise<void>>(Promise.resolve());
   const scheduleSave = useCallback(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       saveTimer.current = null;
       saveChain.current = saveChain.current.then(async () => {
-        savingRef.current = true;
         try {
-          const res = await fetch("/api/locker/layout", {
+          await fetch("/api/locker/layout", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ layout: layoutRef.current, baseline: layoutVersion.current }),
+            body: JSON.stringify({ layout: layoutRef.current }),
             keepalive: true,
           });
-          if (res.status === 409) {
-            // A DIFFERENT tab saved first — their arrangement wins; reload it.
-            setToast("Your locker changed in another window — reloaded.");
-            await refresh();
-            return;
-          }
-          const data = await res.json().catch(() => null);
-          if (data?.layoutVersion) layoutVersion.current = data.layoutVersion;
         } catch {
           /* offline blip — the next edit retries with current state */
-        } finally {
-          savingRef.current = false;
         }
       });
     }, 600);
-  }, [refresh]);
+  }, []);
 
   const mutateLayout = useCallback(
     (fn: (l: LockerLayout) => LockerLayout) => {
