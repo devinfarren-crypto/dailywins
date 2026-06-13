@@ -11,6 +11,7 @@
 // a frame of navy, and the server-rendered HTML still matches on hydration.
 
 import { useEffect, useLayoutEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import Splash from "./Splash";
 
 const HOLD_MS = 2500;
@@ -22,16 +23,23 @@ const SEEN_KEY = "ssd-splash-seen";
 const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 export default function SplashGate({ children }: { children: React.ReactNode }) {
-  const [phase, setPhase] = useState<"show" | "fading" | "done">("show");
+  // The Locker has its own entry ritual (the door swings open) and the public
+  // /demo sandbox must be instant for cold-email prospects — the splash never
+  // shows on either. We read the path with usePathname (NOT window.location in
+  // an effect) so the suppression happens during SSR: otherwise the splash is
+  // server-rendered into the HTML and its CSS animation plays for a frame on
+  // /locker before hydration can yank it — the "partial splash that doesn't
+  // complete" bug. Computing it here means the splash never enters the markup.
+  const pathname = usePathname();
+  const suppressed = !!pathname && (pathname.startsWith("/locker") || pathname.startsWith("/demo"));
+
+  // Seeding the initial phase from `suppressed` keeps SSR and the first client
+  // render in agreement (no hydration mismatch) and means non-suppressed routes
+  // still paint the splash immediately on first frame.
+  const [phase, setPhase] = useState<"show" | "fading" | "done">(suppressed ? "done" : "show");
 
   useIsoLayoutEffect(() => {
-    // The Locker has its own entry ritual (the door swings open) and the
-    // public /demo sandbox must be instant for cold-email prospects — the
-    // Sure Step splash never shows on either.
-    if (
-      typeof window !== "undefined" &&
-      (window.location.pathname.startsWith("/locker") || window.location.pathname.startsWith("/demo"))
-    ) {
+    if (suppressed) {
       setPhase("done");
       return;
     }
@@ -52,7 +60,7 @@ export default function SplashGate({ children }: { children: React.ReactNode }) 
       clearTimeout(t1);
       clearTimeout(t2);
     };
-  }, []);
+  }, [suppressed]);
 
   return (
     <>

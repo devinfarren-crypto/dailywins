@@ -412,84 +412,10 @@ export default function LockerClient() {
   if (error) return <Centered>{error}</Centered>;
   if (!state) return <Centered>Opening your locker…</Centered>;
 
-  // The entry AND exit ritual: the closed locker front. Tapping swings the
-  // door open slowly (a real locker takes a second); shutting is quicker.
-  if (doorPhase !== "open") {
-    const opening = doorPhase === "opening";
-    return (
-      <main
-        style={{
-          height: "100dvh",
-          overflow: "hidden",
-          background: `radial-gradient(90% 70% at 50% 0%, #171b28 0%, ${INK} 65%)`,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 18,
-          fontFamily: "ui-sans-serif, system-ui, sans-serif",
-          color: TEXT,
-          perspective: 1100,
-        }}
-      >
-        <style>{`
-          @keyframes lkShut { from { transform: perspective(900px) rotateY(-50deg); opacity: .4 } to { transform: none; opacity: 1 } }
-          .lk-shut { animation: lkShut .45s cubic-bezier(.22,1,.36,1) both; transform-origin: right center; }
-          /* the slow real-locker swing: heavy start, wide sweep, tiny rebound */
-          @keyframes lkSwingOpen {
-            0%   { transform: perspective(1100px) rotateY(0deg); }
-            70%  { transform: perspective(1100px) rotateY(-86deg); }
-            85%  { transform: perspective(1100px) rotateY(-72deg); }
-            100% { transform: perspective(1100px) rotateY(-80deg); opacity: .15 }
-          }
-          .lk-swing { animation: lkSwingOpen 1.15s cubic-bezier(.45,.05,.35,1) both; transform-origin: right center; pointer-events: none; }
-          @media (prefers-reduced-motion: reduce) { .lk-shut, .lk-swing { animation: none } }
-        `}</style>
-        <button
-          className={opening ? "lk-swing" : "lk-shut"}
-          onClick={() => !opening && setDoorPhase("opening")}
-          aria-label="Open your locker"
-          style={{
-            position: "relative",
-            width: "min(60vw, 230px, calc((100dvh - 180px) * 8 / 22))",
-            aspectRatio: "8 / 22",
-            borderRadius: 10,
-            border: "5px solid #20242f",
-            background: "linear-gradient(180deg, #2e3950, #232c40)",
-            backgroundImage: "url(/locker/textures/noise.svg)",
-            boxShadow: "inset 0 0 0 2px #0a0c12, 0 24px 60px rgba(0,0,0,.55)",
-            cursor: "pointer",
-            padding: 0,
-          }}
-        >
-          {/* vents */}
-          <div style={{ position: "absolute", top: "5%", left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", gap: 5 }}>
-            {[0, 1, 2].map((i) => (
-              <div key={i} style={{ width: "min(90px, 11vw)", height: 5, borderRadius: 3, background: "rgba(0,0,0,.5)", boxShadow: "inset 0 2px 3px rgba(0,0,0,.8), 0 1px 0 rgba(255,255,255,.08)" }} />
-            ))}
-          </div>
-          {/* name plate */}
-          <div style={{ position: "absolute", top: "16%", left: "50%", transform: "translateX(-50%)", background: "#e8e2d0", color: "#2c3440", borderRadius: 3, padding: "3px 10px", fontSize: 11, fontWeight: 800, whiteSpace: "nowrap", maxWidth: "85%", overflow: "hidden", textOverflow: "ellipsis" }}>
-            {state.displayName}
-          </div>
-          {/* dial */}
-          <div style={{ position: "absolute", top: "42%", left: "50%", transform: "translate(-50%, -50%)", width: "42%", aspectRatio: "1", borderRadius: "50%", background: "radial-gradient(circle at 38% 32%, #3a4156, #1d212e)", border: "4px solid #3a4156", boxShadow: "inset 0 3px 10px rgba(0,0,0,.7), 0 3px 8px rgba(0,0,0,.4)" }}>
-            <div style={{ position: "absolute", top: 4, left: "50%", width: 3, height: 10, marginLeft: -1.5, background: ACCENT, borderRadius: 2 }} />
-          </div>
-          {/* latch */}
-          <div style={{ position: "absolute", top: "58%", right: "8%", width: 7, height: "7%", borderRadius: 3, background: "linear-gradient(90deg, #3a4152, #1c2029)" }} />
-        </button>
-        <div style={{ textAlign: "center", opacity: opening ? 0 : 1, transition: "opacity .3s" }}>
-          <div style={{ fontSize: 15, fontWeight: 800 }}>
-            {opening ? "" : "Your locker. Everything's saved."}
-          </div>
-          <div style={{ fontSize: 12.5, color: MUTED, marginTop: 4 }}>
-            {opening ? "" : "Tap the door — it remembers you."}
-          </div>
-        </div>
-      </main>
-    );
-  }
+  // The closed door now lives ON the open-locker canvas as a single cover that
+  // swings open (see DoorCover, below the canvas) — one object, one size, one
+  // hinge, so the open never "jumps" to a different locker. No early return.
+  const doorOpen = doorPhase === "open";
 
   return (
     <main
@@ -529,10 +455,20 @@ export default function LockerClient() {
         /* new-on-your-shelf glow — a few warm pulses, then quiet forever */
         @keyframes lkGlow { 0%, 100% { filter: drop-shadow(0 3px 2px rgba(0,0,0,.5)) } 50% { filter: drop-shadow(0 0 12px rgba(240,182,71,.95)) } }
         .lk-fresh { animation: lkGlow 1.5s ease-in-out 4; }
+        /* the door cover swings open on its LEFT hinge to reveal the locker
+           behind it — one object, same size, never replaced by a different one */
+        @keyframes lkCoverOpen {
+          0%   { transform: perspective(1500px) rotateY(0deg); }
+          100% { transform: perspective(1500px) rotateY(-104deg); opacity: .15 }
+        }
+        .lk-cover { transform-origin: left center; backface-visibility: hidden; }
+        .lk-cover-open { animation: lkCoverOpen 1.15s cubic-bezier(.45,.05,.35,1) both; pointer-events: none; }
+        @media (prefers-reduced-motion: reduce) { .lk-cover-open { animation: none !important; opacity: 0 !important; } }
         @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
       `}</style>
 
-      {/* top bar */}
+      {/* top bar — always reserves its height so the canvas never shifts
+          position when the door opens; its contents just fade in once open. */}
       <div
         style={{
           width: "100%",
@@ -542,6 +478,9 @@ export default function LockerClient() {
           justifyContent: "space-between",
           padding: "14px 16px",
           boxSizing: "border-box",
+          opacity: doorOpen ? 1 : 0,
+          pointerEvents: doorOpen ? "auto" : "none",
+          transition: "opacity .35s ease .15s",
         }}
       >
         <div>
@@ -576,7 +515,9 @@ export default function LockerClient() {
           borderRadius: 12,
           border: "8px solid #20242f",
           boxShadow: "inset 0 0 0 2px #0a0c12, 0 30px 70px rgba(0,0,0,.55)",
-          overflow: "hidden",
+          // Clip stickers to the frame when open; let the door swing past the
+          // frame freely while it's opening so the 3-D hinge isn't sheared off.
+          overflow: doorOpen ? "hidden" : "visible",
           backgroundColor: "#2a3a55",
           backgroundImage: bg ? `url(${bg.asset})` : "url(/locker/backgrounds/bg-navy-paint.svg)",
           backgroundSize: "cover",
@@ -673,11 +614,57 @@ export default function LockerClient() {
         {(state.shelf ?? []).map((s, i) => (
           <ShelfObject key={s.id} item={s} index={i} fresh={!s.seen} onOpen={() => setSheet({ shelfDetail: s })} />
         ))}
+
+        {/* ── the door COVER — same canvas, same size; swings open on the left
+            hinge to reveal everything above. Tapping (or arriving fresh from
+            the combo) starts the swing; after 1.15s doorPhase flips to "open"
+            and this unmounts. This is THE single locker opening. ──────────── */}
+        {!doorOpen ? (
+          <button
+            className={`lk-cover${doorPhase === "opening" ? " lk-cover-open" : ""}`}
+            onClick={() => doorPhase === "closed" && setDoorPhase("opening")}
+            aria-label="Open your locker"
+            style={{
+              position: "absolute",
+              inset: 0,
+              zIndex: 55,
+              border: "none",
+              borderRadius: 6,
+              padding: 0,
+              cursor: doorPhase === "closed" ? "pointer" : "default",
+              background: "linear-gradient(180deg, #2e3950, #232c40)",
+              backgroundImage: "url(/locker/textures/noise.svg)",
+              boxShadow: "inset 0 0 0 2px #0a0c12, 0 24px 60px rgba(0,0,0,.55)",
+            }}
+          >
+            {/* vents */}
+            <div style={{ position: "absolute", top: "13%", left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", gap: 6 }}>
+              {[0, 1, 2].map((i) => (
+                <div key={i} style={{ width: "min(150px, 20vw)", height: 6, borderRadius: 3, background: "rgba(0,0,0,.5)", boxShadow: "inset 0 2px 3px rgba(0,0,0,.8), 0 1px 0 rgba(255,255,255,.08)" }} />
+              ))}
+            </div>
+            {/* name plate */}
+            <div style={{ position: "absolute", top: "29%", left: "50%", transform: "translateX(-50%)", background: "#e8e2d0", color: "#2c3440", borderRadius: 3, padding: "4px 14px", fontSize: 13, fontWeight: 800, whiteSpace: "nowrap", maxWidth: "70%", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {state.displayName}
+            </div>
+            {/* dial */}
+            <div style={{ position: "absolute", top: "55%", left: "50%", transform: "translate(-50%, -50%)", width: "16%", aspectRatio: "1", borderRadius: "50%", background: "radial-gradient(circle at 38% 32%, #3a4156, #1d212e)", border: "4px solid #3a4156", boxShadow: "inset 0 3px 10px rgba(0,0,0,.7), 0 3px 8px rgba(0,0,0,.4)" }}>
+              <div style={{ position: "absolute", top: 4, left: "50%", width: 3, height: 11, marginLeft: -1.5, background: ACCENT, borderRadius: 2 }} />
+            </div>
+            {/* handle (right edge — opposite the hinge) */}
+            <div style={{ position: "absolute", right: "4%", top: "50%", transform: "translateY(-50%)", width: 12, height: "26%", borderRadius: 6, background: "linear-gradient(90deg, #3a4152, #1c2029)", boxShadow: "0 2px 4px rgba(0,0,0,.5)" }} />
+            {/* hint */}
+            <div style={{ position: "absolute", bottom: "9%", left: 0, right: 0, textAlign: "center", fontSize: 13, fontWeight: 800, color: "rgba(255,255,255,.82)", opacity: doorPhase === "opening" ? 0 : 1, transition: "opacity .25s" }}>
+              Tap to open
+            </div>
+          </button>
+        ) : null}
       </div>
 
-      {/* selection controls — fixed-height slot so nothing pushes past the viewport */}
-      <div style={{ height: 58, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-        {selected !== null && layout.items[selected] ? (
+      {/* selection controls — fixed-height slot so nothing pushes past the
+          viewport. Empty until the door is open (keeps the layout stable). */}
+      <div style={{ height: 58, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, opacity: doorOpen ? 1 : 0, transition: "opacity .35s ease .15s" }}>
+        {!doorOpen ? null : selected !== null && layout.items[selected] ? (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
             {layout.items[selected]?.item_id === "crd-goal" && state.weekProgress.length > 0 ? (
               <Pill onClick={() => setSheet("goal")} label="🎯 Set my goal" />
