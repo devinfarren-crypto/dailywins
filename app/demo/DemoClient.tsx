@@ -271,7 +271,7 @@ export default function DemoClient() {
             ))}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => setCustomizeOpen((v) => !v)} style={{ ...chip, background: customizeOpen ? "var(--ssd-ink, #1a1a2e)" : "var(--ssd-surface, #fff)", color: customizeOpen ? "#fff" : "var(--ssd-ink, #1a1a2e)" }}>
+            <button onClick={() => setCustomizeOpen((v) => !v)} style={{ ...chip, background: customizeOpen ? "var(--ssd-navy, #252a4a)" : "var(--ssd-surface, #fff)", color: customizeOpen ? "#fff" : "var(--ssd-ink, #1a1a2e)" }}>
               🎨 Customize goals
             </button>
             <button onClick={fillAll} style={{ ...chip, background: "var(--ssd-surface, #fff)" }}>⚡ Fill the period</button>
@@ -405,7 +405,7 @@ export default function DemoClient() {
               onClick={() => setChartStudent(s.id)}
               style={{
                 ...chip,
-                background: s.id === chartStudent ? "var(--ssd-ink, #1a1a2e)" : "var(--ssd-surface, #fff)",
+                background: s.id === chartStudent ? "var(--ssd-navy, #252a4a)" : "var(--ssd-surface, #fff)",
                 color: s.id === chartStudent ? "#fff" : "var(--ssd-ink, #1a1a2e)",
               }}
             >

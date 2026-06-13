@@ -24,7 +24,8 @@ const COLORS = {
   primary: "#0F6E56",   // forest — primary CTAs (company aesthetic)
   secondary: "#1D9E75", // teal — signature accent
   accent: "#EF9F27",    // amber — warm highlight
-  dark: "#1a1a2e",      // navy — headers, headings, dark text
+  dark: "#1a1a2e",      // ink — headings & body text (kept near-black for contrast)
+  navy: "#252a4a",      // navy field — dark bands/fills (matches the splash; lighter than ink)
   red: "#dd6b4d",       // status-support — "Needs Support"
   gold: "#e3a23c",      // status-working — "Working On It"
   green: "#4fa07e",     // status-track — "On Track"
@@ -2191,7 +2192,7 @@ export default function DashboardClient() {
           <button
             onClick={() => { setNotesTab("today"); setShowNotes(true); }}
             style={{
-              background: COLORS.dark,
+              background: COLORS.navy,
               color: "white",
               border: "none",
               borderRadius: 8,
@@ -2368,7 +2369,7 @@ export default function DashboardClient() {
                       left: "50%",
                       transform: "translateX(-50%)",
                       marginBottom: 4,
-                      background: COLORS.dark,
+                      background: COLORS.navy,
                       color: "white",
                       borderRadius: 4,
                       padding: "2px 6px",
@@ -2411,7 +2412,7 @@ export default function DashboardClient() {
                 key={v}
                 onClick={() => setActiveView(v)}
                 style={{
-                  background: activeView === v ? COLORS.dark : "#e8e8e8",
+                  background: activeView === v ? COLORS.navy : "#e8e8e8",
                   color: activeView === v ? "white" : COLORS.dark,
                   border: "none",
                   borderRadius: 8,
@@ -3150,7 +3151,7 @@ export default function DashboardClient() {
           <button
             onClick={generateWeeklyPDF}
             style={{
-              background: COLORS.dark,
+              background: COLORS.navy,
               color: "white",
               border: "none",
               borderRadius: 10,
@@ -3168,7 +3169,7 @@ export default function DashboardClient() {
           <button
             onClick={generateMonthlyPDF}
             style={{
-              background: COLORS.dark,
+              background: COLORS.navy,
               color: "white",
               border: "none",
               borderRadius: 10,
@@ -3407,7 +3408,7 @@ export default function DashboardClient() {
                     fontSize: 13,
                     fontWeight: 700,
                     cursor: "pointer",
-                    background: notesTab === tab ? COLORS.dark : "#f0f0f0",
+                    background: notesTab === tab ? COLORS.navy : "#f0f0f0",
                     color: notesTab === tab ? "white" : COLORS.dark,
                     transition: "all 0.15s",
                   }}
