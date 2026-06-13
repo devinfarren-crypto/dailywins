@@ -38,30 +38,30 @@ export function outreachSubject(school: OutreachSchool): string {
 }
 
 // ── Pure-product variant (gift === false) ───────────────────────────────────
-// NPS-director pitch, no gift. Three CTAs, each deep-linking to a live-sandbox
-// moment: the speed of the grid, the IEP-goal editor, the printed report.
+// Same warm letter as the gift version, with the homepage gift and its P.S.
+// removed: greeting → intro → tailored mission+pain paragraph (the config's
+// missionHook) → the single "open the live dashboard" CTA → founding-rate
+// pitch → reply close. One CTA, deep-linked to the live sandbox.
 export function outreachTextProduct(school: OutreachSchool, to: string): string {
   const demo = `${ORIGIN}/demo?school=${school.slug}`;
   return [
     `Hi${school.directorFirstName ? ` ${school.directorFirstName}` : ""},`,
     "",
-    `I'm Devin Farren — I've taught special education for 16 years, and I build classroom tools in and for real NPS classrooms. One of them is DailyWins: a behavior and goal-progress tracker made for programs like ${school.name}.`,
+    `I'm Devin Farren — a Sacramento classroom teacher. I built DailyWins, a behavior & goal-progress tracker for non-public schools, and ${school.name} is exactly the kind of school I built it for.`,
     "",
     school.missionHook,
     "",
-    `Rather than describe it, I set up a live version you can use right now — no signup, fictional students, nothing to install. Three things worth 30 seconds each:`,
+    `Here's the actual product — the real dashboard, live in your browser, no signup. Score a class period, rename the goals to your IEP language, flip through eight weeks of charts, and print the progress report:`,
     "",
-    `1. Score a class the way your teachers would: ${demo}`,
-    `2. Rename the goals to your exact IEP language: ${demo}&open=customize`,
-    `3. Print the IEP progress report it builds for you: ${demo}&focus=report`,
+    `Open the live dashboard — nothing to install: ${demo}`,
     "",
-    `That last one is the whole point — the dated, graphed record your placements and reviews require, built as a side effect of teaching instead of reconstructed the night before a meeting.`,
+    `If it looks like something your staff would actually use: the 60-day pilot is free — no card, no auto-convert, and we do the setup (bell schedule, rosters, IEP goal labels) for you. As one of the first 15 California schools, ${school.name} would lock in the founding rate: $149/month flat, for life, instead of $199.`,
     "",
-    `If it's something your staff would use, the next step is a free 60-day pilot — we do the setup, no card. Just reply and your teachers could be tracking by next week.`,
+    `Just reply to this email and your teachers can be tracking by Friday.`,
     "",
     `— Devin`,
-    `Devin Farren · Special Education Teacher & Founder, Sure Step Education`,
-    `dailywins.school`,
+    `Devin Farren · Teacher & Founder, Sure Step Education`,
+    `dailywins.school · Sacramento, CA`,
     "",
     `${POSTAL_ADDRESS}. You received this one note because ${school.name} serves students in a way I respect. To opt out, reply "no thanks" or use ${unsubLink(to)} and you won't hear from me again.`,
   ].join("\n");
@@ -70,12 +70,10 @@ export function outreachTextProduct(school: OutreachSchool, to: string): string 
 export function outreachHtmlProduct(school: OutreachSchool, to: string): string {
   const demo = `${ORIGIN}/demo?school=${school.slug}`;
   const hi = `Hi${school.directorFirstName ? ` ${esc(school.directorFirstName)}` : ""},`;
-  const cta = (href: string, label: string, primary: boolean) =>
-    `<a href="${href}" style="display:block;background:${primary ? "#1D9E75" : "#FFFFFF"};color:${primary ? "#ffffff" : "#16365c"};font-family:Helvetica,Arial,sans-serif;font-weight:bold;font-size:15px;padding:14px 22px;border-radius:10px;text-decoration:none;text-align:center;border:1.5px solid ${primary ? "#1D9E75" : "#d9d4c5"};">${label}</a>`;
   return `<!DOCTYPE html>
 <html lang="en">
 <body style="margin:0;padding:0;background:#F7F5F0;">
-<div style="display:none;max-height:0;overflow:hidden;">Use the real DailyWins dashboard right now — no signup. Built for NPS classrooms by a special-ed teacher.</div>
+<div style="display:none;max-height:0;overflow:hidden;">The real DailyWins dashboard, live in your browser, no signup — built for NPS classrooms by a special-ed teacher.</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F7F5F0;padding:28px 12px;">
 <tr><td align="center">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
@@ -89,27 +87,27 @@ export function outreachHtmlProduct(school: OutreachSchool, to: string): string 
 
   <tr><td style="background:#FFFFFF;border:1px solid #ebe7da;border-radius:14px;padding:34px 34px 28px;font-family:Helvetica,Arial,sans-serif;font-size:15.5px;line-height:1.65;color:#1a1a2e;">
     <p style="margin:0 0 16px;">${hi}</p>
-    <p style="margin:0 0 16px;">I'm <strong>Devin Farren</strong> — I've taught special education for 16 years, and I build
-    classroom tools in and for real NPS classrooms. One of them is <strong>DailyWins</strong>: a behavior &amp;
-    goal-progress tracker made for programs like ${esc(school.name)}.</p>
+    <p style="margin:0 0 16px;">I'm <strong>Devin Farren</strong> — a Sacramento classroom teacher. I built
+    <strong>DailyWins</strong>, a behavior &amp; goal-progress tracker for non-public schools, and
+    ${esc(school.name)} is exactly the kind of school I built it for.</p>
     <p style="margin:0 0 18px;">${esc(school.missionHook)}</p>
-    <p style="margin:0 0 18px;">Rather than describe it, I set up a live version you can use right now —
-    <strong>no signup, fictional students, nothing to install</strong>. Three things, 30 seconds each:</p>
+    <p style="margin:0 0 18px;">Here's the actual product — <strong>the real dashboard, live in your browser, no
+    signup</strong>. Score a class period, rename the goals to your IEP language, flip through eight weeks of
+    charts, and print the progress report:</p>
 
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-      <tr><td style="padding:0 0 10px;">${cta(demo, "1 · Score a class — feel the speed", true)}</td></tr>
-      <tr><td style="padding:0 0 10px;">${cta(`${demo}&open=customize`, "2 · Rename goals to your IEP language", false)}</td></tr>
-      <tr><td style="padding:0 0 4px;">${cta(`${demo}&focus=report`, "3 · Print the IEP progress report", false)}</td></tr>
-    </table>
+    <p style="margin:0 0 24px;">
+      <a href="${demo}" style="display:inline-block;background:#1D9E75;color:#ffffff;font-family:Helvetica,Arial,sans-serif;font-weight:bold;font-size:15px;padding:14px 28px;border-radius:999px;text-decoration:none;">Open the live dashboard — nothing to install →</a>
+    </p>
 
-    <p style="margin:20px 0 16px;">That last one is the whole point — the dated, graphed record your placements and
-    reviews require, built as a side effect of teaching instead of reconstructed the night before a meeting.</p>
-    <p style="margin:0 0 24px;">If it's something your staff would use, the next step is a <strong>free 60-day pilot</strong> —
-    we do the setup, no card. Just reply and your teachers could be tracking by next week.</p>
+    <p style="margin:0 0 16px;">If it looks like something your staff would actually use: the
+    <strong>60-day pilot is free</strong> — no card, no auto-convert, and we do the setup (bell schedule,
+    rosters, IEP goal labels) for you. As one of the first 15 California schools, ${esc(school.name)}
+    would lock in the founding rate: <strong>$149/month flat, for life</strong>, instead of $199.</p>
+    <p style="margin:0 0 24px;"><strong>Just reply to this email</strong> and your teachers can be tracking by Friday.</p>
 
     <p style="margin:0;">— Devin</p>
-    <p style="margin:4px 0 0;font-size:13px;color:#7a7a8e;">Devin Farren · Special Education Teacher &amp; Founder, Sure Step Education<br>
-    <a href="https://dailywins.school" style="color:#1D9E75;">dailywins.school</a></p>
+    <p style="margin:4px 0 0;font-size:13px;color:#7a7a8e;">Devin Farren · Teacher &amp; Founder, Sure Step Education<br>
+    <a href="https://dailywins.school" style="color:#1D9E75;">dailywins.school</a> · Sacramento, CA</p>
   </td></tr>
 
   <tr><td style="padding:18px 12px 6px;font-family:Helvetica,Arial,sans-serif;font-size:11.5px;line-height:1.6;color:#9a9aa8;text-align:center;">
