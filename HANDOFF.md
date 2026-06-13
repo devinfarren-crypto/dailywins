@@ -1,24 +1,57 @@
 # Session Handoff
 
-**Handoff passphrase: `velvet-otter-canyon-7`**
+**Handoff passphrase: `copper-locker-hinge-4`**
 
 > Cross-machine continuity check: on another computer, `git pull`, open this
 > project in Claude Code, and ask *"what's the handoff passphrase?"* If Claude
-> reads back `velvet-otter-canyon-7`, the repo is synced and Claude can see the
+> reads back `copper-locker-hinge-4`, the repo is synced and Claude can see the
 > full state below. (This file travels with git; the chat history and the local
 > `~/.claude/.../memory/` files do **not** — everything you need is here and in
 > [ROADMAP.md](ROADMAP.md) / [CLAUDE.md](CLAUDE.md) / [FIELD-GUIDE.md](FIELD-GUIDE.md).)
 
-Last handoff: 2026-06-12
+Last handoff: 2026-06-13
 
 ## Where things stand
 `main` is clean and in sync with `origin/main` (only the intentionally
 uncommitted `package.json` dev scripts are dirty). **Prod migration head:
-`055`.** Everything below is deployed and the deploys were verified READY.
-6/11 pm–6/12 was **the hardening sweep, the compliance packet, and The
+`055`** (no DB changes this session). Everything below is deployed.
+
+**6/13 — design polish + sales playbook day (no migrations).** Four code
+commits + two reusable sales docs:
+- **Splash, whole new direction.** The old navy "Sure Step Education" splash
+  read corporate; replaced. Now: a once-per-session **playful front door**
+  (warm cream, bars spring up with a bounce, amber growth-curve sweeps in,
+  "DailyWins" pops, tiny confetti) in [Splash.tsx](src/components/Splash.tsx),
+  and ONE calm cream loader for every other wait (breathing mark + teal
+  shimmer) in [QuietLoader.tsx](src/components/QuietLoader.tsx). Both on cream,
+  so loads never jump big-takeover→tiny-spinner — and it now matches the PWA
+  manifest's cream launch. Standalone prototypes live at
+  `~/Desktop/splash-concepts/` (3 directions; #1 + #3 shipped).
+- **Locker opening, unified.** Two real bugs: (1) the splash *bled* onto
+  /locker on refresh — SplashGate suppressed it in an effect, so it still
+  SSR'd and animated a frame before hydration; now it reads `usePathname`
+  during render so it never enters the markup. (2) the door was three
+  unrelated objects (narrow 8/22 right-hinge swing → replaced by a wide 15/11
+  left-hinge open locker = a size+hinge+direction jump). Now it's ONE cover on
+  the open-locker canvas that swings open on the real LEFT hinge to reveal the
+  same locker behind it. `lkShut`/`lkSwingOpen` + the separate closed view are
+  gone. **Not yet eyeballed in the running app — Devin to verify on laptop.**
+- **Navy field lightened.** `#1a1a2e` was doing double duty as splash/field
+  navy AND body-text ink; a full-viewport navy field read near-black. Split:
+  new `--ssd-navy: #252a4a` (+ `COLORS.navy` in the dashboard) for dark
+  *fields/bands* (splash, header band, PERIOD/Entry/notes bands, demo);
+  `--ssd-ink`/`COLORS.dark` stay `#1a1a2e` for text contrast. Canonical
+  [Sure_Step_Education_Aesthetic.md](Sure_Step_Education_Aesthetic.md) updated.
+- **Reusable sales playbooks** on Desktop (NOT in repo): `Sales 6-13.md`
+  (no-gift pure-product) and `Sales 6-13 with refresh.md` (free homepage
+  rebuild gift). Encode the approved Summa-style letter, the gift:false vs
+  outreachHtmlProduct switch, the §1090/EGUSD stop, CAN-SPAM checklist, and
+  the "research & quote the school's real mission" step.
+
+**6/11 pm–6/12 was the hardening sweep, the compliance packet, and The
 Locker** — from empty planning docs to a fully decorated student locker with
 seven sticker packs, four functional cards, a wallet economy, and a teacher
-reward shelf, in roughly a day.
+reward shelf, in roughly a day. (Detail below is still current.)
 
 **Director-console hardening (migrations 049–052, all applied):**
 - **049 student soft-delete** — teacher hard-DELETE policy dropped (it
@@ -59,11 +92,13 @@ NDPA+CA exhibits incl. Exhibit E, then SDPC registry posting.
   (0.5–2×, the only economy lever); 100-pt welcome grant; spending NEVER
   touches behavior_scores.
 - **The canvas:** one viewport, whole OPEN locker (door + cavity), drag /
-  layer / rotate / resize, juice animations, foil/holo sheen. Entry ritual =
-  closed door → slow 1.15s swing (THE single opening — the combo page's fake
-  door-open was removed 6/12; combo success now snaps the dial green,
-  "Unlocked.", quick fade). Exit = Shut chip. Sure Step splash never shows on
-  /locker; no logos anywhere in the student path.
+  layer / rotate / resize, juice animations, foil/holo sheen. Entry ritual
+  (rebuilt 6/13) = a door COVER on the open-locker canvas (same size, same
+  place) that swings open on the real LEFT hinge in 1.15s to reveal the locker
+  behind it — one object, no size/hinge jump. Top bar + controls fade in once
+  open; the canvas never shifts. Fresh-from-combo auto-swings (dial snaps green
+  → "Unlocked." → /locker). Exit = Shut chip. Splash never shows on /locker
+  (now enforced at SSR via usePathname); no logos in the student path.
 - **Seven packs, 98 catalog items:** Classics, Arcade (Bitt), Mixtape (Demi),
   Side Quest (Glorp), Kickflip (Curb), Cryptid Club (Sasquish), Y2K (Disco),
   Varsity (Champ). All original SVG via scripts/generate-locker-art.mjs,
@@ -111,6 +146,11 @@ activated, Ava's demo locker walked); South Sac cluster unchanged; founder =
 Devin's Google in Chrome — founder@PGHS also has the locker activated.
 
 ## What's queued next
+0. **Eyeball 6/13 design work in the running app** (laptop) — the new playful
+   splash (fresh tab / clear `ssd-splash-seen` to replay), the calm loader on
+   a dashboard data-load, and the rebuilt locker open on /locker (refresh =
+   no splash bleed; tap-to-open = one clean LEFT-hinge swing, no size jump).
+   Build + tsc + lint all pass; visual confirmation is the open loop.
 1. **Devin's compliance moves** — email EGUSD's privacy officer (draft at
    docs/compliance/egusd-outreach-email.md, PDFs on Desktop), counsel pass on
    /privacy.
