@@ -14,12 +14,115 @@ export interface OutreachSchool {
   missionHook: string;
   /** e.g. "Est. 1971" or "" */
   estLine?: string;
+  /**
+   * When false: PURE-PRODUCT email — no homepage-refresh gift, no pitch page.
+   * The email leads with the product and its CTAs deep-link straight into the
+   * live sandbox "moments". Defaults to true (the gift version) for back-compat.
+   */
+  gift?: boolean;
 }
 
 const ORIGIN = "https://dailywins.school";
 
+// CAN-SPAM: a real physical postal address is mandatory before any real-list
+// send. This placeholder is fine for a dry run to a test inbox; replace it.
+const POSTAL_ADDRESS = "Sure Step Education · Sacramento, CA"; // TODO: real street address before real sends
+const unsubLink = (to: string) =>
+  `mailto:support@surestepeducation.com?subject=${encodeURIComponent(`Unsubscribe ${to}`)}`;
+
 export function outreachSubject(school: OutreachSchool): string {
+  if (school.gift === false) {
+    return `Built this for programs like ${school.name}`;
+  }
   return `I rebuilt ${school.name}'s front page — it's yours, free`;
+}
+
+// ── Pure-product variant (gift === false) ───────────────────────────────────
+// NPS-director pitch, no gift. Three CTAs, each deep-linking to a live-sandbox
+// moment: the speed of the grid, the IEP-goal editor, the printed report.
+export function outreachTextProduct(school: OutreachSchool, to: string): string {
+  const demo = `${ORIGIN}/demo?school=${school.slug}`;
+  return [
+    `Hi${school.directorFirstName ? ` ${school.directorFirstName}` : ""},`,
+    "",
+    `I'm Devin Farren — I've taught special education for 16 years, and I build classroom tools in and for real NPS classrooms. One of them is DailyWins: a behavior and goal-progress tracker made for programs like ${school.name}.`,
+    "",
+    school.missionHook,
+    "",
+    `Rather than describe it, I set up a live version you can use right now — no signup, fictional students, nothing to install. Three things worth 30 seconds each:`,
+    "",
+    `1. Score a class the way your teachers would: ${demo}`,
+    `2. Rename the goals to your exact IEP language: ${demo}&open=customize`,
+    `3. Print the IEP progress report it builds for you: ${demo}&focus=report`,
+    "",
+    `That last one is the whole point — the dated, graphed record your placements and reviews require, built as a side effect of teaching instead of reconstructed the night before a meeting.`,
+    "",
+    `If it's something your staff would use, the next step is a free 60-day pilot — we do the setup, no card. Just reply and your teachers could be tracking by next week.`,
+    "",
+    `— Devin`,
+    `Devin Farren · Special Education Teacher & Founder, Sure Step Education`,
+    `dailywins.school`,
+    "",
+    `${POSTAL_ADDRESS}. You received this one note because ${school.name} serves students in a way I respect. To opt out, reply "no thanks" or use ${unsubLink(to)} and you won't hear from me again.`,
+  ].join("\n");
+}
+
+export function outreachHtmlProduct(school: OutreachSchool, to: string): string {
+  const demo = `${ORIGIN}/demo?school=${school.slug}`;
+  const hi = `Hi${school.directorFirstName ? ` ${esc(school.directorFirstName)}` : ""},`;
+  const cta = (href: string, label: string, primary: boolean) =>
+    `<a href="${href}" style="display:block;background:${primary ? "#1D9E75" : "#FFFFFF"};color:${primary ? "#ffffff" : "#16365c"};font-family:Helvetica,Arial,sans-serif;font-weight:bold;font-size:15px;padding:14px 22px;border-radius:10px;text-decoration:none;text-align:center;border:1.5px solid ${primary ? "#1D9E75" : "#d9d4c5"};">${label}</a>`;
+  return `<!DOCTYPE html>
+<html lang="en">
+<body style="margin:0;padding:0;background:#F7F5F0;">
+<div style="display:none;max-height:0;overflow:hidden;">Use the real DailyWins dashboard right now — no signup. Built for NPS classrooms by a special-ed teacher.</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F7F5F0;padding:28px 12px;">
+<tr><td align="center">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+
+  <tr><td style="padding:0 8px 14px;">
+    <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+      <td style="font-family:Georgia,serif;font-size:19px;color:#1a1a2e;">DailyWins</td>
+      <td style="font-family:Courier,monospace;font-size:10px;letter-spacing:2px;color:#7a7a8e;padding-left:10px;">SURE STEP EDUCATION</td>
+    </tr></table>
+  </td></tr>
+
+  <tr><td style="background:#FFFFFF;border:1px solid #ebe7da;border-radius:14px;padding:34px 34px 28px;font-family:Helvetica,Arial,sans-serif;font-size:15.5px;line-height:1.65;color:#1a1a2e;">
+    <p style="margin:0 0 16px;">${hi}</p>
+    <p style="margin:0 0 16px;">I'm <strong>Devin Farren</strong> — I've taught special education for 16 years, and I build
+    classroom tools in and for real NPS classrooms. One of them is <strong>DailyWins</strong>: a behavior &amp;
+    goal-progress tracker made for programs like ${esc(school.name)}.</p>
+    <p style="margin:0 0 18px;">${esc(school.missionHook)}</p>
+    <p style="margin:0 0 18px;">Rather than describe it, I set up a live version you can use right now —
+    <strong>no signup, fictional students, nothing to install</strong>. Three things, 30 seconds each:</p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr><td style="padding:0 0 10px;">${cta(demo, "1 · Score a class — feel the speed", true)}</td></tr>
+      <tr><td style="padding:0 0 10px;">${cta(`${demo}&open=customize`, "2 · Rename goals to your IEP language", false)}</td></tr>
+      <tr><td style="padding:0 0 4px;">${cta(`${demo}&focus=report`, "3 · Print the IEP progress report", false)}</td></tr>
+    </table>
+
+    <p style="margin:20px 0 16px;">That last one is the whole point — the dated, graphed record your placements and
+    reviews require, built as a side effect of teaching instead of reconstructed the night before a meeting.</p>
+    <p style="margin:0 0 24px;">If it's something your staff would use, the next step is a <strong>free 60-day pilot</strong> —
+    we do the setup, no card. Just reply and your teachers could be tracking by next week.</p>
+
+    <p style="margin:0;">— Devin</p>
+    <p style="margin:4px 0 0;font-size:13px;color:#7a7a8e;">Devin Farren · Special Education Teacher &amp; Founder, Sure Step Education<br>
+    <a href="https://dailywins.school" style="color:#1D9E75;">dailywins.school</a></p>
+  </td></tr>
+
+  <tr><td style="padding:18px 12px 6px;font-family:Helvetica,Arial,sans-serif;font-size:11.5px;line-height:1.6;color:#9a9aa8;text-align:center;">
+    ${esc(POSTAL_ADDRESS)}<br>
+    You received this one note because ${esc(school.name)} serves students in a way I respect.
+    <a href="${unsubLink(to)}" style="color:#9a9aa8;text-decoration:underline;">Unsubscribe</a> and you won't hear from me again.
+  </td></tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
 }
 
 export function outreachText(school: OutreachSchool): string {

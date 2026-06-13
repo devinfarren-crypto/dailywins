@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
-import { outreachHtml, outreachText, outreachSubject, type OutreachSchool } from "@/src/lib/outreach-email";
+import {
+  outreachHtml,
+  outreachText,
+  outreachSubject,
+  outreachHtmlProduct,
+  outreachTextProduct,
+  type OutreachSchool,
+} from "@/src/lib/outreach-email";
 
 // Founder outreach sender — the send arm of the NPS sales system.
 // Auth: the caller must present the service-role key as a bearer token
@@ -41,6 +48,7 @@ export async function POST(req: NextRequest) {
   const address = fromEnv.match(/<([^>]+)>/)?.[1] ?? fromEnv;
   const from = `Devin Farren · DailyWins <${address}>`;
 
+  const pureProduct = school.gift === false;
   try {
     const resend = new Resend(apiKey);
     const { data, error } = await resend.emails.send({
@@ -48,8 +56,8 @@ export async function POST(req: NextRequest) {
       to,
       replyTo: "support@surestepeducation.com",
       subject: body?.subject?.trim() || outreachSubject(school),
-      text: outreachText(school),
-      html: outreachHtml(school),
+      text: pureProduct ? outreachTextProduct(school, to) : outreachText(school),
+      html: pureProduct ? outreachHtmlProduct(school, to) : outreachHtml(school),
     });
     if (error) {
       return NextResponse.json({ ok: false, error: error.message }, { status: 502 });

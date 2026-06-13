@@ -7,7 +7,7 @@
 // actual printable record PDF — running on fictional students held in
 // memory. No login, no database, nothing saved.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import BehaviorCharts, {
   type CategoryDef,
@@ -16,7 +16,13 @@ import BehaviorCharts, {
 
 const SCHOOL_NAMES: Record<string, string> = {
   "phillips-academy": "The Phillips Academy",
+  "summa-academy": "Summa Academy",
 };
+
+// Slugs that have a /for/<slug> pitch page — the only ones that get a
+// "back to your page" link (otherwise it would 404). Pure-product runs
+// deep-link straight here and have no pitch page.
+const PITCH_PAGE_SLUGS = new Set(["phillips-academy"]);
 
 interface DemoCat extends CategoryDef {
   options?: string[];
@@ -87,16 +93,33 @@ function buildHistory(): Record<string, ChartScoreRow[]> {
 
 export default function DemoClient() {
   const params = useSearchParams();
-  const schoolName = SCHOOL_NAMES[params.get("school") ?? ""] ?? "Your School";
-  const backTo = SCHOOL_NAMES[params.get("school") ?? ""] ? `/for/${params.get("school")}` : null;
+  const slug = params.get("school") ?? "";
+  const schoolName = SCHOOL_NAMES[slug] ?? "Your School";
+  const backTo = PITCH_PAGE_SLUGS.has(slug) ? `/for/${slug}` : null;
+  // Deep-link "moments" the email CTAs point at: ?open=customize lands in the
+  // IEP-goal editor; ?focus=report scrolls to and pulses the report button.
+  const openParam = params.get("open");
+  const focusParam = params.get("focus");
 
   const [cats, setCats] = useState<DemoCat[]>(DEFAULT_CATS);
   const [period, setPeriod] = useState(3);
   const [today, setToday] = useState<TodayState>({});
   const [chartStudent, setChartStudent] = useState("s1");
-  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [customizeOpen, setCustomizeOpen] = useState(openParam === "customize");
   const [pdfBusy, setPdfBusy] = useState(false);
   const [taps, setTaps] = useState(0);
+  const [reportPulse, setReportPulse] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
+
+  // Land the visitor on the moment the email promised.
+  useEffect(() => {
+    if (focusParam === "report" && reportRef.current) {
+      reportRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+      setReportPulse(true);
+      const t = setTimeout(() => setReportPulse(false), 2600);
+      return () => clearTimeout(t);
+    }
+  }, [focusParam]);
 
   const history = useMemo(buildHistory, []);
   const todayISO = localISO(new Date());
@@ -395,7 +418,7 @@ export default function DemoClient() {
         </div>
 
         {/* the artifact */}
-        <div style={{ ...card, padding: "26px 26px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 18, flexWrap: "wrap", background: "var(--ssd-navy, #1a1a2e)", border: "none" }}>
+        <div ref={reportRef} style={{ ...card, padding: "26px 26px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 18, flexWrap: "wrap", background: "var(--ssd-navy, #1a1a2e)", border: "none", outline: reportPulse ? "3px solid var(--ssd-teal-light, #5DCAA5)" : "3px solid transparent", outlineOffset: 4, transition: "outline-color .4s ease", boxShadow: reportPulse ? "0 0 0 6px rgba(93,202,165,.25)" : "none" }}>
           <div style={{ color: "#fff", maxWidth: 520 }}>
             <div style={{ fontFamily: "var(--ssd-font-display, 'DM Serif Display', Georgia, serif)", fontSize: 24, marginBottom: 6 }}>
               Now hold the meeting artifact.
