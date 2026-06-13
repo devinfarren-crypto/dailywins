@@ -1,63 +1,83 @@
-// Unified opening splash — the Sure Step Education "front door" (aesthetic MD §5).
-// Navy field, the ascending-bars logo drawing itself, the wordmark fading up.
-// Used as the SINGLE loading screen everywhere (landing auth-check, dashboard
-// shell, dashboard data load) so route transitions read as one smooth moment
-// instead of three different cards flashing different colors/text.
+// The opening splash — DailyWins' once-per-session "front door" (SplashGate).
+// Warm cream stage: the ascending bars spring up with a bounce, the amber
+// growth-curve sweeps to its dot, the "DailyWins" wordmark pops in, and a small
+// confetti burst celebrates. Playful on purpose — the product is kids earning
+// wins, not a consulting deck. See splash-concepts/1-playful-brand.html.
 //
 // Fonts come from the global --ssd-font-* CSS vars (set by next/font in
-// layout.tsx), so DM Serif Display / DM Mono render on every page.
-export default function Splash({ label = "DailyWins", fading = false }: { label?: string; fading?: boolean }) {
+// layout.tsx). `fading` drives the dissolve handled by SplashGate.
+const CONFETTI = [
+  { tx: "-120px", ty: "-90px", color: "#EF9F27" },
+  { tx: "120px", ty: "-80px", color: "#1D9E75" },
+  { tx: "-90px", ty: "60px", color: "#0F6E56" },
+  { tx: "140px", ty: "40px", color: "#5DCAA5" },
+  { tx: "0px", ty: "-130px", color: "#EF9F27" },
+];
+
+export default function Splash({ fading = false }: { label?: string; fading?: boolean }) {
   return (
     <div
       style={{
         position: "fixed",
         inset: 0,
         zIndex: 9999,
-        background: "var(--ssd-navy, #252a4a)",
+        background:
+          "radial-gradient(120% 120% at 50% 18%, #fffdf8 0%, var(--ssd-paper, #F7F5F0) 46%, var(--ssd-surface-alt, #EFEBE0) 100%)",
         display: "flex",
-        flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        // Dissolve out (MD §5): fade + slight scale-up over 0.6s.
+        overflow: "hidden",
+        // Dissolve out: fade + slight scale-up over 0.6s (driven by SplashGate).
         opacity: fading ? 0 : 1,
-        transform: fading ? "scale(1.05)" : "scale(1)",
+        transform: fading ? "scale(1.04)" : "scale(1)",
         transition: "opacity 0.6s ease, transform 0.6s ease",
         pointerEvents: fading ? "none" : "auto",
       }}
     >
       <style>{`
-        @keyframes ssBarGrow { from { transform: scaleY(0) } to { transform: scaleY(1) } }
+        @keyframes ssGrow { 0% { transform: scaleY(0) } 70% { transform: scaleY(1.08) } 100% { transform: scaleY(1) } }
         @keyframes ssDraw { to { stroke-dashoffset: 0 } }
-        @keyframes ssFadeUp { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
-        @keyframes ssPulse { 0%, 100% { opacity: 1 } 50% { opacity: 0.5 } }
-        .ss-bar { transform-box: fill-box; transform-origin: bottom; animation: ssBarGrow 0.6s cubic-bezier(.22,1,.36,1) both; }
-        .ss-curve { stroke-dasharray: 210; stroke-dashoffset: 210; animation: ssDraw 0.85s ease 0.55s forwards; }
-        .ss-dot { opacity: 0; animation: ssFadeUp 0.4s ease 1s forwards, ssPulse 2.6s ease 1.6s infinite; }
-        .ss-word { animation: ssFadeUp 0.7s ease 0.55s both; }
+        @keyframes ssPop { 0% { opacity: 0; transform: scale(0) } 60% { opacity: 1; transform: scale(1.3) } 100% { opacity: 1; transform: scale(1) } }
+        @keyframes ssRise { to { opacity: 1; transform: translateY(0) scale(1) } }
+        @keyframes ssFly { 0% { opacity: 1; transform: translate(0,0) rotate(0) } 100% { opacity: 0; transform: translate(var(--tx), var(--ty)) rotate(220deg) } }
+
+        .ss-bar { transform-box: fill-box; transform-origin: bottom; transform: scaleY(0); animation: ssGrow 0.9s cubic-bezier(.2,1.25,.4,1) forwards; }
+        .ss-curve { stroke-dasharray: 340; stroke-dashoffset: 340; animation: ssDraw 0.8s ease-out 0.62s forwards; }
+        .ss-dot { opacity: 0; transform: scale(0); transform-box: fill-box; transform-origin: center; animation: ssPop 0.5s cubic-bezier(.2,1.4,.4,1) 1.05s forwards; }
+        .ss-word { opacity: 0; transform: translateY(14px) scale(.9); animation: ssRise 0.7s cubic-bezier(.2,1.3,.35,1) 0.95s forwards; }
+        .ss-confetti i { position: absolute; left: 50%; top: 40%; width: 9px; height: 9px; border-radius: 2px; opacity: 0; animation: ssFly 0.9s ease-out 1.05s forwards; }
+
         @media (prefers-reduced-motion: reduce) {
-          .ss-bar, .ss-curve, .ss-dot, .ss-word {
-            animation: none !important;
-            opacity: 1 !important;
-            transform: none !important;
-            stroke-dashoffset: 0 !important;
-          }
+          .ss-bar { transform: scaleY(1) !important; animation: none !important; }
+          .ss-curve { stroke-dashoffset: 0 !important; animation: none !important; }
+          .ss-dot, .ss-word { opacity: 1 !important; transform: none !important; animation: none !important; }
+          .ss-confetti i { display: none !important; }
         }
       `}</style>
 
-      <svg width="96" height="96" viewBox="0 0 200 200" aria-hidden="true">
-        <rect className="ss-bar" style={{ animationDelay: "0.15s" }} x="38" y="120" width="22" height="40" rx="3" fill="#E1F5EE" />
-        <rect className="ss-bar" style={{ animationDelay: "0.30s" }} x="68" y="98" width="22" height="62" rx="3" fill="#5DCAA5" />
-        <rect className="ss-bar" style={{ animationDelay: "0.45s" }} x="98" y="74" width="22" height="86" rx="3" fill="#1D9E75" />
-        <rect className="ss-bar" style={{ animationDelay: "0.60s" }} x="128" y="48" width="22" height="112" rx="3" fill="#0F6E56" />
-        <path className="ss-curve" d="M38 150 C 78 124, 128 100, 158 36" stroke="#EF9F27" strokeWidth="4" strokeLinecap="round" fill="none" />
-        <circle className="ss-dot" cx="158" cy="36" r="6" fill="#EF9F27" />
-      </svg>
+      <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <svg width="220" height="176" viewBox="0 0 230 184" aria-hidden="true">
+          <rect className="ss-bar" style={{ animationDelay: "0.10s" }} x="6" y="100" width="40" height="78" rx="6" fill="#5DCAA5" />
+          <rect className="ss-bar" style={{ animationDelay: "0.24s" }} x="58" y="68" width="40" height="110" rx="6" fill="#1D9E75" />
+          <rect className="ss-bar" style={{ animationDelay: "0.38s" }} x="110" y="40" width="40" height="138" rx="6" fill="#0F6E56" />
+          <rect className="ss-bar" style={{ animationDelay: "0.52s" }} x="162" y="14" width="40" height="164" rx="6" fill="var(--ssd-navy, #252a4a)" />
+          <path className="ss-curve" d="M14 150 C70 140, 110 86, 182 24" fill="none" stroke="#EF9F27" strokeWidth="7" strokeLinecap="round" />
+          <circle className="ss-dot" cx="182" cy="24" r="9" fill="#EF9F27" />
+        </svg>
 
-      <div className="ss-word" style={{ textAlign: "center", marginTop: 24 }}>
-        <div style={{ fontFamily: "var(--ssd-font-display), Georgia, serif", fontSize: 32, lineHeight: 1.05, color: "#ffffff" }}>Sure Step</div>
-        <div style={{ fontFamily: "var(--ssd-font-display), Georgia, serif", fontSize: 21, color: "#5DCAA5" }}>Education</div>
-        <div style={{ fontFamily: "var(--ssd-font-mono), ui-monospace, monospace", fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(255,255,255,0.45)", marginTop: 12 }}>
-          {label}
+        <div className="ss-word" style={{ textAlign: "center", marginTop: 26 }}>
+          <div style={{ fontFamily: "var(--ssd-font-display), Georgia, serif", fontSize: 50, lineHeight: 1, letterSpacing: "-0.5px", color: "var(--ssd-ink, #1a1a2e)" }}>
+            Daily<span style={{ color: "#EF9F27" }}>Wins</span>
+          </div>
+          <div style={{ marginTop: 8, fontFamily: "var(--ssd-font-body), system-ui, sans-serif", fontSize: 15, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#1D9E75" }}>
+            Every period, a win
+          </div>
+        </div>
+
+        <div className="ss-confetti" aria-hidden="true">
+          {CONFETTI.map((c, i) => (
+            <i key={i} style={{ "--tx": c.tx, "--ty": c.ty, background: c.color } as React.CSSProperties} />
+          ))}
         </div>
       </div>
     </div>
