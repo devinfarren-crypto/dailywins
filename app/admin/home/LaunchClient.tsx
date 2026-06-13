@@ -39,7 +39,7 @@ interface LaunchProps {
 type StepKey = "meet" | "teacher" | "schedule" | "links" | "records";
 
 const EASE = "cubic-bezier(.22,1,.36,1)";
-const NAVY = "#1a1a2e";
+const NAVY = "#252a4a";
 const NAVY_SOFT = "#2a2b48";
 const FOREST = "#0F6E56";
 const TEAL = "#1D9E75";

@@ -13,7 +13,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     <main
       style={{
         minHeight: "100vh",
-        background: "var(--ssd-ink, #1a1a2e)",
+        background: "var(--ssd-navy, #252a4a)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",

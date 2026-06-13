@@ -13,7 +13,7 @@ export default function Splash({ label = "DailyWins", fading = false }: { label?
         position: "fixed",
         inset: 0,
         zIndex: 9999,
-        background: "#1a1a2e",
+        background: "var(--ssd-navy, #252a4a)",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",

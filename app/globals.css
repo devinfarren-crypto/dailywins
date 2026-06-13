@@ -7,7 +7,8 @@
    ────────────────────────────────────────────────────────────────────────── */
 :root {
   /* brand (navy structure · forest CTA · teal signature accent · amber warmth) */
-  --ssd-ink: #1a1a2e;        /* navy */
+  --ssd-ink: #1a1a2e;        /* navy — body text / headings (kept dark for contrast) */
+  --ssd-navy: #252a4a;       /* navy field — splash & dark sections (lighter than ink, by design) */
   --ssd-ink-soft: #2a2b48;   /* navy-soft */
   --ssd-green: #1D9E75;      /* teal — signature accent */
   --ssd-green-deep: #0F6E56; /* forest — primary CTAs */
@@ -47,6 +48,7 @@
   --color-foreground: var(--foreground);
 
   --color-ink: var(--ssd-ink);
+  --color-navy: var(--ssd-navy);
   --color-ink-soft: var(--ssd-ink-soft);
   --color-green: var(--ssd-green);
   --color-green-deep: var(--ssd-green-deep);

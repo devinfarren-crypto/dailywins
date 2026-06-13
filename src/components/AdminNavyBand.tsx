@@ -11,7 +11,7 @@ import React from "react";
 // components alike. `title`/`sub` render inline on one row (wrapping on small
 // screens); `action` is an optional right-aligned control.
 
-const NAVY = "#1a1a2e";
+const NAVY = "#252a4a";
 const NAVY_SOFT = "#2a2b48";
 const TEAL = "#1D9E75";
 const TEAL_LIGHT = "#5DCAA5";

@@ -24,7 +24,7 @@ Use the role name in code, not the raw hex. That's what keeps every project in s
 
 | Token | Hex | Role |
 |-------|-----|------|
-| `--navy` | `#1a1a2e` | Primary dark. Headers, headings, splash background, dark sections. |
+| `--navy` | `#252a4a` | Primary dark **field** — splash background, dark sections, header bands. A touch lighter than ink, by design (a full-viewport `#1a1a2e` field read too black). |
 | `--navy-soft` | `#2a2b48` | Softer navy for layered dark surfaces. |
 | `--forest` | `#0F6E56` | Deep green. Primary buttons / CTAs, footer. |
 | `--teal` | `#1D9E75` | **Signature accent.** Links, secondary actions, active states. |
@@ -40,7 +40,7 @@ Use the role name in code, not the raw hex. That's what keeps every project in s
 | `--cream` | `#F7F5F0` | Page background (warm cream). |
 | `--cream-deep` | `#EFEBE0` | Alternate / banded surface. |
 | `--surface` | `#FFFFFF` | Cards, panels, modals. |
-| `--ink` | `#1a1a2e` | Primary body text (same as navy). |
+| `--ink` | `#1a1a2e` | Primary body text. The darkest blue — kept near-black for text contrast (the navy *field* is the lighter `#252a4a`). |
 | `--ink-2` | `#4a4a5e` | Secondary text, paragraph copy. |
 | `--ink-3` | `#7a7a8e` | Muted text, captions, metadata. |
 | `--rule` | `#d9d4c5` | Hairlines, dividers, borders. |
@@ -153,7 +153,7 @@ Restraint over flourish. One orchestrated moment beats scattered effects, and ev
 Every app opens the same way: navy field, the ascending-bars logo drawing itself, the wordmark fading up, then a clean dissolve into the page. This is the single most recognizable shared moment across the suite — keep it consistent.
 
 **Spec:**
-- Background: `--navy` (`#1a1a2e`), full viewport.
+- Background: `--navy` (`#252a4a`), full viewport.
 - Icon: inline SVG bar-chart / staircase with the amber growth curve (below). Use SVG on dark, never the JPG — the JPG has a white box and washes out.
 - Sequence: icon fades up (0.15s delay) → wordmark fades up (0.35s) → four bars grow left-to-right (0.55s / 0.7s / 0.85s / 1.0s) → optional Skip button (1.2s).
 - Auto-dismiss after ~2.2s; dissolve with `opacity` + slight `scale(1.05)` over 0.6s.
@@ -206,7 +206,7 @@ Shape: `--radius-pill`. Padding ~`14px 22px`. Hover lifts `translateY(-1px)`.
 - [ ] Google Fonts link in `<head>` (DM trio above).
 - [ ] CSS reset: `*{margin:0;padding:0;box-sizing:border-box;}`
 - [ ] Tokens defined in `:root` (copy §1–3 values).
-- [ ] `<meta name="theme-color" content="#1a1a2e">`
+- [ ] `<meta name="theme-color" content="#252a4a">`
 - [ ] Splash uses inline SVG, not the JPG.
 - [ ] Visible keyboard focus + `prefers-reduced-motion` honored.
 - [ ] Company name written "Sure Step Education" — two words, never "SureStep".
@@ -217,8 +217,9 @@ Shape: `--radius-pill`. Padding ~`14px 22px`. Hover lifts `translateY(-1px)`.
 
 ```
 CORE
-  Navy        #1a1a2e   structure, dark sections, splash
+  Navy        #252a4a   structure, dark sections, splash (field)
   Navy soft   #2a2b48   layered dark
+  Ink         #1a1a2e   text only (darkest blue, not a field)
   Forest      #0F6E56   primary CTA, footer
   Teal        #1D9E75   signature accent, links
   Teal light  #5DCAA5   gradients, hovers

@@ -32,7 +32,7 @@ const COLORS = {
 };
 
 const THEMES: Record<string, { name: string; header: string; primary: string; secondary: string; accent: string; bg: string; swatch: string[] }> = {
-  default: { name: "Sure Step", header: "#1a1a2e", primary: "#0F6E56", secondary: "#1D9E75", accent: "#EF9F27", bg: "#F7F5F0", swatch: ["#1a1a2e", "#1D9E75", "#EF9F27"] },
+  default: { name: "Sure Step", header: "#252a4a", primary: "#0F6E56", secondary: "#1D9E75", accent: "#EF9F27", bg: "#F7F5F0", swatch: ["#252a4a", "#1D9E75", "#EF9F27"] },
   classic: { name: "DailyWins", header: "#2c3e50", primary: "#e07850", secondary: "#3a7c6a", accent: "#f0b647", bg: "#f5f5f0", swatch: ["#2c3e50", "#e07850", "#3a7c6a"] },
   steelBlue: { name: "Steel Blue", header: "#34495e", primary: "#2980b9", secondary: "#27ae60", accent: "#f39c12", bg: "#eef3f7", swatch: ["#34495e", "#2980b9", "#27ae60"] },
   sage: { name: "Sage Green", header: "#2d5a3d", primary: "#8e6b47", secondary: "#5d8a68", accent: "#d4a76a", bg: "#eff5f1", swatch: ["#2d5a3d", "#5d8a68", "#8e6b47"] },
@@ -2283,7 +2283,7 @@ export default function DashboardClient() {
           <a
             href="/locker/manage"
             style={{
-              background: "#1a1a2e",
+              background: "#252a4a",
               color: "#5DCAA5",
               border: "none",
               borderRadius: 6,
